@@ -65,7 +65,7 @@ public class RelatorioService {
                     
                     return dto;
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
