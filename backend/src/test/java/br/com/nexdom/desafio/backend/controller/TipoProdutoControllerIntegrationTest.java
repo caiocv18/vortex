@@ -14,13 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-public class TipoProdutoControllerIntegrationTest {
+class TipoProdutoControllerIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
 
     @Test
-    public void testCreateTipoProduto() {
+    void testCreateTipoProduto() {
         // Arrange
         TipoProdutoDTO tipoProdutoDTO = new TipoProdutoDTO();
         tipoProdutoDTO.setNome("Teste Integração");
@@ -39,7 +39,7 @@ public class TipoProdutoControllerIntegrationTest {
     }
 
     @Test
-    public void testGetTipoProdutoById() {
+    void testGetTipoProdutoById() {
         // Arrange - First create a tipo produto
         TipoProdutoDTO tipoProdutoDTO = new TipoProdutoDTO();
         tipoProdutoDTO.setNome("Teste Get By ID");
@@ -47,7 +47,8 @@ public class TipoProdutoControllerIntegrationTest {
                 "/api/tipos-produto",
                 tipoProdutoDTO,
                 TipoProdutoDTO.class);
-        
+
+        assertNotNull(createResponse.getBody());
         Long id = createResponse.getBody().getId();
 
         // Act
