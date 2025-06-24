@@ -21,7 +21,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class TipoProdutoControllerUnitTest {
+class TipoProdutoControllerUnitTest {
 
     @Mock
     private TipoProdutoService tipoProdutoService;
@@ -50,17 +50,14 @@ public class TipoProdutoControllerUnitTest {
     }
 
     @Test
-    public void testCriar() {
-        // Arrange
+    void testCriar() {
         TipoProdutoDTO inputDTO = new TipoProdutoDTO();
         inputDTO.setNome("Eletrônicos");
         
         when(tipoProdutoService.criar(any(TipoProdutoDTO.class))).thenReturn(tipoProdutoDTO);
 
-        // Act
         ResponseEntity<TipoProdutoDTO> response = tipoProdutoController.criar(inputDTO);
 
-        // Assert
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().getId());
@@ -68,14 +65,11 @@ public class TipoProdutoControllerUnitTest {
     }
 
     @Test
-    public void testBuscarTodos() {
-        // Arrange
+    void testBuscarTodos() {
         when(tipoProdutoService.buscarTodos()).thenReturn(tipoProdutoDTOList);
 
-        // Act
         ResponseEntity<List<TipoProdutoDTO>> response = tipoProdutoController.buscarTodos();
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(3, response.getBody().size());
@@ -85,14 +79,11 @@ public class TipoProdutoControllerUnitTest {
     }
 
     @Test
-    public void testBuscarPorId() {
-        // Arrange
+    void testBuscarPorId() {
         when(tipoProdutoService.buscarPorId(1L)).thenReturn(tipoProdutoDTO);
 
-        // Act
         ResponseEntity<TipoProdutoDTO> response = tipoProdutoController.buscarPorId(1L);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().getId());
@@ -100,8 +91,7 @@ public class TipoProdutoControllerUnitTest {
     }
 
     @Test
-    public void testAtualizar() {
-        // Arrange
+    void testAtualizar() {
         TipoProdutoDTO inputDTO = new TipoProdutoDTO();
         inputDTO.setNome("Eletrônicos Atualizados");
         
@@ -111,10 +101,8 @@ public class TipoProdutoControllerUnitTest {
         
         when(tipoProdutoService.atualizar(eq(1L), any(TipoProdutoDTO.class))).thenReturn(updatedDTO);
 
-        // Act
         ResponseEntity<TipoProdutoDTO> response = tipoProdutoController.atualizar(1L, inputDTO);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().getId());
