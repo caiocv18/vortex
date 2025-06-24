@@ -13,27 +13,23 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class TipoProdutoControllerTest {
+class TipoProdutoControllerTest {
 
     @Autowired
     private TipoProdutoController tipoProdutoController;
 
     @Test
-    public void testControllerLoads() {
-        // This test will pass if the controller is autowired successfully
+    void testControllerLoads() {
         assertNotNull(tipoProdutoController);
     }
 
     @Test
-    public void testCriar() {
-        // Arrange
+    void testCriar() {
         TipoProdutoDTO tipoProdutoDTO = new TipoProdutoDTO();
         tipoProdutoDTO.setNome("Teste Unitário");
 
-        // Act
         ResponseEntity<TipoProdutoDTO> response = tipoProdutoController.criar(tipoProdutoDTO);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
