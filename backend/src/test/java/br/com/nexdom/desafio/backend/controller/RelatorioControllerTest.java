@@ -12,19 +12,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class RelatorioControllerTest {
+class RelatorioControllerTest {
 
     @Autowired
     private RelatorioController relatorioController;
 
     @Test
-    public void testControllerLoads() {
+    void testControllerLoads() {
         // This test will pass if the controller is autowired successfully
         assertNotNull(relatorioController);
     }
 
     @Test
-    public void testGerarRelatorioLucroPorProduto() {
+    void testGerarRelatorioLucroPorProduto() {
         // This test will verify that we can generate a profit report by product
         ResponseEntity<?> response = relatorioController.gerarRelatorioLucroPorProduto();
 
