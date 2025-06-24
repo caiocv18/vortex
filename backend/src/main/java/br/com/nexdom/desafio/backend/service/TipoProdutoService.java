@@ -55,7 +55,7 @@ public class TipoProdutoService {
         
         return tiposProduto.stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
