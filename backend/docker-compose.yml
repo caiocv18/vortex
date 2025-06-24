@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  oracle-db:
+    image: ruchinksinha/oracledb:19.3.0.0
+    ports:
+      - "${ORACLE_PORT}:1521"
+    environment:
+      - ORACLE_PWD=${ORACLE_PASSWORD}
+      - ORACLE_SID=${ORACLE_DB}
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    networks:
+      - nexdom-network
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "sys/${ORACLE_PASSWORD}@//localhost:1521/${ORACLE_DB} as sysdba", "@healthcheck.sql"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    profiles:
+      - prd
+
+networks:
+  nexdom-network:
+    driver: bridge
+
+volumes:
+  oracle-data:
