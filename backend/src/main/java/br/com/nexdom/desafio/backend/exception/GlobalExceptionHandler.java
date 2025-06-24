@@ -1,5 +1,6 @@
 package br.com.nexdom.desafio.backend.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -58,7 +59,7 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException exception, WebRequest webRequest) {
         
         Map<String, String> errors = new HashMap<>();
-        exception.getBindingResult().getAllErrors().forEach((error) -> {
+        exception.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
@@ -93,11 +94,12 @@ public class GlobalExceptionHandler {
     /**
      * Classe para detalhes de erro.
      */
+    @Getter
     public static class ErrorDetails {
-        private LocalDateTime timestamp;
-        private String message;
-        private String details;
-        private String errorCode;
+        private final LocalDateTime timestamp;
+        private final String message;
+        private final String details;
+        private final String errorCode;
 
         public ErrorDetails(LocalDateTime timestamp, String message, String details, String errorCode) {
             this.timestamp = timestamp;
@@ -106,28 +108,14 @@ public class GlobalExceptionHandler {
             this.errorCode = errorCode;
         }
 
-        public LocalDateTime getTimestamp() {
-            return timestamp;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public String getDetails() {
-            return details;
-        }
-
-        public String getErrorCode() {
-            return errorCode;
-        }
     }
 
     /**
      * Classe para detalhes de erro de validação.
      */
+    @Getter
     public static class ValidationErrorDetails extends ErrorDetails {
-        private Map<String, String> errors;
+        private final Map<String, String> errors;
 
         public ValidationErrorDetails(LocalDateTime timestamp, String message, String details, 
                                      String errorCode, Map<String, String> errors) {
@@ -135,8 +123,5 @@ public class GlobalExceptionHandler {
             this.errors = errors;
         }
 
-        public Map<String, String> getErrors() {
-            return errors;
-        }
     }
 }
