@@ -12,18 +12,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class ProdutoControllerTest {
+class ProdutoControllerTest {
 
     @Autowired
     private ProdutoController produtoController;
 
     @Test
-    public void testControllerLoads() {
+    void testControllerLoads() {
         assertNotNull(produtoController);
     }
 
     @Test
-    public void testBuscarTodos() {
+    void testBuscarTodos() {
         ResponseEntity<?> response = produtoController.buscarTodos();
 
         assertNotNull(response);
