@@ -69,7 +69,7 @@ public class ProdutoService {
         
         return produtos.stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
