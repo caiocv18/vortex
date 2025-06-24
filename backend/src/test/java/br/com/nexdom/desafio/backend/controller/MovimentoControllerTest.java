@@ -12,19 +12,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class MovimentoControllerTest {
+class MovimentoControllerTest {
 
     @Autowired
     private MovimentoController movimentoController;
 
     @Test
-    public void testControllerLoads() {
+    void testControllerLoads() {
         // This test will pass if the controller is autowired successfully
         assertNotNull(movimentoController);
     }
 
     @Test
-    public void testBuscarTodos() {
+    void testBuscarTodos() {
         // This test will verify that we can get all inventory movements
         ResponseEntity<?> response = movimentoController.buscarTodos();
 
