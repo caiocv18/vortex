@@ -98,7 +98,7 @@ public class MovimentoEstoqueService {
         
         return movimentos.stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
