@@ -12,14 +12,24 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "generate-api": "openapi-generator-cli generate -i ../docs/openapi-backend.json -g typescript-axios -o src/api/generated --skip-validate-spec"
   },
   "dependencies": {
+    "@mdi/font": "^7.4.47",
+    "@vee-validate/rules": "^4.15.1",
+    "axios": "^1.10.0",
+    "chart.js": "^4.5.0",
     "pinia": "^3.0.3",
+    "vee-validate": "^4.15.1",
     "vue": "^3.5.17",
-    "vue-router": "^4.5.1"
+    "vue-chartjs": "^5.3.2",
+    "vue-router": "^4.5.1",
+    "vuetify": "^3.8.11",
+    "yup": "^1.6.1"
   },
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.21.0",
     "@playwright/test": "^1.53.1",
     "@tsconfig/node22": "^22.0.2",
     "@types/jsdom": "^21.1.7",

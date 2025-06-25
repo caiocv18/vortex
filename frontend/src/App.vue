@@ -1,85 +1,127 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { ref, onMounted } from 'vue'
+import { useTheme } from 'vuetify'
+import { useThemeStore } from '@/stores/theme'
+import { RouterView } from 'vue-router'
+
+const drawer = ref(true)
+const rail = ref(false)
+const theme = useTheme()
+const themeStore = useThemeStore()
+
+const menuItems = [
+  { title: 'Home', value: 'home', icon: 'mdi-home', to: '/' },
+  { title: 'Tipos de Produto', value: 'productTypes', icon: 'mdi-shape', to: '/product-types' },
+  { title: 'Produtos', value: 'products', icon: 'mdi-package-variant', to: '/products' },
+  { title: 'Movimentação', value: 'movements', icon: 'mdi-swap-horizontal', to: '/movements' },
+  { title: 'Relatórios', value: 'reports', icon: 'mdi-chart-box', to: '/reports' }
+]
+
+const toggleTheme = () => {
+  themeStore.toggleTheme()
+}
+
+onMounted(() => {
+  themeStore.setThemeInstance(theme)
+  themeStore.initTheme()
+})
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <v-app>
+    <!-- Navigation Drawer -->
+    <v-navigation-drawer
+      v-model="drawer"
+      :rail="rail"
+      permanent
+      @click="rail = false"
+      app
+    >
+      <v-list-item
+        prepend-avatar="https://cdn.vuetifyjs.com/images/logos/v.png"
+        title="Sistema de Estoque"
+        subtitle="Nexdom"
+      >
+        <template v-slot:append>
+          <v-btn
+            variant="text"
+            icon="mdi-chevron-left"
+            @click.stop="rail = !rail"
+          ></v-btn>
+        </template>
+      </v-list-item>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+      <v-divider></v-divider>
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
+      <v-list density="compact" nav>
+        <v-list-item
+          v-for="item in menuItems"
+          :key="item.value"
+          :value="item.value"
+          :to="item.to"
+          :prepend-icon="item.icon"
+          :title="item.title"
+          color="primary"
+        ></v-list-item>
+      </v-list>
 
-  <RouterView />
+      <template v-slot:append>
+        <v-divider></v-divider>
+        <v-list density="compact" nav>
+          <v-list-item
+            :prepend-icon="themeStore.isDark ? 'mdi-weather-night' : 'mdi-weather-sunny'"
+            :title="themeStore.isDark ? 'Tema Escuro' : 'Tema Claro'"
+            @click="toggleTheme"
+          ></v-list-item>
+        </v-list>
+      </template>
+    </v-navigation-drawer>
+
+    <!-- App Bar -->
+    <v-app-bar
+      flat
+      color="primary"
+      app
+    >
+      <v-app-bar-nav-icon
+        @click="drawer = !drawer"
+        v-if="!drawer || rail"
+      ></v-app-bar-nav-icon>
+
+      <v-toolbar-title>Sistema de Estoque</v-toolbar-title>
+
+      <v-spacer></v-spacer>
+
+      <v-btn icon @click="toggleTheme">
+        <v-icon>{{ themeStore.isDark ? 'mdi-weather-night' : 'mdi-weather-sunny' }}</v-icon>
+      </v-btn>
+    </v-app-bar>
+
+    <!-- Main Content -->
+    <v-main>
+      <v-container fluid class="fill-height pa-0">
+        <RouterView v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </RouterView>
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+.fill-height {
+  height: 100%;
 }
 </style>

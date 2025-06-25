@@ -8,16 +8,39 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
+      meta: { title: 'Home' }
     },
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      path: '/product-types',
+      name: 'productTypes',
+      component: () => import('../views/ProductTypesView.vue'),
+      meta: { title: 'Tipos de Produto' }
     },
-  ],
+    {
+      path: '/products',
+      name: 'products',
+      component: () => import('../views/ProductsView.vue'),
+      meta: { title: 'Produtos' }
+    },
+    {
+      path: '/movements',
+      name: 'movements',
+      component: () => import('../views/MovementsView.vue'),
+      meta: { title: 'Movimentação' }
+    },
+    {
+      path: '/reports',
+      name: 'reports',
+      component: () => import('../views/ReportsView.vue'),
+      meta: { title: 'Relatórios' }
+    }
+  ]
+})
+
+// Atualizar título da página
+router.beforeEach((to, from, next) => {
+  document.title = `${to.meta.title || 'Nexdom'} - Sistema de Estoque`
+  next()
 })
 
 export default router
