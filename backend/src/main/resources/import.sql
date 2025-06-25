@@ -57,6 +57,6 @@ INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade
 INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (20, '2023-01-10 14:00:00', 'SAIDA', 2, 162.00, 10);
 
 -- Reiniciar sequências
-ALTER TABLE tipo_produto ALTER COLUMN id RESTART WITH 11;
+ALTER SEQUENCE tipo_produto_seq RESTART WITH 11;
 ALTER TABLE produto ALTER COLUMN id RESTART WITH 21;
 ALTER TABLE movimento_estoque ALTER COLUMN id RESTART WITH 21;
