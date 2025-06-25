@@ -337,16 +337,24 @@ A documentação completa da API está disponível através do Swagger UI:
 ## 🖼 Screenshots
 
 ### Dashboard Principal
-Interface moderna com Material Design mostrando visão geral do sistema
+Interface moderna com Material Design mostrando visão geral do sistema com estatísticas, produtos com baixo estoque e movimentos recentes.
+
+![Dashboard Principal](docs/screenshoots/Dashboard%20Principal.png)
 
 ### Gestão de Produtos
-Tela completa para gerenciamento de produtos com filtros e ações
+Tela completa para gerenciamento de produtos com filtros, ações de CRUD e controle de estoque em tempo real.
+
+![Gestão de Produtos](docs/screenshoots/Gestão%20de%20Produtos.png)
 
 ### Movimentações de Estoque
-Controle detalhado de entradas e saídas com validações
+Controle detalhado de entradas e saídas com validações automáticas, cálculo de valores e histórico completo.
+
+![Movimentações de Estoque](docs/screenshoots/Movimentações%20de%20Estoque.png)
 
 ### Relatórios Gerenciais
-Visualização de dados em gráficos interativos para tomada de decisão
+Visualização de dados em gráficos interativos para tomada de decisão com análise de lucro e distribuição por categorias.
+
+![Relatórios Gerenciais](docs/screenshoots/Relatórios%20Gerenciais.png)
 
 ---
 
@@ -359,12 +367,6 @@ Este projeto foi desenvolvido como parte de um desafio técnico. Para contribui�
 3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
 4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
-
----
-
-## 📜 Licença
-
-Este projeto está sob a licença Apache 2.0. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
 
