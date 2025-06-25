@@ -58,5 +58,5 @@ INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade
 
 -- Reiniciar sequências
 ALTER SEQUENCE tipo_produto_seq RESTART WITH 11;
-ALTER TABLE produto ALTER COLUMN id RESTART WITH 21;
-ALTER TABLE movimento_estoque ALTER COLUMN id RESTART WITH 21;
+ALTER SEQUENCE produto_seq ALTER COLUMN id RESTART WITH 21;
+ALTER SEQUENCE movimento_estoque_seq ALTER COLUMN id RESTART WITH 21;
