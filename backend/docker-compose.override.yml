@@ -1,0 +1,40 @@
+# Docker Compose override para desenvolvimento local
+# Este arquivo permite personalizar configurações sem modificar o docker-compose.yml principal
+
+version: '3.8'
+
+services:
+  nexdom:
+    environment:
+      # Descomente para usar profile de desenvolvimento com H2
+      # SPRING_PROFILES_ACTIVE: dev
+      
+      # Profile de produção com Oracle (padrão)
+      SPRING_PROFILES_ACTIVE: prd
+      
+      # Configurações de logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_BR_COM_NEXDOM: DEBUG
+      
+      # Configurações JPA para debug (opcional)
+      # SPRING_JPA_SHOW_SQL: true
+      # SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: true
+    
+    # Descomente para mapear portas diferentes
+    # ports:
+    #   - "8081:8080"
+    
+    # Volumes para desenvolvimento (hot reload)
+    # volumes:
+    #   - ./target/classes:/app/classes
+
+  db:
+    # Configurações adicionais do Oracle para desenvolvimento
+    environment:
+      # Configurações de memória (ajustar conforme necessário)
+      ORACLE_CHARACTERSET: AL32UTF8
+    
+    # Descomente para mapear portas diferentes
+    # ports:
+    #   - "1522:1521"
+    #   - "5501:5500" 
