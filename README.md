@@ -17,6 +17,7 @@
 - [Modelo de Dados](#-modelo-de-dados)
 - [API REST](#-api-rest)
 - [Como Executar](#-como-executar)
+- [Script de Inicialização](#-script-de-inicialização)
 - [Estrutura do Projeto](#-estrutura-do-projeto)
 - [Testes](#-testes)
 - [Documentação da API](#-documentação-da-api)
@@ -269,6 +270,56 @@ cd frontend
 npm install
 npm run dev
 ```
+
+---
+
+## 🚀 Script de Inicialização
+
+Para uma experiência mais simples e automatizada, use o **Nexdom Launcher** - um script inteligente que gerencia automaticamente todo o ambiente:
+
+### Uso Rápido
+
+```bash
+# Modo interativo (recomendado)
+./start-nexdom.sh
+
+# Ambiente de desenvolvimento (H2 + Hot Reload)
+./start-nexdom.sh -e dev
+
+# Ambiente de produção (Oracle + Docker)
+./start-nexdom.sh -e prd
+
+# Apenas backend
+./start-nexdom.sh -e dev --backend-only
+
+# Parar todos os serviços
+./start-nexdom.sh --stop
+```
+
+### Características do Script
+
+- **🔍 Detecção Automática**: Verifica pré-requisitos e adapta a execução
+- **🌍 Múltiplos Ambientes**: Desenvolvimento (H2) ou Produção (Oracle)
+- **🎨 Frontend Integrado**: Gerencia Vue.js automaticamente
+- **🐳 Docker Inteligente**: Fallback para Docker quando ferramentas locais não estão disponíveis
+- **📊 Monitoramento**: Status em tempo real dos serviços
+- **🛑 Gerenciamento Completo**: Start, stop e limpeza de ambiente
+
+### Ambientes Disponíveis
+
+#### 🔧 Desenvolvimento (dev)
+- Backend: Spring Boot local ou Docker
+- Database: H2 em memória
+- Frontend: Vite dev server (hot reload)
+- URLs: API (8080), Frontend (5173), H2 Console
+
+#### 🚀 Produção (prd)
+- Backend: Docker + Spring Boot
+- Database: Oracle Enterprise (Docker)
+- Frontend: Build otimizado + Nginx
+- URLs: API (8080), Frontend (3000), Oracle (1521)
+
+Para documentação completa do script, consulte: [README-LAUNCHER.md](README-LAUNCHER.md)
 
 ---
 
