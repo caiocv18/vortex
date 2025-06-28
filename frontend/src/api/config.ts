@@ -2,7 +2,24 @@ import axios from 'axios'
 import { Configuration } from './generated'
 
 // Configuração base do axios
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// Detectar automaticamente o ambiente
+const getApiBaseUrl = () => {
+  // Se variável de ambiente estiver definida, usar ela
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  
+  // Se estivermos rodando no Docker (porta 3000) ou em produção, usar URL relativa
+  if (window.location.port === '3000' || 
+      (import.meta.env.PROD && !window.location.hostname.includes('localhost'))) {
+    return window.location.origin
+  }
+  
+  // Padrão para desenvolvimento local
+  return 'http://localhost:8080'
+}
+
+const baseURL = getApiBaseUrl()
 
 console.log('API Base URL:', baseURL)
 
