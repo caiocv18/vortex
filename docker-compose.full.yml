@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Oracle Database
+  db:
+    image: container-registry.oracle.com/database/enterprise:latest
+    container_name: nexdom-db
+    environment:
+      ORACLE_SID: ORCLCDB
+      ORACLE_PDB: ORCLPDB1
+      ORACLE_PWD: Oracle_1234
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./backend/oracle/init:/opt/oracle/scripts/startup
+    healthcheck:
+      test: ["CMD", "lsnrctl", "status"]
+      interval: 30s
+      retries: 10
+    networks:
+      - nexdom-net
+
+  # Backend Spring Boot
+  backend:
+    build: ./backend
+    container_name: nexdom-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prd
+      DB_HOST: db
+      DB_PORT: 1521
+      DB_SID: ORCLCDB
+      DB_SERVICE: ORCLPDB1
+      DB_USER: system
+      DB_PASSWORD: Oracle_1234
+    ports:
+      - "8080:8080"
+    networks:
+      - nexdom-net
+
+  # Frontend Vue.js
+  frontend:
+    build: ./frontend
+    container_name: nexdom-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - nexdom-net
+
+volumes:
+  oracle-data:
+
+networks:
+  nexdom-net: 
