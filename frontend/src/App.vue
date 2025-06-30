@@ -38,7 +38,7 @@ onMounted(() => {
       app
     >
       <v-list-item
-        prepend-avatar="https://cdn.vuetifyjs.com/images/logos/v.png"
+        prepend-avatar="/logo.png"
         title="Sistema de Estoque"
         subtitle="Nexdom"
       >
