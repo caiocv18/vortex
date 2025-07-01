@@ -1,8 +1,5 @@
 # Docker Compose override para desenvolvimento local
 # Este arquivo permite personalizar configurações sem modificar o docker-compose.yml principal
-
-version: '3.8'
-
 services:
   nexdom:
     environment:
