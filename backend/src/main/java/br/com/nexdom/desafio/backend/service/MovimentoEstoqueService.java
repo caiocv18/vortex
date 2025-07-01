@@ -1,6 +1,7 @@
 package br.com.nexdom.desafio.backend.service;
 
 import br.com.nexdom.desafio.backend.dto.MovimentoEstoqueDTO;
+import br.com.nexdom.desafio.backend.dto.MovimentoEstoqueMessageDTO;
 import br.com.nexdom.desafio.backend.exception.EstoqueInsuficienteException;
 import br.com.nexdom.desafio.backend.exception.ResourceNotFoundException;
 import br.com.nexdom.desafio.backend.model.MovimentoEstoque;
@@ -9,6 +10,7 @@ import br.com.nexdom.desafio.backend.model.enums.TipoMovimentacao;
 import br.com.nexdom.desafio.backend.repository.MovimentoEstoqueRepository;
 import br.com.nexdom.desafio.backend.repository.ProdutoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +27,23 @@ public class MovimentoEstoqueService {
 
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
+    private final SqsProducerService sqsProducerService;
+
+    @Value("${sqs.processamento.assincrono.enabled:false}")
+    private boolean processamentoAssincronoEnabled;
 
     @Autowired
     public MovimentoEstoqueService(MovimentoEstoqueRepository movimentoEstoqueRepository,
-                                  ProdutoRepository produtoRepository) {
+                                  ProdutoRepository produtoRepository,
+                                  SqsProducerService sqsProducerService) {
         this.movimentoEstoqueRepository = movimentoEstoqueRepository;
         this.produtoRepository = produtoRepository;
+        this.sqsProducerService = sqsProducerService;
     }
 
     /**
      * Cria um novo movimento de estoque.
+     * Pode processar de forma síncrona ou assíncrona dependendo da configuração.
      *
      * @param movimentoEstoqueDTO DTO com os dados do movimento de estoque
      * @return DTO do movimento de estoque criado
@@ -43,6 +52,76 @@ public class MovimentoEstoqueService {
      */
     @Transactional
     public MovimentoEstoqueDTO criar(MovimentoEstoqueDTO movimentoEstoqueDTO) {
+        return criar(movimentoEstoqueDTO, null);
+    }
+
+    /**
+     * Cria um novo movimento de estoque com opção de processamento assíncrono.
+     *
+     * @param movimentoEstoqueDTO DTO com os dados do movimento de estoque
+     * @param usuarioId ID do usuário que está realizando a operação
+     * @return DTO do movimento de estoque criado
+     * @throws ResourceNotFoundException se o produto não for encontrado
+     * @throws EstoqueInsuficienteException se não houver estoque suficiente para uma saída
+     */
+    @Transactional
+    public MovimentoEstoqueDTO criar(MovimentoEstoqueDTO movimentoEstoqueDTO, String usuarioId) {
+        // Se processamento assíncrono estiver habilitado, envia para SQS
+        if (processamentoAssincronoEnabled) {
+            return criarAssincrono(movimentoEstoqueDTO, usuarioId);
+        }
+        
+        // Processamento síncrono (comportamento original)
+        return criarSincrono(movimentoEstoqueDTO, usuarioId);
+    }
+
+    /**
+     * Cria movimento de estoque de forma assíncrona via SQS.
+     */
+    private MovimentoEstoqueDTO criarAssincrono(MovimentoEstoqueDTO movimentoEstoqueDTO, String usuarioId) {
+        // Valida se o produto existe antes de enviar para a fila
+        Produto produto = produtoRepository.findById(movimentoEstoqueDTO.getProdutoId())
+                .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", movimentoEstoqueDTO.getProdutoId()));
+
+        // Cria mensagem para SQS
+        MovimentoEstoqueMessageDTO message = new MovimentoEstoqueMessageDTO();
+        message.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
+        message.setQuantidadeMovimentada(movimentoEstoqueDTO.getQuantidadeMovimentada());
+        message.setProdutoId(movimentoEstoqueDTO.getProdutoId());
+        message.setValorFornecedor(produto.getValorFornecedor());
+        message.setUsuarioId(usuarioId);
+        message.setPrioridade("NORMAL");
+
+        // Envia para SQS
+        sqsProducerService.enviarMovimentoEstoque(message);
+
+        // Retorna DTO com informações básicas (sem ID do movimento, pois será processado assincronamente)
+        MovimentoEstoqueDTO responseDTO = new MovimentoEstoqueDTO();
+        responseDTO.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
+        responseDTO.setQuantidadeMovimentada(movimentoEstoqueDTO.getQuantidadeMovimentada());
+        responseDTO.setProdutoId(movimentoEstoqueDTO.getProdutoId());
+        responseDTO.setDataMovimento(LocalDateTime.now());
+
+        // Envia auditoria
+        sqsProducerService.enviarAuditoria(
+                "MOVIMENTO_ENVIADO_SQS",
+                "MovimentoEstoque",
+                null,
+                usuarioId,
+                String.format("Movimento %s enviado para processamento assíncrono. Produto: %d, Quantidade: %d, OperationId: %s", 
+                        movimentoEstoqueDTO.getTipoMovimentacao(), 
+                        movimentoEstoqueDTO.getProdutoId(), 
+                        movimentoEstoqueDTO.getQuantidadeMovimentada(),
+                        message.getOperationId())
+        );
+
+        return responseDTO;
+    }
+
+    /**
+     * Cria movimento de estoque de forma síncrona (comportamento original).
+     */
+    private MovimentoEstoqueDTO criarSincrono(MovimentoEstoqueDTO movimentoEstoqueDTO, String usuarioId) {
         Produto produto = produtoRepository.findById(movimentoEstoqueDTO.getProdutoId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", movimentoEstoqueDTO.getProdutoId()));
         
