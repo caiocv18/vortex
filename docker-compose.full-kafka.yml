@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  # ================================
+  # APACHE KAFKA INFRASTRUCTURE
+  # ================================
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: nexdom-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - nexdom-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka
+    container_name: nexdom-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_DELETE_TOPIC_ENABLE: 'true'
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - nexdom-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: nexdom-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: nexdom-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      DYNAMIC_CONFIG_ENABLED: 'true'
+      AUTH_TYPE: "DISABLED"
+    networks:
+      - nexdom-network
+
+  # ================================
+  # DATABASE
+  # ================================
+  
+  nexdom-db:
+    image: container-registry.oracle.com/database/express:21.3.0-xe
+    container_name: nexdom-db
+    environment:
+      ORACLE_PWD: nexdom123
+      ORACLE_CHARACTERSET: AL32UTF8
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - oracle-backup:/opt/oracle/backup
+    networks:
+      - nexdom-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -s system/nexdom123@localhost:1521/XE"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ================================
+  # BACKEND APPLICATION
+  # ================================
+  
+  nexdom-app:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexdom-app
+    depends_on:
+      nexdom-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd,kafka}
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@nexdom-db:1521:XE
+      SPRING_DATASOURCE_USERNAME: system
+      SPRING_DATASOURCE_PASSWORD: nexdom123
+      KAFKA_ENABLED: ${KAFKA_ENABLED:-true}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: nexdom-inventory-group
+      # Configurações de logging
+      LOGGING_LEVEL_BR_COM_NEXDOM: DEBUG
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA: INFO
+      LOGGING_LEVEL_ORG_APACHE_KAFKA: INFO
+    ports:
+      - "8081:8080"
+    networks:
+      - nexdom-network
+    volumes:
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ================================
+  # FRONTEND APPLICATION
+  # ================================
+  
+  nexdom-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexdom-frontend
+    depends_on:
+      nexdom-app:
+        condition: service_healthy
+    environment:
+      VITE_API_BASE_URL: http://localhost:8081
+    ports:
+      - "3000:3000"
+    networks:
+      - nexdom-network
+    restart: unless-stopped
+
+# ================================
+# VOLUMES
+# ================================
+
+volumes:
+  oracle-data:
+    driver: local
+  oracle-backup:
+    driver: local
+  zookeeper-data:
+    driver: local
+  zookeeper-logs:
+    driver: local
+  kafka-data:
+    driver: local
+
+# ================================
+# NETWORKS
+# ================================
+
+networks:
+  nexdom-network:
+    driver: bridge
+    name: nexdom-network 
