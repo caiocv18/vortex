@@ -28,17 +28,23 @@ public class MovimentoEstoqueService {
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
     private final SqsProducerService sqsProducerService;
+    private final KafkaProducerService kafkaProducerService;
 
     @Value("${sqs.processamento.assincrono.enabled:false}")
     private boolean processamentoAssincronoEnabled;
 
+    @Value("${kafka.enabled:false}")
+    private boolean kafkaEnabled;
+
     @Autowired
     public MovimentoEstoqueService(MovimentoEstoqueRepository movimentoEstoqueRepository,
                                   ProdutoRepository produtoRepository,
-                                  SqsProducerService sqsProducerService) {
+                                  SqsProducerService sqsProducerService,
+                                  KafkaProducerService kafkaProducerService) {
         this.movimentoEstoqueRepository = movimentoEstoqueRepository;
         this.produtoRepository = produtoRepository;
         this.sqsProducerService = sqsProducerService;
+        this.kafkaProducerService = kafkaProducerService;
     }
 
     /**
@@ -125,6 +131,9 @@ public class MovimentoEstoqueService {
         Produto produto = produtoRepository.findById(movimentoEstoqueDTO.getProdutoId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", movimentoEstoqueDTO.getProdutoId()));
         
+        // Armazenar estoque anterior para o evento Kafka
+        Integer estoqueAnterior = produto.getQuantidadeEmEstoque();
+        
         MovimentoEstoque movimentoEstoque = new MovimentoEstoque();
         movimentoEstoque.setDataMovimento(LocalDateTime.now());
         movimentoEstoque.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
@@ -162,7 +171,44 @@ public class MovimentoEstoqueService {
         // Salva o movimento de estoque
         MovimentoEstoque savedMovimento = movimentoEstoqueRepository.save(movimentoEstoque);
         
+        // INTEGRAÇÃO KAFKA: Publica evento de movimentação
+        if (kafkaEnabled) {
+            kafkaProducerService.publicarMovimentoEstoque(savedMovimento, produto, estoqueAnterior, usuarioId);
+            
+            // Verificar se precisa gerar alertas de estoque
+            verificarAlertas(produto, usuarioId);
+            
+            // Auditoria via Kafka
+            kafkaProducerService.publicarAuditoria(
+                "MOVIMENTO_CRIADO", 
+                "MovimentoEstoque", 
+                savedMovimento.getId(), 
+                String.format("Movimento %s criado. Produto: %d, Quantidade: %d", 
+                    savedMovimento.getTipoMovimentacao(), 
+                    produto.getId(), 
+                    savedMovimento.getQuantidadeMovimentada()),
+                usuarioId, 
+                "SUCCESS", 
+                null
+            );
+        }
+        
         return mapToDTO(savedMovimento);
+    }
+    
+    /**
+     * Verifica se é necessário gerar alertas de estoque após movimentação.
+     */
+    private void verificarAlertas(Produto produto, String usuarioId) {
+        Integer quantidadeAtual = produto.getQuantidadeEmEstoque();
+        
+        if (quantidadeAtual <= 0) {
+            kafkaProducerService.publicarAlertaEstoqueEsgotado(produto, usuarioId);
+        } else if (quantidadeAtual <= 5) {
+            kafkaProducerService.publicarAlertaEstoqueCritico(produto, 5, usuarioId);
+        } else if (quantidadeAtual <= 10) {
+            kafkaProducerService.publicarAlertaEstoqueBaixo(produto, 10, usuarioId);
+        }
     }
 
     /**
