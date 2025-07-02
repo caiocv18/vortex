@@ -26,20 +26,30 @@ services:
       db:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prd
+      SPRING_PROFILES_ACTIVE: "prd,kafka"
       DB_HOST: db
       DB_PORT: 1521
       DB_SID: ORCLCDB
       DB_SERVICE: ORCLPDB1
       DB_USER: system
       DB_PASSWORD: Oracle_1234
+      # Configurações Kafka para Docker
+      KAFKA_ENABLED: "true"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+      SPRING_KAFKA_CONSUMER_GROUP_ID: "nexdom-inventory-group"
     ports:
       - "8080:8080"
     networks:
       - nexdom-net
+      - nexdom-simple
+    external_links:
+      - nexdom-kafka-simple:kafka
+      - nexdom-zookeeper-simple:zookeeper
 
 volumes:
   oracle-data:
 
 networks:
   nexdom-net:
+  nexdom-simple:
+    external: true
