@@ -7,14 +7,14 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     hostname: zookeeper
-    container_name: nexdom-zookeeper-simple
+    container_name: vortex-zookeeper-simple
     ports:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     networks:
-      - nexdom-simple
+      - vortex-simple
     restart: unless-stopped
 
   # ================================
@@ -23,7 +23,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     hostname: kafka
-    container_name: nexdom-kafka-simple
+    container_name: vortex-kafka-simple
     depends_on:
       - zookeeper
     ports:
@@ -52,7 +52,7 @@ services:
     volumes:
       - kafka-simple-data:/var/lib/kafka/data
     networks:
-      - nexdom-simple
+      - vortex-simple
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
@@ -66,20 +66,20 @@ services:
   # ================================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: nexdom-kafka-ui-simple
+    container_name: vortex-kafka-ui-simple
     depends_on:
       kafka:
         condition: service_healthy
     ports:
       - "8090:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: nexdom-simple
+      KAFKA_CLUSTERS_0_NAME: vortex-simple
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
       DYNAMIC_CONFIG_ENABLED: 'true'
       AUTH_TYPE: "DISABLED"
     networks:
-      - nexdom-simple
+      - vortex-simple
     restart: unless-stopped
 
 # ================================
@@ -93,6 +93,6 @@ volumes:
 # NETWORKS
 # ================================
 networks:
-  nexdom-simple:
+  vortex-simple:
     driver: bridge
-    name: nexdom-simple 
+    name: vortex-simple 

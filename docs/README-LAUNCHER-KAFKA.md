@@ -1,8 +1,8 @@
-# 🚀 NEXDOM Launcher - Integração Kafka
+# 🚀 VORTEX Launcher - Integração Kafka
 
 ## 📋 Visão Geral
 
-O script `start-nexdom.sh` foi atualizado para suportar **Apache Kafka** como sistema de mensageria, além do Amazon SQS já existente. Agora você pode escolher entre:
+O script `start-vortex.sh` foi atualizado para suportar **Apache Kafka** como sistema de mensageria, além do Amazon SQS já existente. Agora você pode escolher entre:
 
 - **Kafka**: Event sourcing e streaming em tempo real
 - **SQS**: Processamento assíncrono na AWS
@@ -15,13 +15,13 @@ O script `start-nexdom.sh` foi atualizado para suportar **Apache Kafka** como si
 
 ```bash
 # Modo interativo - escolha durante execução
-./start-nexdom.sh
+./start-vortex.sh
 
 # Especificar diretamente
-./start-nexdom.sh -e dev -m kafka
-./start-nexdom.sh -e prd -m both
-./start-nexdom.sh -e dev -m sqs
-./start-nexdom.sh -e prd -m none
+./start-vortex.sh -e dev -m kafka
+./start-vortex.sh -e prd -m both
+./start-vortex.sh -e dev -m sqs
+./start-vortex.sh -e prd -m none
 ```
 
 ### **2. Gestão Automática do Kafka**
@@ -43,7 +43,7 @@ Novos arquivos de compose:
 
 ```bash
 # Iniciar em modo desenvolvimento com Kafka
-./start-nexdom.sh -e dev -m kafka
+./start-vortex.sh -e dev -m kafka
 
 # Resultado:
 # ✅ Kafka rodando em localhost:9092
@@ -56,7 +56,7 @@ Novos arquivos de compose:
 
 ```bash
 # Iniciar em modo produção com ambos os sistemas
-./start-nexdom.sh -e prd -m both --logs
+./start-vortex.sh -e prd -m both --logs
 
 # Resultado:
 # ✅ Kafka cluster completo
@@ -69,7 +69,7 @@ Novos arquivos de compose:
 
 ```bash
 # Iniciar apenas backend com Kafka
-./start-nexdom.sh --backend-only -m kafka
+./start-vortex.sh --backend-only -m kafka
 
 # Resultado:
 # ✅ Kafka cluster
@@ -82,7 +82,7 @@ Novos arquivos de compose:
 O comando de status agora mostra informações detalhadas:
 
 ```bash
-./start-nexdom.sh --status  # (executar sem argumentos para ver status)
+./start-vortex.sh --status  # (executar sem argumentos para ver status)
 ```
 
 **Saída de exemplo:**
@@ -111,26 +111,26 @@ O comando de status agora mostra informações detalhadas:
 
 ### **Comandos Básicos**
 ```bash
-./start-nexdom.sh --help          # Mostrar ajuda
-./start-nexdom.sh --stop          # Parar todos os serviços
-./start-nexdom.sh --clean         # Limpar ambiente (perde dados!)
+./start-vortex.sh --help          # Mostrar ajuda
+./start-vortex.sh --stop          # Parar todos os serviços
+./start-vortex.sh --clean         # Limpar ambiente (perde dados!)
 ```
 
 ### **Comandos Kafka**
 ```bash
 # Logs do Kafka
-docker logs nexdom-kafka -f
+docker logs vortex-kafka -f
 
 # Listar tópicos
-docker exec nexdom-kafka kafka-topics --bootstrap-server localhost:9092 --list
+docker exec vortex-kafka kafka-topics --bootstrap-server localhost:9092 --list
 
 # Listar consumer groups
-docker exec nexdom-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
+docker exec vortex-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
 
 # Consumir mensagens de um tópico
-docker exec nexdom-kafka kafka-console-consumer \
+docker exec vortex-kafka kafka-console-consumer \
   --bootstrap-server localhost:9092 \
-  --topic nexdom.movimento.estoque \
+  --topic vortex.movimento.estoque \
   --from-beginning
 ```
 
@@ -168,27 +168,27 @@ docker exec nexdom-kafka kafka-console-consumer \
 ### **Kafka não inicia**
 ```bash
 # Verificar logs
-docker logs nexdom-kafka
+docker logs vortex-kafka
 
 # Verificar se portas estão livres
 netstat -an | grep 9092
 netstat -an | grep 2181
 
 # Limpar ambiente e tentar novamente
-./start-nexdom.sh --clean
-./start-nexdom.sh -e dev -m kafka
+./start-vortex.sh --clean
+./start-vortex.sh -e dev -m kafka
 ```
 
 ### **Backend não conecta no Kafka**
 ```bash
 # Verificar configuração
-docker exec nexdom-app env | grep KAFKA
+docker exec vortex-app env | grep KAFKA
 
 # Verificar logs do backend
 tail -f backend.log
 
 # Ou se rodando no Docker
-docker logs nexdom-app -f
+docker logs vortex-app -f
 ```
 
 ### **Conflito de portas**
@@ -201,7 +201,7 @@ docker logs nexdom-app -f
 ### **1. Desenvolvimento Completo**
 ```bash
 # Iniciar ambiente completo de desenvolvimento
-./start-nexdom.sh -e dev -m kafka
+./start-vortex.sh -e dev -m kafka
 
 # Testar API
 curl http://localhost:8081/api/produtos
@@ -213,16 +213,16 @@ curl http://localhost:8090
 ### **2. Produção com Monitoramento**
 ```bash
 # Iniciar produção com logs
-./start-nexdom.sh -e prd -m kafka --logs
+./start-vortex.sh -e prd -m kafka --logs
 
 # Em outro terminal, monitorar Kafka
-docker logs nexdom-kafka -f
+docker logs vortex-kafka -f
 ```
 
 ### **3. Teste de Integração**
 ```bash
 # Iniciar apenas backend para testes
-./start-nexdom.sh --backend-only -m kafka
+./start-vortex.sh --backend-only -m kafka
 
 # Fazer movimentação de estoque
 curl -X POST http://localhost:8081/api/movimentos \

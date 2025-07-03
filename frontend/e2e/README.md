@@ -1,6 +1,6 @@
-# Testes E2E - Sistema de Estoque Nexdom
+# Testes E2E - Sistema de Estoque Vortex
 
-Este diretório contém todos os testes end-to-end (E2E) para a aplicação Sistema de Estoque Nexdom, implementados usando Playwright.
+Este diretório contém todos os testes end-to-end (E2E) para a aplicação Sistema de Estoque Vortex, implementados usando Playwright.
 
 ## Estrutura dos Testes
 

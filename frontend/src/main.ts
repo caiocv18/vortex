@@ -14,7 +14,7 @@ import App from './App.vue'
 import router from './router'
 
 // Custom theme
-const nexdomTheme = {
+const vortexTheme = {
   dark: false,
   colors: {
     primary: '#59cb9b',
@@ -28,7 +28,7 @@ const nexdomTheme = {
   }
 }
 
-const nexdomThemeDark = {
+const vortexThemeDark = {
   dark: true,
   colors: {
     primary: '#59cb9b',
@@ -50,8 +50,8 @@ const vuetify = createVuetify({
   theme: {
     defaultTheme: savedTheme,
     themes: {
-      light: nexdomTheme,
-      dark: nexdomThemeDark,
+      light: vortexTheme,
+      dark: vortexThemeDark,
     },
   },
 })

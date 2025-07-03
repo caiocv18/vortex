@@ -48,13 +48,13 @@ docker-compose up -d
 ### 2. Verificar logs da aplicação
 
 ```bash
-docker logs nexdom-app -f
+docker logs vortex-app -f
 ```
 
 ### 3. Verificar logs do Oracle
 
 ```bash
-docker logs nexdom-db -f
+docker logs vortex-db -f
 ```
 
 ### 4. Acessar a aplicação
@@ -116,13 +116,13 @@ Os scripts inserem automaticamente:
 
 1. Verificar se o Docker tem recursos suficientes (mínimo 2GB RAM)
 2. Aguardar inicialização completa (pode levar alguns minutos)
-3. Verificar logs: `docker logs nexdom-db`
+3. Verificar logs: `docker logs vortex-db`
 
 ### Aplicação não conecta ao Oracle
 
 1. Verificar se o Oracle está healthy: `docker ps`
-2. Verificar conectividade: `docker exec nexdom-app ping db`
-3. Verificar logs da aplicação: `docker logs nexdom-app`
+2. Verificar conectividade: `docker exec vortex-app ping db`
+3. Verificar logs da aplicação: `docker logs vortex-app`
 
 ### Executar apenas Oracle (sem aplicação)
 

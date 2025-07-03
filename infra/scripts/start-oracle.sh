@@ -31,7 +31,7 @@ if [[ -f "$DOCKER_DIR/docker-compose.yml" ]]; then
     cd "$DOCKER_DIR"
     
     # Verificar se container já está rodando
-    if docker ps | grep -q "nexdom-db"; then
+    if docker ps | grep -q "vortex-db"; then
         print_color $YELLOW "⚠️  Oracle já está rodando!"
         print_color $GREEN "   🌐 Oracle: localhost:1521 (ORCLCDB/ORCLPDB1)"
         print_color $GREEN "   🔧 Enterprise Manager: http://localhost:5500/em"
@@ -54,14 +54,14 @@ if [[ -f "$DOCKER_DIR/docker-compose.yml" ]]; then
     local attempt=1
     
     while [[ $attempt -le $max_attempts ]]; do
-        if docker ps --filter "name=nexdom-db" --filter "health=healthy" | grep -q "nexdom-db"; then
+        if docker ps --filter "name=vortex-db" --filter "health=healthy" | grep -q "vortex-db"; then
             print_color $GREEN "✅ Oracle está saudável!"
             break
         fi
         
         if [[ $attempt -eq $max_attempts ]]; then
             print_color $RED "❌ Timeout aguardando Oracle ficar pronto"
-            print_color $YELLOW "💡 Verifique os logs: docker logs nexdom-db"
+            print_color $YELLOW "💡 Verifique os logs: docker logs vortex-db"
             exit 1
         fi
         

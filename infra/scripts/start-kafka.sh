@@ -57,10 +57,10 @@ if [[ -f "$DOCKER_DIR/docker-compose.kafka-simple.yml" ]]; then
     local attempt=1
     
     while [[ $attempt -le $max_attempts ]]; do
-        if docker ps --filter "name=nexdom-kafka-simple" --filter "health=healthy" | grep -q "nexdom-kafka-simple"; then
+        if docker ps --filter "name=vortex-kafka-simple" --filter "health=healthy" | grep -q "vortex-kafka-simple"; then
             print_color $GREEN "✅ Kafka está saudável!"
             
-            if docker exec nexdom-kafka-simple kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1; then
+            if docker exec vortex-kafka-simple kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1; then
                 print_color $GREEN "✅ Kafka broker está respondendo!"
                 break
             fi
@@ -82,12 +82,12 @@ if [[ -f "$DOCKER_DIR/docker-compose.kafka-simple.yml" ]]; then
     
     local topics=("movimento-estoque" "produto-events" "alerta-estoque" "auditoria-events")
     for topic in "${topics[@]}"; do
-        docker exec nexdom-kafka-simple kafka-topics --bootstrap-server localhost:9092 --create --topic "$topic" --partitions 3 --replication-factor 1 --if-not-exists 2>/dev/null || true
+        docker exec vortex-kafka-simple kafka-topics --bootstrap-server localhost:9092 --create --topic "$topic" --partitions 3 --replication-factor 1 --if-not-exists 2>/dev/null || true
     done
     
     # Verificar tópicos criados
     print_color $GREEN "📊 Tópicos disponíveis:"
-    docker exec nexdom-kafka-simple kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null | sed 's/^/   ✓ /'
+    docker exec vortex-kafka-simple kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null | sed 's/^/   ✓ /'
     
     print_color $GREEN "✅ Kafka iniciado com sucesso!"
     print_color $GREEN "   🌐 Kafka UI: http://localhost:8090"

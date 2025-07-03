@@ -1,6 +1,6 @@
-package br.com.nexdom.desafio.backend.controller;
+package br.com.vortex.desafio.backend.controller;
 
-import br.com.nexdom.desafio.backend.dto.TipoProdutoDTO;
+import br.com.vortex.desafio.backend.dto.TipoProdutoDTO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

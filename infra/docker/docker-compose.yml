@@ -1,7 +1,7 @@
 services:
   db:
     image: container-registry.oracle.com/database/enterprise:latest
-    container_name: nexdom-db
+    container_name: vortex-db
     environment:
       ORACLE_SID: ORCLCDB
       ORACLE_PDB: ORCLPDB1
@@ -17,13 +17,13 @@ services:
       interval: 30s
       retries: 10
     networks:
-      - nexdom-net
+      - vortex-net
 
-  nexdom:
+  vortex:
     build: 
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
-    container_name: nexdom-app
+    container_name: vortex-app
     depends_on:
       db:
         condition: service_healthy
@@ -38,20 +38,20 @@ services:
       # Configurações Kafka para Docker
       KAFKA_ENABLED: "true"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
-      SPRING_KAFKA_CONSUMER_GROUP_ID: "nexdom-inventory-group"
+      SPRING_KAFKA_CONSUMER_GROUP_ID: "vortex-inventory-group"
     ports:
       - "8080:8080"
     networks:
-      - nexdom-net
-      - nexdom-simple
+      - vortex-net
+      - vortex-simple
     external_links:
-      - nexdom-kafka-simple:kafka
-      - nexdom-zookeeper-simple:zookeeper
+      - vortex-kafka-simple:kafka
+      - vortex-zookeeper-simple:zookeeper
 
 volumes:
   oracle-data:
 
 networks:
-  nexdom-net:
-  nexdom-simple:
+  vortex-net:
+  vortex-simple:
     external: true

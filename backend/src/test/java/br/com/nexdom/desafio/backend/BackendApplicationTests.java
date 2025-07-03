@@ -1,4 +1,4 @@
-package br.com.nexdom.desafio.backend;
+package br.com.vortex.desafio.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -42,33 +42,33 @@ docker-compose -f docker-compose.kafka.yml down 2>/dev/null || true
 
 # 4. Forçar parada de containers específicos se ainda estiverem rodando
 print_color $BLUE "🔧 Forçando parada de containers específicos..."
-docker stop nexdom-kafka-simple nexdom-zookeeper-simple nexdom-kafka-ui-simple 2>/dev/null || true
-docker stop nexdom-kafka nexdom-zookeeper nexdom-kafka-ui 2>/dev/null || true
-docker stop nexdom-app nexdom-app-dev nexdom-db nexdom-frontend 2>/dev/null || true
+docker stop vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
+docker stop vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
+docker stop vortex-app vortex-app-dev vortex-db vortex-frontend 2>/dev/null || true
 
 # 5. Remover containers órfãos
 print_color $BLUE "🧹 Removendo containers órfãos..."
-docker rm nexdom-kafka-simple nexdom-zookeeper-simple nexdom-kafka-ui-simple 2>/dev/null || true
-docker rm nexdom-kafka nexdom-zookeeper nexdom-kafka-ui 2>/dev/null || true
-docker rm nexdom-app nexdom-app-dev nexdom-db nexdom-frontend 2>/dev/null || true
+docker rm vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
+docker rm vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
+docker rm vortex-app vortex-app-dev vortex-db vortex-frontend 2>/dev/null || true
 
-# 6. Limpar redes Docker órfãs relacionadas ao Nexdom
+# 6. Limpar redes Docker órfãs relacionadas ao Vortex
 print_color $BLUE "🌐 Limpando redes..."
-docker network rm nexdom-kafka-network 2>/dev/null || true
-docker network rm nexdom_default 2>/dev/null || true
-docker network rm nexdom-simple 2>/dev/null || true
+docker network rm vortex-kafka-network 2>/dev/null || true
+docker network rm vortex_default 2>/dev/null || true
+docker network rm vortex-simple 2>/dev/null || true
 
 # 7. Aguardar um pouco para garantir que todos os containers foram parados
 sleep 2
 
-# 8. Verificar se ainda há containers do Nexdom rodando
-local remaining_containers=$(docker ps --filter "name=nexdom" --format "{{.Names}}" | wc -l)
+# 8. Verificar se ainda há containers do Vortex rodando
+local remaining_containers=$(docker ps --filter "name=vortex" --format "{{.Names}}" | wc -l)
 if [[ $remaining_containers -gt 0 ]]; then
     print_color $YELLOW "⚠️  Ainda há $remaining_containers container(s) rodando:"
-    docker ps --filter "name=nexdom" --format "table {{.Names}}\t{{.Status}}"
+    docker ps --filter "name=vortex" --format "table {{.Names}}\t{{.Status}}"
     print_color $YELLOW "💡 Forçando parada..."
-    docker ps --filter "name=nexdom" -q | xargs -r docker stop
-    docker ps --filter "name=nexdom" -q | xargs -r docker rm
+    docker ps --filter "name=vortex" -q | xargs -r docker stop
+    docker ps --filter "name=vortex" -q | xargs -r docker rm
 fi
 
 print_color $GREEN "✅ Todos os serviços de infraestrutura foram parados." 

@@ -1,6 +1,6 @@
-# 🚀 Nexdom Launcher
+# 🚀 Vortex Launcher
 
-Script de inicialização completo para o sistema Nexdom que gerencia automaticamente backend (Spring Boot) e frontend (Vue.js/Vite) em diferentes ambientes.
+Script de inicialização completo para o sistema Vortex que gerencia automaticamente backend (Spring Boot) e frontend (Vue.js/Vite) em diferentes ambientes.
 
 ## 📋 Características
 
@@ -16,34 +16,34 @@ Script de inicialização completo para o sistema Nexdom que gerencia automatica
 
 ### Modo Interativo (Recomendado)
 ```bash
-./start-nexdom.sh
+./start-vortex.sh
 ```
 
 ### Modo Direto
 ```bash
 # Ambiente de desenvolvimento
-./start-nexdom.sh -e dev
+./start-vortex.sh -e dev
 
 # Ambiente de produção
-./start-nexdom.sh -e prd
+./start-vortex.sh -e prd
 
 # Apenas backend
-./start-nexdom.sh -e dev --backend-only
+./start-vortex.sh -e dev --backend-only
 
 # Apenas frontend
-./start-nexdom.sh -e dev --frontend-only
+./start-vortex.sh -e dev --frontend-only
 
 # Com logs
-./start-nexdom.sh -e prd --logs
+./start-vortex.sh -e prd --logs
 ```
 
 ### Gerenciamento
 ```bash
 # Parar todos os serviços
-./start-nexdom.sh --stop
+./start-vortex.sh --stop
 
 # Limpar ambiente (cuidado: apaga dados!)
-./start-nexdom.sh --clean
+./start-vortex.sh --clean
 ```
 
 ## 🌍 Ambientes
@@ -74,13 +74,13 @@ Script de inicialização completo para o sistema Nexdom que gerencia automatica
 - **Dev**: Maven local ou Docker
 - **Prd**: Docker com Oracle
 - **Profiles**: Automático baseado no ambiente
-- **Logs**: `backend.log` (dev) ou `docker logs nexdom-app` (prd)
+- **Logs**: `backend.log` (dev) ou `docker logs vortex-app` (prd)
 
 ### Frontend (Vue.js/Vite)
 - **Dev**: `npm run dev` (se npm disponível)
 - **Prd**: `npm run build` + `npm run preview` ou Docker + Nginx
 - **Fallback**: Docker automático se npm não disponível
-- **Logs**: `frontend.log` ou `docker logs nexdom-frontend`
+- **Logs**: `frontend.log` ou `docker logs vortex-frontend`
 
 ### Database
 - **Dev**: H2 em memória (automático)
@@ -144,13 +144,13 @@ O script detecta automaticamente:
 docker ps
 
 # Logs em tempo real
-docker logs nexdom-app -f        # Backend (prd)
-docker logs nexdom-db -f         # Oracle
+docker logs vortex-app -f        # Backend (prd)
+docker logs vortex-db -f         # Oracle
 tail -f backend.log              # Backend (dev)
 tail -f frontend.log             # Frontend
 
 # Acessar Oracle
-docker exec -it nexdom-db sqlplus system/Oracle_1234@ORCLPDB1
+docker exec -it vortex-db sqlplus system/Oracle_1234@ORCLPDB1
 ```
 
 ### Desenvolvimento
@@ -171,7 +171,7 @@ cd frontend && npm run dev
 
 **1. Porta 8080 em uso**
 ```bash
-./start-nexdom.sh --stop
+./start-vortex.sh --stop
 # ou
 lsof -ti:8080 | xargs kill -9
 ```
@@ -182,7 +182,7 @@ lsof -ti:8080 | xargs kill -9
 docker system info
 
 # Limpar e reiniciar
-./start-nexdom.sh --clean
+./start-vortex.sh --clean
 ```
 
 **3. Frontend não carrega**
@@ -196,7 +196,7 @@ cd frontend && npm install
 
 **4. Problemas de permissão**
 ```bash
-chmod +x start-nexdom.sh
+chmod +x start-vortex.sh
 ```
 
 ### Logs de Debug
@@ -208,9 +208,9 @@ tail -f backend.log
 tail -f frontend.log
 
 # Docker
-docker logs nexdom-app -f
-docker logs nexdom-db -f
-docker logs nexdom-frontend -f
+docker logs vortex-app -f
+docker logs vortex-db -f
+docker logs vortex-frontend -f
 ```
 
 ## 🔄 Fluxo de Execução

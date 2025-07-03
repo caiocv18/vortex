@@ -15,9 +15,9 @@ graph TB
     end
     
     subgraph "Amazon SQS"
-        H["nexdom-movimento-<br/>estoque-queue"]
-        I["nexdom-notificacao-<br/>estoque-queue"]
-        J["nexdom-auditoria-<br/>queue"]
+        H["vortex-movimento-<br/>estoque-queue"]
+        I["vortex-notificacao-<br/>estoque-queue"]
+        J["vortex-auditoria-<br/>queue"]
         K["Dead Letter<br/>Queues (DLQ)"]
     end
     

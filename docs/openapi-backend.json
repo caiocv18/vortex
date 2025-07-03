@@ -1,13 +1,13 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "API de Controle de Estoque - Nexdom",
-    "description": "API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, tipos de produtos, movimentações de entrada e saída, e geração de relatórios. Desenvolvida como parte do desafio FullStack da Nexdom.",
-    "termsOfService": "https://www.nexdom.com.br/termos",
+    "title": "API de Controle de Estoque - Vortex",
+    "description": "API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, tipos de produtos, movimentações de entrada e saída, e geração de relatórios. Desenvolvida como parte do desafio FullStack da Vortex.",
+    "termsOfService": "https://www.vortex.com.br/termos",
     "contact": {
-      "name": "Equipe de Desenvolvimento Nexdom",
-      "url": "https://www.nexdom.com.br/contato",
-      "email": "dev@nexdom.com.br"
+      "name": "Equipe de Desenvolvimento Vortex",
+      "url": "https://www.vortex.com.br/contato",
+      "email": "dev@vortex.com.br"
     },
     "license": {
       "name": "Apache 2.0",
@@ -17,7 +17,7 @@
   },
   "externalDocs": {
     "description": "Documentação completa da API",
-    "url": "https://www.nexdom.com.br/docs"
+    "url": "https://www.vortex.com.br/docs"
   },
   "servers": [
     {
@@ -25,7 +25,7 @@
       "description": "Servidor de Desenvolvimento"
     },
     {
-      "url": "https://api.nexdom.com.br",
+      "url": "https://api.vortex.com.br",
       "description": "Servidor de Produção"
     }
   ],

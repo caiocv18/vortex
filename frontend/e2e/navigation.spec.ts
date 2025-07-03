@@ -15,7 +15,7 @@ test.describe('Navigation', () => {
     
     // Verifica o título do sistema no sidebar
     await expect(page.locator('text=Sistema de Estoque')).toBeVisible()
-    await expect(page.locator('text=Nexdom')).toBeVisible()
+    await expect(page.locator('text=Vortex')).toBeVisible()
     
     // Verifica todos os itens do menu
     await expect(page.locator('.v-list-item:has-text("Home")')).toBeVisible()

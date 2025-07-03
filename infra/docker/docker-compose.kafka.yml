@@ -8,7 +8,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     hostname: zookeeper
-    container_name: nexdom-zookeeper
+    container_name: vortex-zookeeper
     ports:
       - "2181:2181"
     environment:
@@ -18,12 +18,12 @@ services:
       - zookeeper-data:/var/lib/zookeeper/data
       - zookeeper-logs:/var/lib/zookeeper/log
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     hostname: kafka
-    container_name: nexdom-kafka
+    container_name: vortex-kafka
     depends_on:
       - zookeeper
     ports:
@@ -50,7 +50,7 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
       interval: 30s
@@ -63,20 +63,20 @@ services:
   
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: nexdom-kafka-ui
+    container_name: vortex-kafka-ui
     depends_on:
       - kafka
     ports:
       - "8090:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: nexdom-cluster
+      KAFKA_CLUSTERS_0_NAME: vortex-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
       # Configurações de UI
       DYNAMIC_CONFIG_ENABLED: 'true'
       AUTH_TYPE: "DISABLED"
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
 
   # ================================
   # KAFKA CONNECT (OPCIONAL)
@@ -85,7 +85,7 @@ services:
   kafka-connect:
     image: confluentinc/cp-kafka-connect:7.4.0
     hostname: kafka-connect
-    container_name: nexdom-kafka-connect
+    container_name: vortex-kafka-connect
     depends_on:
       - kafka
     ports:
@@ -93,7 +93,7 @@ services:
     environment:
       CONNECT_BOOTSTRAP_SERVERS: 'kafka:29092'
       CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
-      CONNECT_GROUP_ID: nexdom-connect-cluster
+      CONNECT_GROUP_ID: vortex-connect-cluster
       CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
@@ -108,7 +108,7 @@ services:
       CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
       CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
     profiles:
       - connect
 
@@ -119,7 +119,7 @@ services:
   schema-registry:
     image: confluentinc/cp-schema-registry:7.4.0
     hostname: schema-registry
-    container_name: nexdom-schema-registry
+    container_name: vortex-schema-registry
     depends_on:
       - kafka
     ports:
@@ -129,7 +129,7 @@ services:
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
     profiles:
       - schema-registry
 
@@ -140,7 +140,7 @@ services:
   ksqldb-server:
     image: confluentinc/cp-ksqldb-server:7.4.0
     hostname: ksqldb-server
-    container_name: nexdom-ksqldb-server
+    container_name: vortex-ksqldb-server
     depends_on:
       - kafka
     ports:
@@ -159,7 +159,7 @@ services:
       KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: 'true'
       KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: 'true'
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
     profiles:
       - ksqldb
 
@@ -169,12 +169,12 @@ services:
   
   kafka-tools:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: nexdom-kafka-tools
+    container_name: vortex-kafka-tools
     depends_on:
       - kafka
     command: sleep infinity
     networks:
-      - nexdom-kafka-network
+      - vortex-kafka-network
     profiles:
       - tools
 
@@ -195,6 +195,6 @@ volumes:
 # ================================
 
 networks:
-  nexdom-kafka-network:
+  vortex-kafka-network:
     driver: bridge
-    name: nexdom-kafka-network 
+    name: vortex-kafka-network 

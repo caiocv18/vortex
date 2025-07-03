@@ -4,7 +4,7 @@ ALTER SESSION SET CONTAINER = ORCLPDB1;
 
 -- Criar usuário para a aplicação (caso não exista)
 BEGIN
-   EXECUTE IMMEDIATE 'CREATE USER nexdom_user IDENTIFIED BY nexdom_password';
+   EXECUTE IMMEDIATE 'CREATE USER vortex_user IDENTIFIED BY vortex_password';
 EXCEPTION
    WHEN OTHERS THEN
       IF SQLCODE != -1920 THEN -- Ignorar erro se usuário já existe
@@ -14,14 +14,14 @@ END;
 /
 
 -- Conceder privilégios necessários
-GRANT CONNECT, RESOURCE, DBA TO nexdom_user;
-GRANT CREATE SESSION TO nexdom_user;
-GRANT CREATE TABLE TO nexdom_user;
-GRANT CREATE SEQUENCE TO nexdom_user;
-GRANT UNLIMITED TABLESPACE TO nexdom_user;
+GRANT CONNECT, RESOURCE, DBA TO vortex_user;
+GRANT CREATE SESSION TO vortex_user;
+GRANT CREATE TABLE TO vortex_user;
+GRANT CREATE SEQUENCE TO vortex_user;
+GRANT UNLIMITED TABLESPACE TO vortex_user;
 
 -- Conectar como o usuário da aplicação
--- ALTER SESSION SET CURRENT_SCHEMA = nexdom_user;
+-- ALTER SESSION SET CURRENT_SCHEMA = vortex_user;
 
 -- Criar sequências para as tabelas (caso não existam)
 DECLARE

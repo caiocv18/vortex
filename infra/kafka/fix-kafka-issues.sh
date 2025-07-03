@@ -25,7 +25,7 @@ print_header() {
     echo
 }
 
-print_header "🔧 NEXDOM - CORREÇÃO DE PROBLEMAS DO KAFKA"
+print_header "🔧 VORTEX - CORREÇÃO DE PROBLEMAS DO KAFKA"
 
 # ================================
 # 1. LIMPEZA DE CONTAINERS E VOLUMES
@@ -34,22 +34,22 @@ print_header "🔧 NEXDOM - CORREÇÃO DE PROBLEMAS DO KAFKA"
 print_header "🧹 LIMPEZA DE CONTAINERS E VOLUMES ANTIGOS"
 
 print_color $YELLOW "Parando containers relacionados ao Kafka..."
-docker stop nexdom-kafka nexdom-zookeeper nexdom-kafka-ui 2>/dev/null || true
-docker stop nexdom-kafka-simple nexdom-zookeeper-simple nexdom-kafka-ui-simple 2>/dev/null || true
+docker stop vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
+docker stop vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
 
 print_color $YELLOW "Removendo containers antigos..."
-docker rm nexdom-kafka nexdom-zookeeper nexdom-kafka-ui 2>/dev/null || true
-docker rm nexdom-kafka-simple nexdom-zookeeper-simple nexdom-kafka-ui-simple 2>/dev/null || true
+docker rm vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
+docker rm vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
 
 print_color $YELLOW "Removendo volumes antigos..."
-docker volume rm nexdom_kafka-data nexdom_zookeeper-data nexdom_zookeeper-logs 2>/dev/null || true
-docker volume rm nexdom_kafka-simple-data nexdom-kafka-simple_kafka-simple-data 2>/dev/null || true
+docker volume rm vortex_kafka-data vortex_zookeeper-data vortex_zookeeper-logs 2>/dev/null || true
+docker volume rm vortex_kafka-simple-data vortex-kafka-simple_kafka-simple-data 2>/dev/null || true
 
 print_color $YELLOW "Limpando dados corrompidos do Kafka (Cluster ID conflicts)..."
 docker volume prune -f 2>/dev/null || true
 
 print_color $YELLOW "Removendo redes antigas..."
-docker network rm nexdom-network nexdom-kafka-network nexdom-simple 2>/dev/null || true
+docker network rm vortex-network vortex-kafka-network vortex-simple 2>/dev/null || true
 
 print_color $GREEN "✅ Limpeza concluída!"
 
@@ -102,21 +102,21 @@ attempt=1
 kafka_healthy=false
 
 while [[ $attempt -le $max_attempts ]]; do
-    if docker ps --filter "name=nexdom-kafka-simple" --filter "health=healthy" | grep -q "nexdom-kafka-simple"; then
+    if docker ps --filter "name=vortex-kafka-simple" --filter "health=healthy" | grep -q "vortex-kafka-simple"; then
         kafka_healthy=true
         print_color $GREEN "✅ Kafka inicializado com sucesso (tentativa $attempt/$max_attempts)"
         break
     fi
     
     # Verificar se há erro de Cluster ID
-    if docker logs nexdom-kafka-simple 2>&1 | grep -q "InconsistentClusterIdException"; then
+    if docker logs vortex-kafka-simple 2>&1 | grep -q "InconsistentClusterIdException"; then
         print_color $YELLOW "⚠️  Detectado conflito de Cluster ID. Limpando dados..."
         
         # Parar containers
         docker-compose -f docker-compose.kafka-simple.yml down -v 2>/dev/null || true
         
         # Limpar volumes específicos
-        docker volume rm nexdom_kafka-simple-data 2>/dev/null || true
+        docker volume rm vortex_kafka-simple-data 2>/dev/null || true
         docker system prune -f 2>/dev/null || true
         
         # Reiniciar
@@ -144,7 +144,7 @@ if [[ "$kafka_healthy" != "true" ]]; then
     print_color $YELLOW "Mostrando logs para diagnóstico..."
     echo
     print_color $YELLOW "=== LOGS DO KAFKA ==="
-    docker logs nexdom-kafka-simple --tail 30
+    docker logs vortex-kafka-simple --tail 30
     exit 1
 fi
 
@@ -174,9 +174,9 @@ check_service() {
 
 SERVICES_OK=true
 
-check_service "nexdom-zookeeper-simple" "ZooKeeper" || SERVICES_OK=false
-check_service "nexdom-kafka-simple" "Kafka" || SERVICES_OK=false
-check_service "nexdom-kafka-ui-simple" "Kafka UI" || SERVICES_OK=false
+check_service "vortex-zookeeper-simple" "ZooKeeper" || SERVICES_OK=false
+check_service "vortex-kafka-simple" "Kafka" || SERVICES_OK=false
+check_service "vortex-kafka-ui-simple" "Kafka UI" || SERVICES_OK=false
 
 if [ "$SERVICES_OK" = false ]; then
     print_color $RED "❌ Alguns serviços não estão funcionando corretamente."
@@ -184,11 +184,11 @@ if [ "$SERVICES_OK" = false ]; then
     
     echo
     print_color $YELLOW "=== LOGS DO ZOOKEEPER ==="
-    docker logs nexdom-zookeeper-simple --tail 20
+    docker logs vortex-zookeeper-simple --tail 20
     
     echo
     print_color $YELLOW "=== LOGS DO KAFKA ==="
-    docker logs nexdom-kafka-simple --tail 20
+    docker logs vortex-kafka-simple --tail 20
     
     exit 1
 fi
@@ -202,7 +202,7 @@ print_header "🔌 TESTE DE CONECTIVIDADE"
 print_color $YELLOW "Testando conectividade com Kafka..."
 
 # Criar um tópico de teste
-if docker exec nexdom-kafka-simple kafka-topics --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 2>/dev/null; then
+if docker exec vortex-kafka-simple kafka-topics --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 2>/dev/null; then
     print_color $GREEN "✅ Tópico de teste criado com sucesso"
 else
     print_color $RED "❌ Falha ao criar tópico de teste"
@@ -210,7 +210,7 @@ else
 fi
 
 # Listar tópicos
-if docker exec nexdom-kafka-simple kafka-topics --list --bootstrap-server localhost:9092 | grep -q "test-topic"; then
+if docker exec vortex-kafka-simple kafka-topics --list --bootstrap-server localhost:9092 | grep -q "test-topic"; then
     print_color $GREEN "✅ Tópico de teste listado com sucesso"
 else
     print_color $RED "❌ Falha ao listar tópicos"
@@ -218,7 +218,7 @@ else
 fi
 
 # Deletar tópico de teste
-docker exec nexdom-kafka-simple kafka-topics --delete --topic test-topic --bootstrap-server localhost:9092 >/dev/null 2>&1
+docker exec vortex-kafka-simple kafka-topics --delete --topic test-topic --bootstrap-server localhost:9092 >/dev/null 2>&1
 
 # ================================
 # 6. CONFIGURAÇÃO PARA APLICAÇÃO
@@ -235,7 +235,7 @@ cat > application-kafka-test.properties << EOF
 
 # Configurações básicas do Kafka
 spring.kafka.bootstrap-servers=localhost:9092
-spring.kafka.consumer.group-id=nexdom-inventory-group
+spring.kafka.consumer.group-id=vortex-inventory-group
 
 # Habilitar Kafka
 kafka.enabled=true
@@ -247,8 +247,8 @@ kafka.retry.attempts=3
 kafka.retry.delay=2000
 
 # Logs
-logging.level.br.com.nexdom.desafio.backend.service.KafkaProducerService=DEBUG
-logging.level.br.com.nexdom.desafio.backend.service.KafkaConsumerService=DEBUG
+logging.level.br.com.vortex.desafio.backend.service.KafkaProducerService=DEBUG
+logging.level.br.com.vortex.desafio.backend.service.KafkaConsumerService=DEBUG
 logging.level.org.springframework.kafka=INFO
 logging.level.org.apache.kafka=WARN
 EOF

@@ -1,8 +1,8 @@
-# Integração Apache Kafka - NEXDOM Sistema de Estoque
+# Integração Apache Kafka - VORTEX Sistema de Estoque
 
 ## 📋 Visão Geral
 
-Este documento descreve a integração do sistema NEXDOM com Apache Kafka para processamento de eventos em tempo real, event sourcing e integração com sistemas externos.
+Este documento descreve a integração do sistema VORTEX com Apache Kafka para processamento de eventos em tempo real, event sourcing e integração com sistemas externos.
 
 ## 🏗️ Arquitetura da Integração
 
@@ -10,7 +10,7 @@ Este documento descreve a integração do sistema NEXDOM com Apache Kafka para p
 
 ```mermaid
 graph TB
-    subgraph "NEXDOM Backend"
+    subgraph "VORTEX Backend"
         A[Controllers] --> B[Services]
         B --> C[KafkaProducerService]
         C --> D[Kafka Topics]
@@ -19,11 +19,11 @@ graph TB
     end
     
     subgraph "Kafka Cluster"
-        D1[nexdom.movimento.estoque]
-        D2[nexdom.produto.events]
-        D3[nexdom.alertas.estoque]
-        D4[nexdom.auditoria]
-        D5[nexdom.relatorios.events]
+        D1[vortex.movimento.estoque]
+        D2[vortex.produto.events]
+        D3[vortex.alertas.estoque]
+        D4[vortex.auditoria]
+        D5[vortex.relatorios.events]
     end
     
     subgraph "Integrações"
@@ -52,7 +52,7 @@ graph TB
 **Problema Resolvido**: Rastreabilidade completa de todas as operações de estoque
 
 **Como Funciona**:
-- Toda movimentação de estoque gera um evento no tópico `nexdom.movimento.estoque`
+- Toda movimentação de estoque gera um evento no tópico `vortex.movimento.estoque`
 - Eventos contêm informações completas da operação (antes/depois)
 - Permite reconstruir o estado do estoque em qualquer momento
 - Facilita auditoria e compliance
@@ -162,7 +162,7 @@ curl -X POST http://localhost:8081/api/produtos \
 
 2. **Verificar Evento no Kafka UI**:
 - Acessar http://localhost:8080
-- Navegar para o tópico `nexdom.produto.events`
+- Navegar para o tópico `vortex.produto.events`
 - Verificar se o evento foi publicado
 
 3. **Fazer uma Movimentação**:
@@ -177,18 +177,18 @@ curl -X POST http://localhost:8081/api/movimentos \
 ```
 
 4. **Verificar Eventos Gerados**:
-- Tópico `nexdom.movimento.estoque`: Evento da movimentação
-- Tópico `nexdom.alertas.estoque`: Alerta se estoque ficou baixo
+- Tópico `vortex.movimento.estoque`: Evento da movimentação
+- Tópico `vortex.alertas.estoque`: Alerta se estoque ficou baixo
 
 ## 📊 Tópicos Kafka
 
 | Tópico | Descrição | Partições | Retenção |
 |--------|-----------|-----------|----------|
-| `nexdom.movimento.estoque` | Eventos de movimentação | 3 | 7 dias |
-| `nexdom.produto.events` | Eventos de produtos | 2 | 30 dias |
-| `nexdom.alertas.estoque` | Alertas de estoque | 1 | 3 dias |
-| `nexdom.auditoria` | Eventos de auditoria | 2 | 180 dias |
-| `nexdom.relatorios.events` | Eventos de relatórios | 1 | 1 dia |
+| `vortex.movimento.estoque` | Eventos de movimentação | 3 | 7 dias |
+| `vortex.produto.events` | Eventos de produtos | 2 | 30 dias |
+| `vortex.alertas.estoque` | Alertas de estoque | 1 | 3 dias |
+| `vortex.auditoria` | Eventos de auditoria | 2 | 180 dias |
+| `vortex.relatorios.events` | Eventos de relatórios | 1 | 1 dia |
 
 ## 🔧 Cenários Avançados
 
@@ -218,7 +218,7 @@ public class ImportacaoService {
 ### 2. **Integração com Data Lake**
 
 ```java
-@KafkaListener(topics = "nexdom.movimento.estoque")
+@KafkaListener(topics = "vortex.movimento.estoque")
 public void enviarParaDataLake(MovimentoEstoqueEventDTO event) {
     // Enviar dados para S3, BigQuery, etc.
     dataLakeService.enviarEvento(event);
@@ -228,7 +228,7 @@ public void enviarParaDataLake(MovimentoEstoqueEventDTO event) {
 ### 3. **Machine Learning em Tempo Real**
 
 ```java
-@KafkaListener(topics = "nexdom.movimento.estoque")
+@KafkaListener(topics = "vortex.movimento.estoque")
 public void processarML(MovimentoEstoqueEventDTO event) {
     // Alimentar modelos de ML para previsão de demanda
     mlService.processarMovimento(event);
@@ -251,7 +251,7 @@ public class EstoqueStreams {
         StreamsBuilder builder = new StreamsBuilder();
         
         KStream<String, MovimentoEstoqueEventDTO> movimentos = 
-            builder.stream("nexdom.movimento.estoque");
+            builder.stream("vortex.movimento.estoque");
             
         // Calcular métricas em tempo real
         movimentos
@@ -263,7 +263,7 @@ public class EstoqueStreams {
                 Materialized.as("estoque-metrics-store")
             )
             .toStream()
-            .to("nexdom.metricas.tempo-real");
+            .to("vortex.metricas.tempo-real");
             
         return movimentos;
     }
@@ -333,16 +333,16 @@ public class EstoqueStreams {
 
 ```bash
 # Listar tópicos
-docker exec nexdom-kafka kafka-topics --bootstrap-server localhost:9092 --list
+docker exec vortex-kafka kafka-topics --bootstrap-server localhost:9092 --list
 
 # Verificar consumer groups
-docker exec nexdom-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
+docker exec vortex-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
 
 # Ver detalhes de um consumer group
-docker exec nexdom-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --group nexdom-inventory-group --describe
+docker exec vortex-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --group vortex-inventory-group --describe
 
 # Consumir mensagens de um tópico
-docker exec nexdom-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic nexdom.movimento.estoque --from-beginning
+docker exec vortex-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic vortex.movimento.estoque --from-beginning
 ```
 
 ## 🎯 Próximos Passos

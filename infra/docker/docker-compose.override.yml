@@ -1,7 +1,7 @@
 # Docker Compose override para desenvolvimento local
 # Este arquivo permite personalizar configurações sem modificar o docker-compose.yml principal
 services:
-  nexdom:
+  vortex:
     environment:
       # Descomente para usar profile de desenvolvimento com H2
       # SPRING_PROFILES_ACTIVE: dev
@@ -11,7 +11,7 @@ services:
       
       # Configurações de logging
       LOGGING_LEVEL_ROOT: INFO
-      LOGGING_LEVEL_BR_COM_NEXDOM: DEBUG
+      LOGGING_LEVEL_BR_COM_VORTEX: DEBUG
       
       # Configurações JPA para debug (opcional)
       # SPRING_JPA_SHOW_SQL: true

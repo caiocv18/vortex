@@ -43,7 +43,7 @@ onMounted(() => {
             Bem-vindo ao Sistema de Estoque
           </v-card-title>
           <v-card-subtitle>
-            Sistema de gerenciamento de estoque Nexdom
+            Sistema de gerenciamento de estoque Vortex
           </v-card-subtitle>
         </v-card>
       </v-col>

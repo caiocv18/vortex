@@ -16,7 +16,7 @@ test.describe('Home Page', () => {
     
     // Verifica o card de boas-vindas
     await expect(page.locator('text=Bem-vindo ao Sistema de Estoque')).toBeVisible();
-    await expect(page.locator('text=Sistema de gerenciamento de estoque Nexdom')).toBeVisible();
+    await expect(page.locator('text=Sistema de gerenciamento de estoque Vortex')).toBeVisible();
   });
 
   test('displays API connection test section', async ({ page }) => {

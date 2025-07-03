@@ -1,7 +1,7 @@
-package br.com.nexdom.desafio.backend.controller;
+package br.com.vortex.desafio.backend.controller;
 
-import br.com.nexdom.desafio.backend.dto.TipoProdutoDTO;
-import br.com.nexdom.desafio.backend.service.TipoProdutoService;
+import br.com.vortex.desafio.backend.dto.TipoProdutoDTO;
+import br.com.vortex.desafio.backend.service.TipoProdutoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

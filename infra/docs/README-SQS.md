@@ -1,8 +1,8 @@
-# Integração Amazon SQS - NEXDOM Sistema de Estoque
+# Integração Amazon SQS - VORTEX Sistema de Estoque
 
 ## 📋 Visão Geral
 
-Este documento descreve como o sistema NEXDOM foi integrado com Amazon SQS para processamento assíncrono de operações de estoque, notificações e auditoria.
+Este documento descreve como o sistema VORTEX foi integrado com Amazon SQS para processamento assíncrono de operações de estoque, notificações e auditoria.
 
 ## 🏗️ Arquitetura da Integração
 
@@ -46,9 +46,9 @@ public class SqsConfig {
 
 | Fila | Propósito | Dead Letter Queue |
 |------|-----------|-------------------|
-| `nexdom-movimento-estoque-queue` | Processamento assíncrono de movimentações | `nexdom-movimento-estoque-dlq` |
-| `nexdom-notificacao-estoque-queue` | Notificações de estoque baixo/esgotado | `nexdom-notificacao-estoque-dlq` |
-| `nexdom-auditoria-queue` | Log assíncrono de operações | `nexdom-auditoria-dlq` |
+| `vortex-movimento-estoque-queue` | Processamento assíncrono de movimentações | `vortex-movimento-estoque-dlq` |
+| `vortex-notificacao-estoque-queue` | Notificações de estoque baixo/esgotado | `vortex-notificacao-estoque-dlq` |
+| `vortex-auditoria-queue` | Log assíncrono de operações | `vortex-auditoria-dlq` |
 
 ## ⚙️ Configuração
 
@@ -69,9 +69,9 @@ cloud.aws.credentials.access-key=${AWS_ACCESS_KEY_ID:your-access-key}
 cloud.aws.credentials.secret-key=${AWS_SECRET_ACCESS_KEY:your-secret-key}
 
 # SQS Queue Names
-sqs.queue.movimento-estoque=nexdom-movimento-estoque-queue
-sqs.queue.notificacao-estoque=nexdom-notificacao-estoque-queue
-sqs.queue.auditoria=nexdom-auditoria-queue
+sqs.queue.movimento-estoque=vortex-movimento-estoque-queue
+sqs.queue.notificacao-estoque=vortex-notificacao-estoque-queue
+sqs.queue.auditoria=vortex-auditoria-queue
 
 # Habilitar processamento assíncrono
 sqs.processamento.assincrono.enabled=true
@@ -81,14 +81,14 @@ sqs.processamento.assincrono.enabled=true
 
 ```bash
 # Criar filas principais
-aws sqs create-queue --queue-name nexdom-movimento-estoque-queue
-aws sqs create-queue --queue-name nexdom-notificacao-estoque-queue
-aws sqs create-queue --queue-name nexdom-auditoria-queue
+aws sqs create-queue --queue-name vortex-movimento-estoque-queue
+aws sqs create-queue --queue-name vortex-notificacao-estoque-queue
+aws sqs create-queue --queue-name vortex-auditoria-queue
 
 # Criar Dead Letter Queues
-aws sqs create-queue --queue-name nexdom-movimento-estoque-dlq
-aws sqs create-queue --queue-name nexdom-notificacao-estoque-dlq
-aws sqs create-queue --queue-name nexdom-auditoria-dlq
+aws sqs create-queue --queue-name vortex-movimento-estoque-dlq
+aws sqs create-queue --queue-name vortex-notificacao-estoque-dlq
+aws sqs create-queue --queue-name vortex-auditoria-dlq
 ```
 
 ## 🚀 Funcionalidades Implementadas
@@ -103,7 +103,7 @@ aws sqs create-queue --queue-name nexdom-auditoria-dlq
 **Fluxo**:
 1. Cliente faz POST para `/api/movimentos`
 2. Sistema valida dados básicos
-3. Envia mensagem para `nexdom-movimento-estoque-queue`
+3. Envia mensagem para `vortex-movimento-estoque-queue`
 4. Retorna resposta imediata ao cliente
 5. Consumer processa movimento assincronamente
 6. Atualiza estoque e registra movimento

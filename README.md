@@ -27,7 +27,7 @@
 
 ## 🎯 Sobre o Projeto
 
-O **NEXDOM Sistema de Estoque** é um sistema completo de controle de estoque desenvolvido como parte de um desafio FullStack. A aplicação permite o gerenciamento completo de produtos, tipos de produtos, movimentações de estoque (entradas e saídas) e geração de relatórios gerenciais com análise de lucro.
+O **VORTEX Sistema de Estoque** é um sistema completo de controle de estoque desenvolvido como parte de um desafio FullStack. A aplicação permite o gerenciamento completo de produtos, tipos de produtos, movimentações de estoque (entradas e saídas) e geração de relatórios gerenciais com análise de lucro.
 
 ### 🎨 Características Principais
 
@@ -233,8 +233,8 @@ erDiagram
 
 1. Clone o repositório:
 ```bash
-git clone https://github.com/seu-usuario/nexdom.git
-cd nexdom
+git clone https://github.com/caiocv18/vortex.git
+cd vortex
 ```
 
 2. Execute com Docker Compose:
@@ -275,25 +275,25 @@ npm run dev
 
 ## 🚀 Script de Inicialização
 
-Para uma experiência mais simples e automatizada, use o **Nexdom Launcher** - um script inteligente que gerencia automaticamente todo o ambiente:
+Para uma experiência mais simples e automatizada, use o **Vortex Launcher** - um script inteligente que gerencia automaticamente todo o ambiente:
 
 ### Uso Rápido
 
 ```bash
 # Modo interativo (recomendado)
-./start-nexdom.sh
+./start-vortex.sh
 
 # Ambiente de desenvolvimento (H2 + Hot Reload)
-./start-nexdom.sh -e dev
+./start-vortex.sh -e dev
 
 # Ambiente de produção (Oracle + Docker)
-./start-nexdom.sh -e prd
+./start-vortex.sh -e prd
 
 # Apenas backend
-./start-nexdom.sh -e dev --backend-only
+./start-vortex.sh -e dev --backend-only
 
 # Parar todos os serviços
-./start-nexdom.sh --stop
+./start-vortex.sh --stop
 ```
 
 ### Características do Script
@@ -326,12 +326,12 @@ Para documentação completa do script, consulte: [README-LAUNCHER.md](README-LA
 ## 📁 Estrutura do Projeto
 
 ```
-nexdom/
+vortex/
 ├── backend/                    # Aplicação Spring Boot
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/
-│   │   │   │   └── br/com/nexdom/desafio/backend/
+│   │   │   │   └── br/com/vortex/desafio/backend/
 │   │   │   │       ├── controller/     # REST Controllers
 │   │   │   │       ├── dto/           # Data Transfer Objects
 │   │   │   │       ├── exception/     # Exceções customizadas
@@ -423,10 +423,10 @@ Este projeto foi desenvolvido como parte de um desafio técnico. Para contribui�
 
 ## 👥 Autor
 
-**Caio Vinícius - Desenvolvedor FullStack** - Desafio Técnico Nexdom
+**Caio Vinícius - Desenvolvedor FullStack** - Desafio Técnico Vortex
 
 ---
 
 <div align="center">
-  <p>Desenvolvido com ❤️ para o desafio Nexdom</p>
+  <p>Desenvolvido com ❤️ para o desafio Vortex</p>
 </div> 

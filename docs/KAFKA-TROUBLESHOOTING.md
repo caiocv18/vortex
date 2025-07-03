@@ -1,4 +1,4 @@
-# 🔧 Guia de Resolução de Problemas do Kafka - NEXDOM
+# 🔧 Guia de Resolução de Problemas do Kafka - VORTEX
 
 ## 📋 **Problemas Identificados e Soluções**
 
@@ -43,16 +43,16 @@ chmod +x fix-kafka-issues.sh
 #### **Passo 1: Limpeza**
 ```bash
 # Parar containers antigos
-docker stop nexdom-kafka nexdom-zookeeper nexdom-kafka-ui 2>/dev/null || true
+docker stop vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
 
 # Remover containers
-docker rm nexdom-kafka nexdom-zookeeper nexdom-kafka-ui 2>/dev/null || true
+docker rm vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
 
 # Remover volumes
-docker volume rm nexdom_kafka-data nexdom_zookeeper-data nexdom_zookeeper-logs 2>/dev/null || true
+docker volume rm vortex_kafka-data vortex_zookeeper-data vortex_zookeeper-logs 2>/dev/null || true
 
 # Remover redes
-docker network rm nexdom-network nexdom-kafka-network 2>/dev/null || true
+docker network rm vortex-network vortex-kafka-network 2>/dev/null || true
 ```
 
 #### **Passo 2: Iniciar Kafka Simples**
@@ -84,31 +84,31 @@ mvn spring-boot:run -Dspring-boot.run.profiles=kafka
 ### **Verificar Status dos Serviços**
 ```bash
 # Verificar containers
-docker ps | grep nexdom
+docker ps | grep vortex
 
 # Verificar logs do Kafka
-docker logs nexdom-kafka-simple --tail 50
+docker logs vortex-kafka-simple --tail 50
 
 # Verificar logs do ZooKeeper
-docker logs nexdom-zookeeper-simple --tail 50
+docker logs vortex-zookeeper-simple --tail 50
 
 # Verificar saúde do Kafka
-docker exec nexdom-kafka-simple kafka-broker-api-versions --bootstrap-server localhost:9092
+docker exec vortex-kafka-simple kafka-broker-api-versions --bootstrap-server localhost:9092
 ```
 
 ### **Verificar Conectividade**
 ```bash
 # Listar tópicos
-docker exec nexdom-kafka-simple kafka-topics --list --bootstrap-server localhost:9092
+docker exec vortex-kafka-simple kafka-topics --list --bootstrap-server localhost:9092
 
 # Criar tópico de teste
-docker exec nexdom-kafka-simple kafka-topics --create --topic test --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+docker exec vortex-kafka-simple kafka-topics --create --topic test --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 
 # Produzir mensagem de teste
-echo "test message" | docker exec -i nexdom-kafka-simple kafka-console-producer --bootstrap-server localhost:9092 --topic test
+echo "test message" | docker exec -i vortex-kafka-simple kafka-console-producer --bootstrap-server localhost:9092 --topic test
 
 # Consumir mensagem de teste
-docker exec nexdom-kafka-simple kafka-console-consumer --bootstrap-server localhost:9092 --topic test --from-beginning --max-messages 1
+docker exec vortex-kafka-simple kafka-console-consumer --bootstrap-server localhost:9092 --topic test --from-beginning --max-messages 1
 ```
 
 ### **Verificar Portas**
@@ -155,7 +155,7 @@ kafka.retry.delay=2000
 
 ### **2. Verificar Kafka UI**
 - Acesse: http://localhost:8090
-- Verifique se o cluster `nexdom-simple` aparece
+- Verifique se o cluster `vortex-simple` aparece
 - Confirme que não há erros de conexão
 
 ### **3. Testar Aplicação**
@@ -176,7 +176,7 @@ curl -X POST http://localhost:8080/api/movimentos-estoque \
 
 ### **4. Verificar Eventos no Kafka**
 - Acesse Kafka UI: http://localhost:8090
-- Vá para Topics → `nexdom.movimento.estoque`
+- Vá para Topics → `vortex.movimento.estoque`
 - Verifique se as mensagens estão sendo produzidas
 
 ---
@@ -188,7 +188,7 @@ curl -X POST http://localhost:8080/api/movimentos-estoque \
 ```bash
 # Limpar dados do ZooKeeper
 docker-compose -f docker-compose.kafka-simple.yml down -v
-docker volume rm nexdom-kafka-simple_kafka-simple-data 2>/dev/null || true
+docker volume rm vortex-kafka-simple_kafka-simple-data 2>/dev/null || true
 docker-compose -f docker-compose.kafka-simple.yml up -d
 ```
 
@@ -214,10 +214,10 @@ telnet localhost 9092
 **Solução:**
 ```bash
 # Criar tópicos manualmente
-docker exec nexdom-kafka-simple kafka-topics --create --topic nexdom.movimento.estoque --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
-docker exec nexdom-kafka-simple kafka-topics --create --topic nexdom.produto.events --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
-docker exec nexdom-kafka-simple kafka-topics --create --topic nexdom.alertas.estoque --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-docker exec nexdom-kafka-simple kafka-topics --create --topic nexdom.auditoria --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
+docker exec vortex-kafka-simple kafka-topics --create --topic vortex.movimento.estoque --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
+docker exec vortex-kafka-simple kafka-topics --create --topic vortex.produto.events --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
+docker exec vortex-kafka-simple kafka-topics --create --topic vortex.alertas.estoque --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+docker exec vortex-kafka-simple kafka-topics --create --topic vortex.auditoria --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
 ```
 
 ---
@@ -230,15 +230,15 @@ docker exec nexdom-kafka-simple kafka-topics --create --topic nexdom.auditoria -
 tail -f backend/logs/application.log | grep -E "(KAFKA|ERROR|WARN)"
 
 # Logs do Kafka
-docker logs nexdom-kafka-simple -f | grep -E "(ERROR|WARN)"
+docker logs vortex-kafka-simple -f | grep -E "(ERROR|WARN)"
 
 # Logs do ZooKeeper
-docker logs nexdom-zookeeper-simple -f | grep -E "(ERROR|WARN)"
+docker logs vortex-zookeeper-simple -f | grep -E "(ERROR|WARN)"
 ```
 
 ### **Métricas no Kafka UI**
 - **Brokers**: Deve mostrar 1 broker ativo
-- **Topics**: Devem aparecer os tópicos do NEXDOM
+- **Topics**: Devem aparecer os tópicos do VORTEX
 - **Consumers**: Devem mostrar os grupos de consumidores ativos
 - **Messages**: Verificar se mensagens estão sendo produzidas/consumidas
 
@@ -273,8 +273,8 @@ Se os problemas persistirem:
 
 2. **Colete logs:**
    ```bash
-   docker logs nexdom-kafka-simple > kafka.log 2>&1
-   docker logs nexdom-zookeeper-simple > zookeeper.log 2>&1
+   docker logs vortex-kafka-simple > kafka.log 2>&1
+   docker logs vortex-zookeeper-simple > zookeeper.log 2>&1
    ```
 
 3. **Verifique a documentação oficial:**

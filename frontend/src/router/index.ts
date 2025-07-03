@@ -39,7 +39,7 @@ const router = createRouter({
 
 // Atualizar título da página
 router.beforeEach((to, from, next) => {
-  document.title = `${to.meta.title || 'Nexdom'} - Sistema de Estoque`
+  document.title = `${to.meta.title || 'Vortex'} - Sistema de Estoque`
   next()
 })
 

@@ -1,6 +1,6 @@
 # Sistema de Estoque - Frontend
 
-Frontend desenvolvido em Vue.js 3 com TypeScript para o sistema de controle de estoque da Nexdom.
+Frontend desenvolvido em Vue.js 3 com TypeScript para o sistema de controle de estoque da Vortex.
 
 ## Tecnologias Utilizadas
 

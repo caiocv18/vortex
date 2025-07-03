@@ -1,6 +1,6 @@
-# 🏗️ Infraestrutura Nexdom
+# 🏗️ Infraestrutura Vortex
 
-Esta pasta contém todos os componentes de infraestrutura do projeto Nexdom, organizados de forma modular e reutilizável.
+Esta pasta contém todos os componentes de infraestrutura do projeto Vortex, organizados de forma modular e reutilizável.
 
 ## 📁 Estrutura
 
@@ -51,16 +51,16 @@ infra/
 
 ```bash
 # Iniciar sistema completo (interativo)
-./start-nexdom.sh
+./start-vortex.sh
 
 # Iniciar com opções específicas
-./start-nexdom.sh -e prd -m kafka --logs
+./start-vortex.sh -e prd -m kafka --logs
 
 # Parar todos os serviços
-./start-nexdom.sh --stop
+./start-vortex.sh --stop
 
 # Corrigir problemas do Kafka
-./start-nexdom.sh --fix-kafka
+./start-vortex.sh --fix-kafka
 ```
 
 ## 🐳 Configurações Docker
@@ -106,13 +106,13 @@ docker-compose -f docker-compose.kafka-simple.yml up -d
 ### Comandos Úteis
 ```bash
 # Listar tópicos
-docker exec nexdom-kafka-simple kafka-topics --bootstrap-server localhost:9092 --list
+docker exec vortex-kafka-simple kafka-topics --bootstrap-server localhost:9092 --list
 
 # Criar tópico
-docker exec nexdom-kafka-simple kafka-topics --bootstrap-server localhost:9092 --create --topic meu-topico --partitions 3 --replication-factor 1
+docker exec vortex-kafka-simple kafka-topics --bootstrap-server localhost:9092 --create --topic meu-topico --partitions 3 --replication-factor 1
 
 # Consumer groups
-docker exec nexdom-kafka-simple kafka-consumer-groups --bootstrap-server localhost:9092 --list
+docker exec vortex-kafka-simple kafka-consumer-groups --bootstrap-server localhost:9092 --list
 ```
 
 ## 🗄️ Oracle Database
@@ -138,12 +138,12 @@ Os scripts em `oracle/init/` são executados automaticamente na primeira inicial
 ./infra/kafka/fix-kafka-issues.sh
 
 # Ou usar o script principal
-./start-nexdom.sh --fix-kafka
+./start-vortex.sh --fix-kafka
 ```
 
 ### Oracle demora para iniciar
 - Primeira inicialização pode levar 5-10 minutos
-- Verifique logs: `docker logs nexdom-db -f`
+- Verifique logs: `docker logs vortex-db -f`
 - Aguarde o healthcheck ficar "healthy"
 
 ### Portas ocupadas
@@ -154,7 +154,7 @@ lsof -i :1521  # Oracle
 lsof -i :8080  # Backend
 
 # Parar todos os serviços
-./start-nexdom.sh --stop
+./start-vortex.sh --stop
 ```
 
 ## 🎯 Próximos Passos

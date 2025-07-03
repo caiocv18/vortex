@@ -1,4 +1,4 @@
-# Dead Letter Queue (DLQ) - Sistema NEXDOM
+# Dead Letter Queue (DLQ) - Sistema VORTEX
 
 ## 📋 O que é Dead Letter Queue?
 
@@ -12,13 +12,13 @@ Imagine o DLQ como um "hospital para mensagens doentes":
 - Se não melhorar após várias tentativas, é enviada para um local especial (DLQ)
 - Lá ela fica isolada para investigação posterior, sem afetar outras mensagens saudáveis
 
-## 🏗️ Como o DLQ funciona no Sistema NEXDOM
+## 🏗️ Como o DLQ funciona no Sistema VORTEX
 
 ### Arquitetura do Sistema
 
 ```mermaid
 graph TB
-    subgraph "Sistema NEXDOM"
+    subgraph "Sistema VORTEX"
         A["Cliente<br/>(Frontend)"] --> B["API Controller"]
         B --> C["MovimentoEstoqueService"]
         C --> D["SqsProducerService"]
@@ -45,9 +45,9 @@ graph TB
 
 | Fila Principal | Dead Letter Queue | Propósito |
 |---------------|-------------------|-----------|
-| `nexdom-movimento-estoque-queue` | `nexdom-movimento-estoque-dlq` | Movimentações de estoque com falha |
-| `nexdom-notificacao-estoque-queue` | `nexdom-notificacao-estoque-dlq` | Notificações que falharam |
-| `nexdom-auditoria-queue` | `nexdom-auditoria-dlq` | Logs de auditoria com problema |
+| `vortex-movimento-estoque-queue` | `vortex-movimento-estoque-dlq` | Movimentações de estoque com falha |
+| `vortex-notificacao-estoque-queue` | `vortex-notificacao-estoque-dlq` | Notificações que falharam |
+| `vortex-auditoria-queue` | `vortex-auditoria-dlq` | Logs de auditoria com problema |
 
 ## 🚨 Quando uma Mensagem vai para o DLQ?
 
@@ -88,7 +88,7 @@ catch (Exception e) {
 - Timeout de rede
 - Indisponibilidade temporária de serviços
 
-## 🔍 Cenários Práticos no Sistema NEXDOM
+## 🔍 Cenários Práticos no Sistema VORTEX
 
 ### Cenário 1: Produto Inexistente
 ```json
@@ -134,14 +134,14 @@ catch (Exception e) {
 ### Configuração no application.properties
 ```properties
 # Filas principais
-sqs.queue.movimento-estoque=nexdom-movimento-estoque-queue
-sqs.queue.notificacao-estoque=nexdom-notificacao-estoque-queue
-sqs.queue.auditoria=nexdom-auditoria-queue
+sqs.queue.movimento-estoque=vortex-movimento-estoque-queue
+sqs.queue.notificacao-estoque=vortex-notificacao-estoque-queue
+sqs.queue.auditoria=vortex-auditoria-queue
 
 # Dead Letter Queues
-sqs.dlq.movimento-estoque=nexdom-movimento-estoque-dlq
-sqs.dlq.notificacao-estoque=nexdom-notificacao-estoque-dlq
-sqs.dlq.auditoria=nexdom-auditoria-dlq
+sqs.dlq.movimento-estoque=vortex-movimento-estoque-dlq
+sqs.dlq.notificacao-estoque=vortex-notificacao-estoque-dlq
+sqs.dlq.auditoria=vortex-auditoria-dlq
 ```
 
 ### Método de Envio para DLQ
@@ -169,7 +169,7 @@ public class MovimentoEstoqueMessageDTO {
 }
 ```
 
-## 🎯 Benefícios do DLQ no Sistema NEXDOM
+## 🎯 Benefícios do DLQ no Sistema VORTEX
 
 ### 1. **Isolamento de Problemas**
 - Mensagens com erro não bloqueiam o processamento de mensagens válidas
@@ -251,7 +251,7 @@ public void reprocessarDLQ(String operationId) {
 
 ## 🎓 Resumo Executivo
 
-**O DLQ no Sistema NEXDOM é essencial porque:**
+**O DLQ no Sistema VORTEX é essencial porque:**
 
 1. **Protege o Sistema**: Evita que mensagens problemáticas travem todo o processamento
 2. **Preserva Dados**: Nenhuma informação é perdida, mesmo em caso de erro

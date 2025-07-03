@@ -1,4 +1,4 @@
-package br.com.nexdom.desafio.backend.controller;
+package br.com.vortex.desafio.backend.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

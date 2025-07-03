@@ -10,7 +10,7 @@ Separar completamente os componentes de **backend** (Java/Spring Boot) dos compo
 
 #### Antes:
 ```
-nexdom/
+vortex/
 ├── backend/
 │   ├── src/                    # ✅ Código Java (mantido)
 │   ├── pom.xml                 # ✅ Maven (mantido)
@@ -20,12 +20,12 @@ nexdom/
 │   └── README-*.md             # ❌ Docs infra (movido)
 ├── docker-compose.*.yml        # ❌ Configs Docker (movido)
 ├── fix-kafka-issues.sh         # ❌ Script Kafka (movido)
-└── start-nexdom.sh             # ✅ Script principal (atualizado)
+└── start-vortex.sh             # ✅ Script principal (atualizado)
 ```
 
 #### Depois:
 ```
-nexdom/
+vortex/
 ├── backend/                    # 🎯 APENAS SPRING BOOT
 │   ├── src/                    # ✅ Código Java
 │   ├── pom.xml                 # ✅ Maven
@@ -39,7 +39,7 @@ nexdom/
 │   ├── docs/                   # 📚 Documentação infra
 │   ├── scripts/                # 🔧 Scripts específicos
 │   └── README.md               # 📖 Guia da infra
-└── start-nexdom.sh             # 🚀 Script principal (atualizado)
+└── start-vortex.sh             # 🚀 Script principal (atualizado)
 ```
 
 ### 📁 Arquivos Movidos
@@ -67,7 +67,7 @@ nexdom/
 - ✅ `infra/scripts/stop-infra.sh` - Parar toda infraestrutura
 
 #### Script Principal Atualizado:
-- ✅ `start-nexdom.sh` - Atualizado para usar novos caminhos
+- ✅ `start-vortex.sh` - Atualizado para usar novos caminhos
 
 ### 🐳 Docker Compose Atualizados
 
@@ -107,16 +107,16 @@ nexdom/
 ### Scripts Principais:
 ```bash
 # Sistema completo (interativo)
-./start-nexdom.sh
+./start-vortex.sh
 
 # Desenvolvimento com Kafka
-./start-nexdom.sh -e dev -m kafka
+./start-vortex.sh -e dev -m kafka
 
 # Produção completa
-./start-nexdom.sh -e prd -m both --logs
+./start-vortex.sh -e prd -m both --logs
 
 # Parar tudo
-./start-nexdom.sh --stop
+./start-vortex.sh --stop
 ```
 
 ### Scripts Específicos:
@@ -146,7 +146,7 @@ cd infra/docker && docker-compose -f docker-compose.kafka-simple.yml up -d
 ## ✅ Compatibilidade
 
 ### ✅ Mantido:
-- Todos os comandos do `start-nexdom.sh` funcionam igual
+- Todos os comandos do `start-vortex.sh` funcionam igual
 - Mesmas portas e configurações
 - Mesmos containers e volumes
 - Mesma experiência do usuário

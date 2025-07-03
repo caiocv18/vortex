@@ -8,11 +8,11 @@
 		<version>3.5.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>br.com.nexdom.desafio</groupId>
+	<groupId>br.com.vortex.desafio</groupId>
 	<artifactId>backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>backend</name>
-	<description>Aplicação para controle de estoque do desafio FullStack Nexdom</description>
+	<description>Aplicação para controle de estoque do desafio FullStack Vortex</description>
 	<url/>
 	<licenses>
 		<license/>

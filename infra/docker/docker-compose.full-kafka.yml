@@ -8,7 +8,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     hostname: zookeeper
-    container_name: nexdom-zookeeper
+    container_name: vortex-zookeeper
     ports:
       - "2181:2181"
     environment:
@@ -18,7 +18,7 @@ services:
       - zookeeper-data:/var/lib/zookeeper/data
       - zookeeper-logs:/var/lib/zookeeper/log
     networks:
-      - nexdom-network
+      - vortex-network
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 30s
@@ -28,7 +28,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     hostname: kafka
-    container_name: nexdom-kafka
+    container_name: vortex-kafka
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     networks:
-      - nexdom-network
+      - vortex-network
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
       interval: 30s
@@ -63,30 +63,30 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: nexdom-kafka-ui
+    container_name: vortex-kafka-ui
     depends_on:
       kafka:
         condition: service_healthy
     ports:
       - "8090:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: nexdom-cluster
+      KAFKA_CLUSTERS_0_NAME: vortex-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
       DYNAMIC_CONFIG_ENABLED: 'true'
       AUTH_TYPE: "DISABLED"
     networks:
-      - nexdom-network
+      - vortex-network
 
   # ================================
   # DATABASE
   # ================================
   
-  nexdom-db:
+  vortex-db:
     image: container-registry.oracle.com/database/express:21.3.0-xe
-    container_name: nexdom-db
+    container_name: vortex-db
     environment:
-      ORACLE_PWD: nexdom123
+      ORACLE_PWD: vortex123
       ORACLE_CHARACTERSET: AL32UTF8
     ports:
       - "1521:1521"
@@ -95,9 +95,9 @@ services:
       - oracle-data:/opt/oracle/oradata
       - oracle-backup:/opt/oracle/backup
     networks:
-      - nexdom-network
+      - vortex-network
     healthcheck:
-      test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -s system/nexdom123@localhost:1521/XE"]
+      test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -s system/vortex123@localhost:1521/XE"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -107,32 +107,32 @@ services:
   # BACKEND APPLICATION
   # ================================
   
-  nexdom-app:
+  vortex-app:
     build: 
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
-    container_name: nexdom-app
+    container_name: vortex-app
     depends_on:
-      nexdom-db:
+      vortex-db:
         condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd,kafka}
-      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@nexdom-db:1521:XE
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@vortex-db:1521:XE
       SPRING_DATASOURCE_USERNAME: system
-      SPRING_DATASOURCE_PASSWORD: nexdom123
+      SPRING_DATASOURCE_PASSWORD: vortex123
       KAFKA_ENABLED: ${KAFKA_ENABLED:-true}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_KAFKA_CONSUMER_GROUP_ID: nexdom-inventory-group
+      SPRING_KAFKA_CONSUMER_GROUP_ID: vortex-inventory-group
       # Configurações de logging
-      LOGGING_LEVEL_BR_COM_NEXDOM: DEBUG
+      LOGGING_LEVEL_BR_COM_VORTEX: DEBUG
       LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA: INFO
       LOGGING_LEVEL_ORG_APACHE_KAFKA: INFO
     ports:
       - "8081:8080"
     networks:
-      - nexdom-network
+      - vortex-network
     volumes:
       - ../../backend/logs:/app/logs
     restart: unless-stopped
@@ -147,20 +147,20 @@ services:
   # FRONTEND APPLICATION
   # ================================
   
-  nexdom-frontend:
+  vortex-frontend:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
-    container_name: nexdom-frontend
+    container_name: vortex-frontend
     depends_on:
-      nexdom-app:
+      vortex-app:
         condition: service_healthy
     environment:
       VITE_API_BASE_URL: http://localhost:8081
     ports:
       - "3000:3000"
     networks:
-      - nexdom-network
+      - vortex-network
     restart: unless-stopped
 
 # ================================
@@ -184,6 +184,6 @@ volumes:
 # ================================
 
 networks:
-  nexdom-network:
+  vortex-network:
     driver: bridge
-    name: nexdom-network 
+    name: vortex-network 

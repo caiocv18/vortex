@@ -40,7 +40,7 @@ onMounted(() => {
       <v-list-item
         prepend-avatar="/logo.png"
         title="Sistema de Estoque"
-        subtitle="Nexdom"
+        subtitle="Vortex"
       >
         <template v-slot:append>
           <v-btn
