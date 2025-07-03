@@ -1,7 +1,7 @@
-# NEXDOM - Sistema de Controle de Estoque
+# VORTEX - Sistema de Controle de Estoque
 
 <div align="center">
-  <h1>🏢 NEXDOM</h1>
+  <h1>🏢 VORTEX</h1>
   <p><strong>Sistema de Controle de Estoque FullStack</strong></p>
   <p>Uma aplicação completa para gerenciamento de estoque com controle de entradas, saídas e relatórios gerenciais</p>
 </div>
