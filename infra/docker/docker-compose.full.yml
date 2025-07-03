@@ -14,7 +14,7 @@ services:
       - "5500:5500"
     volumes:
       - oracle-data:/opt/oracle/oradata
-      - ./backend/oracle/init:/opt/oracle/scripts/startup
+      - ../oracle/init:/opt/oracle/scripts/startup
     healthcheck:
       test: ["CMD", "lsnrctl", "status"]
       interval: 30s
@@ -24,7 +24,9 @@ services:
 
   # Backend Spring Boot
   backend:
-    build: ./backend
+    build: 
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
     container_name: nexdom-app
     depends_on:
       db:
@@ -52,7 +54,8 @@ services:
 
   # Frontend Vue.js
   frontend:
-    build: ./frontend
+    build: 
+      context: ../../frontend
     container_name: nexdom-frontend
     depends_on:
       - backend

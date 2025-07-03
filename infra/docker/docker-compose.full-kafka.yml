@@ -109,8 +109,8 @@ services:
   
   nexdom-app:
     build: 
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
     container_name: nexdom-app
     depends_on:
       nexdom-db:
@@ -134,7 +134,7 @@ services:
     networks:
       - nexdom-network
     volumes:
-      - ./backend/logs:/app/logs
+      - ../../backend/logs:/app/logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
@@ -149,7 +149,7 @@ services:
   
   nexdom-frontend:
     build:
-      context: ./frontend
+      context: ../../frontend
       dockerfile: Dockerfile
     container_name: nexdom-frontend
     depends_on:

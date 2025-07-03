@@ -282,18 +282,18 @@ stop_services() {
     
     # Parar containers Docker em ordem específica para evitar problemas
     # 1. Primeiro parar aplicações que dependem do Kafka
-    docker-compose -f docker-compose.full.yml down 2>/dev/null || true
-    docker-compose -f docker-compose.full-kafka.yml down 2>/dev/null || true
+    docker-compose -f infra/docker/docker-compose.full.yml down 2>/dev/null || true
+    docker-compose -f infra/docker/docker-compose.full-kafka.yml down 2>/dev/null || true
     
     # 2. Parar backend específico
-    cd backend 2>/dev/null || true
+    cd infra/docker 2>/dev/null || true
     docker-compose down 2>/dev/null || true
     docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
-    cd .. 2>/dev/null || true
+    cd ../.. 2>/dev/null || true
     
     # 3. Parar Kafka e Zookeeper (todas as configurações possíveis)
-    docker-compose -f docker-compose.kafka-simple.yml down 2>/dev/null || true
-    docker-compose -f docker-compose.kafka.yml down 2>/dev/null || true
+    docker-compose -f infra/docker/docker-compose.kafka-simple.yml down 2>/dev/null || true
+    docker-compose -f infra/docker/docker-compose.kafka.yml down 2>/dev/null || true
     
     # 4. Forçar parada de containers específicos do Kafka se ainda estiverem rodando
     docker stop nexdom-kafka-simple nexdom-zookeeper-simple nexdom-kafka-ui-simple 2>/dev/null || true
@@ -348,9 +348,9 @@ stop_services() {
 fix_kafka_issues() {
     print_color $BLUE "🔧 Executando correção automática do Kafka..."
     
-    if [[ -f "fix-kafka-issues.sh" ]]; then
-        chmod +x fix-kafka-issues.sh
-        ./fix-kafka-issues.sh
+    if [[ -f "infra/kafka/fix-kafka-issues.sh" ]]; then
+        chmod +x infra/kafka/fix-kafka-issues.sh
+        ./infra/kafka/fix-kafka-issues.sh
         
         if [[ $? -eq 0 ]]; then
             print_color $GREEN "✅ Correção do Kafka concluída com sucesso!"
@@ -361,7 +361,7 @@ fix_kafka_issues() {
         fi
     else
         print_color $RED "❌ Script fix-kafka-issues.sh não encontrado!"
-        print_color $YELLOW "💡 Certifique-se de que o arquivo está no diretório raiz do projeto"
+        print_color $YELLOW "💡 Certifique-se de que o arquivo está em infra/kafka/"
         exit 1
     fi
 }
@@ -374,14 +374,14 @@ clean_environment() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         stop_services
-        cd backend
+        cd infra/docker
         docker-compose down -v 2>/dev/null || true
         docker-compose -f docker-compose.dev.yml down -v 2>/dev/null || true
-        cd ..
-        docker-compose -f docker-compose.kafka.yml down -v 2>/dev/null || true
-        docker-compose -f docker-compose.kafka-simple.yml down -v 2>/dev/null || true
-        docker-compose -f docker-compose.full.yml down -v 2>/dev/null || true
-        docker-compose -f docker-compose.full-kafka.yml down -v 2>/dev/null || true
+        cd ../..
+        docker-compose -f infra/docker/docker-compose.kafka.yml down -v 2>/dev/null || true
+        docker-compose -f infra/docker/docker-compose.kafka-simple.yml down -v 2>/dev/null || true
+        docker-compose -f infra/docker/docker-compose.full.yml down -v 2>/dev/null || true
+        docker-compose -f infra/docker/docker-compose.full-kafka.yml down -v 2>/dev/null || true
         
         # Remover volumes específicos do Kafka se existirem
         docker volume rm nexdom_kafka-simple-data 2>/dev/null || true
@@ -439,13 +439,13 @@ start_kafka() {
         print_color $BLUE "🚀 Iniciando Apache Kafka..."
         
         # Verificar se arquivo kafka-simple existe (nova configuração corrigida)
-        if [[ -f "docker-compose.kafka-simple.yml" ]]; then
+        if [[ -f "infra/docker/docker-compose.kafka-simple.yml" ]]; then
             print_color $GREEN "📦 Usando configuração Kafka simplificada (corrigida)..."
             
             # Limpar containers antigos se existirem
             print_color $YELLOW "🧹 Limpando containers Kafka antigos..."
-            docker-compose -f docker-compose.kafka-simple.yml down -v 2>/dev/null || true
-            docker-compose -f docker-compose.kafka.yml down -v 2>/dev/null || true
+            docker-compose -f infra/docker/docker-compose.kafka-simple.yml down -v 2>/dev/null || true
+            docker-compose -f infra/docker/docker-compose.kafka.yml down -v 2>/dev/null || true
             
             # Verificar se portas estão livres
             if lsof -Pi :9092 -sTCP:LISTEN -t >/dev/null 2>&1; then
@@ -462,16 +462,16 @@ start_kafka() {
             fi
             
             # Iniciar Kafka com configuração simplificada
-            docker-compose -f docker-compose.kafka-simple.yml up -d
+            docker-compose -f infra/docker/docker-compose.kafka-simple.yml up -d
             
             # Usar função centralizada para aguardar Kafka
             if ! wait_for_kafka; then
                 print_color $YELLOW "💡 Executando correção automática..."
                 
                 # Executar script de correção se disponível
-                if [[ -f "fix-kafka-issues.sh" ]]; then
-                    chmod +x fix-kafka-issues.sh
-                    ./fix-kafka-issues.sh
+                if [[ -f "infra/kafka/fix-kafka-issues.sh" ]]; then
+                    chmod +x infra/kafka/fix-kafka-issues.sh
+                    ./infra/kafka/fix-kafka-issues.sh
                     return $?
                 else
                     return 1
@@ -491,15 +491,15 @@ start_kafka() {
             print_color $GREEN "📊 Tópicos disponíveis:"
             docker exec nexdom-kafka-simple kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null | sed 's/^/   ✓ /'
             
-        elif [[ -f "docker-compose.kafka.yml" ]]; then
+        elif [[ -f "infra/docker/docker-compose.kafka.yml" ]]; then
             print_color $YELLOW "📦 Usando configuração Kafka legada..."
             # Verificar se arquivo existe
-            docker-compose -f docker-compose.kafka.yml up -d
+            docker-compose -f infra/docker/docker-compose.kafka.yml up -d
             print_color $GREEN "⏳ Aguardando Kafka inicializar..."
             sleep 15
         else
             print_color $RED "❌ Nenhum arquivo de configuração Kafka encontrado!"
-            print_color $YELLOW "💡 Arquivos esperados: docker-compose.kafka-simple.yml ou docker-compose.kafka.yml"
+            print_color $YELLOW "💡 Arquivos esperados: infra/docker/docker-compose.kafka-simple.yml ou infra/docker/docker-compose.kafka.yml"
             return 1
         fi
         
@@ -514,7 +514,7 @@ start_kafka() {
             export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
         else
             print_color $RED "❌ Falha ao iniciar Kafka"
-            print_color $YELLOW "💡 Tente executar: ./fix-kafka-issues.sh"
+            print_color $YELLOW "💡 Tente executar: ./infra/kafka/fix-kafka-issues.sh"
             return 1
         fi
     fi
@@ -650,28 +650,28 @@ EOF
             print_color $BLUE "🚀 Usando stack completa com Kafka integrado..."
             
             # Verificar se o arquivo existe
-            if [[ ! -f "docker-compose.full-kafka.yml" ]]; then
-                print_color $RED "❌ Arquivo docker-compose.full-kafka.yml não encontrado!"
+            if [[ ! -f "infra/docker/docker-compose.full-kafka.yml" ]]; then
+                print_color $RED "❌ Arquivo infra/docker/docker-compose.full-kafka.yml não encontrado!"
                 print_color $YELLOW "💡 Usando configuração padrão e Kafka separado..."
-                docker-compose -f docker-compose.full.yml up -d --build
+                docker-compose -f infra/docker/docker-compose.full.yml up -d --build
             else
-                docker-compose -f docker-compose.full-kafka.yml up -d --build
+                docker-compose -f infra/docker/docker-compose.full-kafka.yml up -d --build
             fi
         else
-            docker-compose -f docker-compose.full.yml up -d --build
+            docker-compose -f infra/docker/docker-compose.full.yml up -d --build
         fi
         
         print_color $GREEN "✅ Stack completa iniciada com perfis: $SPRING_PROFILES"
     else
         # Apenas backend + Oracle
-        cd backend
+        cd infra/docker
         
         # Configurar variáveis de ambiente para Docker Compose
         export SPRING_PROFILES_ACTIVE="$SPRING_PROFILES"
         
         docker-compose up -d --build
         print_color $GREEN "✅ Backend e Oracle iniciados com perfis: $SPRING_PROFILES"
-        cd ..
+        cd ../..
     fi
 }
 
@@ -862,7 +862,7 @@ show_status() {
             print_color $YELLOW "   docker logs nexdom-kafka-simple -f                           # Logs do Kafka"
             print_color $YELLOW "   docker exec nexdom-kafka-simple kafka-topics --bootstrap-server localhost:9092 --list   # Listar tópicos"
             print_color $YELLOW "   docker exec nexdom-kafka-simple kafka-consumer-groups --bootstrap-server localhost:9092 --list # Consumer groups"
-            print_color $YELLOW "   ./fix-kafka-issues.sh                                        # Correção automática"
+            print_color $YELLOW "   ./infra/kafka/fix-kafka-issues.sh                           # Correção automática"
         else
             print_color $YELLOW "   # Configuração Legada:"
             print_color $YELLOW "   docker logs nexdom-kafka -f                                  # Logs do Kafka"
@@ -871,7 +871,7 @@ show_status() {
         fi
         
         print_color $YELLOW "   # Comandos Gerais:"
-        print_color $YELLOW "   ./fix-kafka-issues.sh                                        # Correção automática de problemas"
+        print_color $YELLOW "   ./infra/kafka/fix-kafka-issues.sh                           # Correção automática de problemas"
     fi
 }
 
