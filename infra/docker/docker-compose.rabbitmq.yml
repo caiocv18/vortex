@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # ================================
+  # RABBITMQ SETUP
+  # ================================
+  
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    container_name: vortex-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: vortex
+      RABBITMQ_DEFAULT_PASS: vortex123
+      RABBITMQ_DEFAULT_VHOST: vortex-vhost
+      # Configurações para desenvolvimento
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit log_levels [{connection,error},{default,info}] disk_free_limit 2147483648"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - rabbitmq-logs:/var/log/rabbitmq
+    networks:
+      - vortex-rabbitmq-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ================================
+  # RABBITMQ TOOLS CONTAINER
+  # ================================
+  
+  rabbitmq-tools:
+    image: rabbitmq:3.12-management
+    container_name: vortex-rabbitmq-tools
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: sleep infinity
+    networks:
+      - vortex-rabbitmq-network
+    profiles:
+      - tools
+
+# ================================
+# VOLUMES
+# ================================
+
+volumes:
+  rabbitmq-data:
+    driver: local
+  rabbitmq-logs:
+    driver: local
+
+# ================================
+# NETWORKS
+# ================================
+
+networks:
+  vortex-rabbitmq-network:
+    driver: bridge
+    name: vortex-rabbitmq-network 
