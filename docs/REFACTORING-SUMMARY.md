@@ -113,7 +113,7 @@ vortex/
 ./start-vortex.sh -e dev -m kafka
 
 # Produção completa
-./start-vortex.sh -e prd -m both --logs
+./start-vortex.sh -e prd -m kafka --logs
 
 # Parar tudo
 ./start-vortex.sh --stop
