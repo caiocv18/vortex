@@ -28,23 +28,20 @@ public class MovimentoEstoqueService {
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
     private final SqsProducerService sqsProducerService;
-    private final KafkaProducerService kafkaProducerService;
+    private final MessageBrokerService messageBrokerService;
 
     @Value("${sqs.processamento.assincrono.enabled:false}")
     private boolean processamentoAssincronoEnabled;
-
-    @Value("${kafka.enabled:false}")
-    private boolean kafkaEnabled;
 
     @Autowired
     public MovimentoEstoqueService(MovimentoEstoqueRepository movimentoEstoqueRepository,
                                   ProdutoRepository produtoRepository,
                                   SqsProducerService sqsProducerService,
-                                  KafkaProducerService kafkaProducerService) {
+                                  MessageBrokerService messageBrokerService) {
         this.movimentoEstoqueRepository = movimentoEstoqueRepository;
         this.produtoRepository = produtoRepository;
         this.sqsProducerService = sqsProducerService;
-        this.kafkaProducerService = kafkaProducerService;
+        this.messageBrokerService = messageBrokerService;
     }
 
     /**
@@ -172,14 +169,14 @@ public class MovimentoEstoqueService {
         MovimentoEstoque savedMovimento = movimentoEstoqueRepository.save(movimentoEstoque);
         
         // INTEGRAÇÃO KAFKA: Publica evento de movimentação
-        if (kafkaEnabled) {
-            kafkaProducerService.publicarMovimentoEstoque(savedMovimento, produto, estoqueAnterior, usuarioId);
+        if (messageBrokerService.isAvailable()) {
+            messageBrokerService.publicarMovimentoEstoque(savedMovimento, produto, estoqueAnterior, usuarioId);
             
             // Verificar se precisa gerar alertas de estoque
             verificarAlertas(produto, usuarioId);
             
-            // Auditoria via Kafka
-            kafkaProducerService.publicarAuditoria(
+            // Auditoria via Message Broker
+            messageBrokerService.publicarAuditoria(
                 "MOVIMENTO_CRIADO", 
                 "MovimentoEstoque", 
                 savedMovimento.getId(), 
@@ -203,11 +200,11 @@ public class MovimentoEstoqueService {
         Integer quantidadeAtual = produto.getQuantidadeEmEstoque();
         
         if (quantidadeAtual <= 0) {
-            kafkaProducerService.publicarAlertaEstoqueEsgotado(produto, usuarioId);
+            messageBrokerService.publicarAlertaEstoqueEsgotado(produto, usuarioId);
         } else if (quantidadeAtual <= 5) {
-            kafkaProducerService.publicarAlertaEstoqueCritico(produto, 5, usuarioId);
+            messageBrokerService.publicarAlertaEstoqueCritico(produto, 5, usuarioId);
         } else if (quantidadeAtual <= 10) {
-            kafkaProducerService.publicarAlertaEstoqueBaixo(produto, 10, usuarioId);
+            messageBrokerService.publicarAlertaEstoqueBaixo(produto, 10, usuarioId);
         }
     }
 
