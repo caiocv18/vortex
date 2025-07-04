@@ -218,7 +218,7 @@ if (message.getTentativas() >= 3) {
 
 ## 🔄 Migração e Compatibilidade
 
-### Modo Híbrido
+### Configuração de Processamento
 
 O sistema mantém compatibilidade total:
 
