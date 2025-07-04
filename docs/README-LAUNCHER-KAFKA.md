@@ -6,7 +6,6 @@ O script `start-vortex.sh` foi atualizado para suportar **Apache Kafka** como si
 
 - **Kafka**: Event sourcing e streaming em tempo real
 - **SQS**: Processamento assíncrono na AWS
-- **Híbrido**: Kafka + SQS para máxima flexibilidade
 - **Nenhum**: Processamento síncrono apenas
 
 ## 🎯 Novos Recursos
@@ -19,7 +18,6 @@ O script `start-vortex.sh` foi atualizado para suportar **Apache Kafka** como si
 
 # Especificar diretamente
 ./start-vortex.sh -e dev -m kafka
-./start-vortex.sh -e prd -m both
 ./start-vortex.sh -e dev -m sqs
 ./start-vortex.sh -e prd -m none
 ```
@@ -52,15 +50,14 @@ Novos arquivos de compose:
 # ✅ Frontend em modo desenvolvimento
 ```
 
-### **Cenário 2: Produção Híbrida (Kafka + SQS)**
+### **Cenário 2: Produção com SQS**
 
 ```bash
-# Iniciar em modo produção com ambos os sistemas
-./start-vortex.sh -e prd -m both --logs
+# Iniciar em modo produção com SQS
+./start-vortex.sh -e prd -m sqs --logs
 
 # Resultado:
-# ✅ Kafka cluster completo
-# ✅ Backend configurado para Kafka + SQS
+# ✅ Backend configurado para SQS
 # ✅ Oracle Database
 # ✅ Frontend otimizado
 ```
@@ -160,7 +157,7 @@ docker exec vortex-kafka kafka-console-consumer \
 
 ### **Combinações de Perfis**
 - `dev,kafka` - Desenvolvimento com Kafka
-- `prd,kafka,sqs` - Produção híbrida
+- `prd,sqs` - Produção com SQS
 - `dev` - Desenvolvimento sem mensageria
 
 ## 🚦 Troubleshooting
