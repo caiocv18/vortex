@@ -7,6 +7,7 @@ import br.com.vortex.desafio.backend.model.enums.TipoMovimentacao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,8 @@ import java.util.concurrent.CompletableFuture;
  */
 @Slf4j
 @Service
-public class KafkaProducerService {
+@ConditionalOnProperty(name = "kafka.enabled", havingValue = "true")
+public class KafkaProducerService implements MessageBrokerService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -273,5 +275,15 @@ public class KafkaProducerService {
             log.warn("Kafka não está disponível: {}", e.getMessage());
             return false;
         }
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return isKafkaAvailable();
+    }
+
+    @Override
+    public String getType() {
+        return "Kafka";
     }
 } 
