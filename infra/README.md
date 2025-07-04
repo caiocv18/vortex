@@ -11,12 +11,16 @@ infra/
 │   ├── docker-compose.override.yml    # Overrides locais
 │   ├── docker-compose.full.yml        # Stack completa (Backend + Oracle + Frontend)
 │   ├── docker-compose.full-kafka.yml  # Stack completa com Kafka integrado
+│   ├── docker-compose.full-rabbitmq.yml # Stack completa com RabbitMQ integrado
 │   ├── docker-compose.kafka.yml       # Kafka (configuração legada)
 │   ├── docker-compose.kafka-simple.yml # Kafka (configuração simplificada)
+│   ├── docker-compose.rabbitmq.yml    # RabbitMQ standalone
 │   └── Dockerfile.backend             # Build do backend
 ├── kafka/                  # Apache Kafka
 │   ├── fix-kafka-issues.sh           # Script de correção do Kafka
 │   └── application-kafka-test.properties # Configurações de teste
+├── rabbitmq/               # RabbitMQ
+│   └── application-rabbitmq-test.properties # Configurações de teste
 ├── oracle/                 # Oracle Database
 │   └── init/                          # Scripts de inicialização
 │       ├── 01-init-schema.sql        # Criação do schema
@@ -24,10 +28,12 @@ infra/
 ├── sqs/                   # Amazon SQS (futuro)
 ├── docs/                  # Documentação de infraestrutura
 │   ├── README-KAFKA.md               # Documentação do Kafka
+│   ├── README-RABBITMQ.md            # Documentação do RabbitMQ
 │   ├── README-ORACLE.md              # Documentação do Oracle
 │   └── README-SQS.md                 # Documentação do SQS
 └── scripts/               # Scripts de gerenciamento
     ├── start-kafka.sh                # Iniciar apenas Kafka
+    ├── start-rabbitmq.sh             # Iniciar apenas RabbitMQ
     ├── start-oracle.sh               # Iniciar apenas Oracle
     └── stop-infra.sh                 # Parar toda infraestrutura
 ```
@@ -39,6 +45,9 @@ infra/
 ```bash
 # Iniciar apenas Kafka
 ./infra/scripts/start-kafka.sh
+
+# Iniciar apenas RabbitMQ
+./infra/scripts/start-rabbitmq.sh
 
 # Iniciar apenas Oracle
 ./infra/scripts/start-oracle.sh
@@ -83,10 +92,22 @@ cd infra/docker
 docker-compose -f docker-compose.full-kafka.yml up -d
 ```
 
+### Stack com RabbitMQ Integrado
+```bash
+cd infra/docker
+docker-compose -f docker-compose.full-rabbitmq.yml up -d
+```
+
 ### Apenas Kafka
 ```bash
 cd infra/docker
 docker-compose -f docker-compose.kafka-simple.yml up -d
+```
+
+### Apenas RabbitMQ
+```bash
+cd infra/docker
+docker-compose -f docker-compose.rabbitmq.yml up -d
 ```
 
 ## 📨 Kafka
@@ -113,6 +134,36 @@ docker exec vortex-kafka-simple kafka-topics --bootstrap-server localhost:9092 -
 
 # Consumer groups
 docker exec vortex-kafka-simple kafka-consumer-groups --bootstrap-server localhost:9092 --list
+```
+
+## 🐰 RabbitMQ
+
+### Configuração Padrão
+- Arquivo: `docker-compose.rabbitmq.yml`
+- Management UI: http://localhost:15672
+- AMQP Port: localhost:5672
+- Usuário: vortex / Senha: vortex123
+- Virtual Host: vortex-vhost
+
+### Exchanges e Queues
+- `vortex.movimento.exchange` - Movimentações de estoque
+- `vortex.produto.exchange` - Eventos de produtos
+- `vortex.alerta.exchange` - Alertas de estoque
+- `vortex.auditoria.exchange` - Eventos de auditoria
+
+### Comandos Úteis
+```bash
+# Listar filas
+docker exec vortex-rabbitmq rabbitmqctl list_queues
+
+# Listar exchanges
+docker exec vortex-rabbitmq rabbitmqctl list_exchanges
+
+# Listar bindings
+docker exec vortex-rabbitmq rabbitmqctl list_bindings
+
+# Status do RabbitMQ
+docker exec vortex-rabbitmq rabbitmq-diagnostics status
 ```
 
 ## 🗄️ Oracle Database
