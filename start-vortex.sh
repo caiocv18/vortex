@@ -49,28 +49,39 @@ show_help() {
     echo "  -e, --env ENV       Definir ambiente (dev|prd)"
     echo "  -b, --backend-only  Executar apenas backend"
     echo "  -f, --frontend-only Executar apenas frontend"
-    echo "  -m, --messaging MSG Definir sistema de mensageria (kafka|sqs|both)"
+    echo "  -c, --components C  Definir componentes (full|backend|frontend)"
+    echo "  -m, --messaging MSG Definir sistema de mensageria (kafka|rabbitmq|sqs|none)"
     echo "  --stop              Parar todos os serviços"
     echo "  --clean             Limpar containers e volumes"
     echo "  --fix-kafka         Executar correção automática do Kafka"
     echo "  --logs              Mostrar logs após iniciar"
+    echo "  --no-interaction    Modo não interativo (usa valores padrão)"
     echo ""
     echo "Ambientes:"
     echo "  dev  - Desenvolvimento com H2 Database"
     echo "  prd  - Produção com Oracle Database"
     echo ""
     echo "Sistemas de Mensageria:"
-    echo "  kafka - Apache Kafka para event streaming"
-    echo "  sqs   - Amazon SQS para processamento assíncrono"
-    echo "  both  - Kafka + SQS (híbrido)"
+    echo "  kafka    - Apache Kafka para event streaming"
+    echo "  rabbitmq - RabbitMQ para mensageria tradicional"
+    echo "  sqs      - Amazon SQS para processamento assíncrono"
+    echo "  none     - Sem sistema de mensageria"
+    echo ""
+    echo "Componentes:"
+    echo "  full     - Backend + Frontend (padrão)"
+    echo "  backend  - Apenas Backend"
+    echo "  frontend - Apenas Frontend"
     echo ""
     echo "Exemplos:"
-    echo "  $0                          # Modo interativo"
-    echo "  $0 -e dev -m kafka          # Desenvolvimento com Kafka"
-    echo "  $0 -e prd -m both --logs    # Produção com Kafka + SQS"
-    echo "  $0 --backend-only -m sqs    # Apenas backend com SQS"
-    echo "  $0 --stop                   # Parar serviços"
-    echo "  $0 --fix-kafka              # Corrigir problemas do Kafka"
+    echo "  $0                                    # Modo interativo"
+    echo "  $0 -e dev -m kafka -c full           # Desenvolvimento com Kafka (completo)"
+    echo "  $0 -e dev -m rabbitmq -c backend     # Desenvolvimento com RabbitMQ (só backend)"
+    echo "  $0 -e prd -m kafka -c full --logs    # Produção com Kafka"
+    echo "  $0 -e dev -m none -c backend         # Desenvolvimento sem mensageria"
+    echo "  $0 --backend-only -m sqs             # Apenas backend com SQS"
+    echo "  $0 --stop                            # Parar serviços"
+    echo "  $0 --fix-kafka                       # Corrigir problemas do Kafka"
+    echo "  $0 --no-interaction -e dev -m kafka  # Modo não interativo"
 }
 
 # Função para verificar pré-requisitos
@@ -129,6 +140,13 @@ choose_environment() {
         return
     fi
     
+    # Modo não interativo usa desenvolvimento por padrão
+    if [[ "$NO_INTERACTION" == "true" ]]; then
+        ENVIRONMENT="dev"
+        print_color $GREEN "✅ Ambiente de desenvolvimento selecionado (padrão)"
+        return
+    fi
+    
     print_color $YELLOW "
 🌍 Escolha o ambiente de execução:
 
@@ -171,6 +189,13 @@ choose_messaging() {
         return
     fi
     
+    # Modo não interativo usa Kafka por padrão
+    if [[ "$NO_INTERACTION" == "true" ]]; then
+        MESSAGING_SYSTEM="kafka"
+        print_color $GREEN "✅ Apache Kafka selecionado (padrão)"
+        return
+    fi
+    
     print_color $YELLOW "
 📨 Escolha o sistema de mensageria:
 
@@ -180,16 +205,17 @@ choose_messaging() {
    - Alta performance
    - Replay de eventos
 
-2) ☁️  Amazon SQS
+2) 🐰 RabbitMQ
+   - Mensageria tradicional
+   - Filas confiáveis
+   - Protocolo AMQP
+   - Interface de gerenciamento
+
+3) ☁️  Amazon SQS
    - Processamento assíncrono
    - Gerenciado pela AWS
    - Simplicidade de uso
    - Pay-per-use
-
-3) 🔄 Híbrido (Kafka + SQS)
-   - Kafka para eventos críticos
-   - SQS para processamento assíncrono
-   - Máxima flexibilidade
 
 4) ❌ Nenhum
    - Processamento síncrono apenas
@@ -205,13 +231,13 @@ choose_messaging() {
                 break
                 ;;
             2)
-                MESSAGING_SYSTEM="sqs"
-                print_color $GREEN "✅ Amazon SQS selecionado"
+                MESSAGING_SYSTEM="rabbitmq"
+                print_color $GREEN "✅ RabbitMQ selecionado"
                 break
                 ;;
             3)
-                MESSAGING_SYSTEM="both"
-                print_color $GREEN "✅ Sistema híbrido (Kafka + SQS) selecionado"
+                MESSAGING_SYSTEM="sqs"
+                print_color $GREEN "✅ Amazon SQS selecionado"
                 break
                 ;;
             4)
@@ -237,6 +263,38 @@ choose_components() {
     if [[ "$FRONTEND_ONLY" == "true" ]]; then
         RUN_BACKEND=false
         RUN_FRONTEND=true
+        return
+    fi
+    
+    # Usar parâmetro -c se fornecido
+    if [[ -n "$COMPONENTS" ]]; then
+        case $COMPONENTS in
+            "full")
+                RUN_BACKEND=true
+                RUN_FRONTEND=true
+                print_color $GREEN "✅ Executando Backend + Frontend"
+                return
+                ;;
+            "backend")
+                RUN_BACKEND=true
+                RUN_FRONTEND=false
+                print_color $GREEN "✅ Executando apenas Backend"
+                return
+                ;;
+            "frontend")
+                RUN_BACKEND=false
+                RUN_FRONTEND=true
+                print_color $GREEN "✅ Executando apenas Frontend"
+                return
+                ;;
+        esac
+    fi
+    
+    # Modo não interativo usa completo por padrão
+    if [[ "$NO_INTERACTION" == "true" ]]; then
+        RUN_BACKEND=true
+        RUN_FRONTEND=true
+        print_color $GREEN "✅ Executando Backend + Frontend (padrão)"
         return
     fi
     
@@ -291,18 +349,21 @@ stop_services() {
     docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
     cd ../.. 2>/dev/null || true
     
-    # 3. Parar Kafka e Zookeeper (todas as configurações possíveis)
+    # 3. Parar Kafka, RabbitMQ e Zookeeper (todas as configurações possíveis)
     docker-compose -f infra/docker/docker-compose.kafka-simple.yml down 2>/dev/null || true
     docker-compose -f infra/docker/docker-compose.kafka.yml down 2>/dev/null || true
+    docker-compose -f infra/docker/docker-compose.rabbitmq.yml down 2>/dev/null || true
     
-    # 4. Forçar parada de containers específicos do Kafka se ainda estiverem rodando
+    # 4. Forçar parada de containers específicos se ainda estiverem rodando
     docker stop vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
     docker stop vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
+    docker stop vortex-rabbitmq 2>/dev/null || true
     docker stop vortex-app vortex-app-dev vortex-db vortex-frontend 2>/dev/null || true
     
     # 5. Remover containers órfãos
     docker rm vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
     docker rm vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
+    docker rm vortex-rabbitmq 2>/dev/null || true
     docker rm vortex-app vortex-app-dev vortex-db vortex-frontend 2>/dev/null || true
     
     # 6. Parar processos Node.js (frontend)
@@ -326,6 +387,7 @@ stop_services() {
     
     # 9. Limpar redes Docker órfãs relacionadas ao Vortex
     docker network rm vortex-kafka-network 2>/dev/null || true
+    docker network rm vortex-rabbitmq-network 2>/dev/null || true
     docker network rm vortex_default 2>/dev/null || true
     
     # 10. Aguardar um pouco para garantir que todos os containers foram parados
@@ -429,7 +491,7 @@ wait_for_kafka() {
 
 # Função para iniciar Kafka
 start_kafka() {
-    if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         # Se vai usar o compose completo com Kafka, não iniciar separadamente
         if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
             print_color $BLUE "🚀 Kafka será iniciado junto com a stack completa..."
@@ -520,6 +582,95 @@ start_kafka() {
     fi
 }
 
+# Função para iniciar RabbitMQ
+start_rabbitmq() {
+    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+        # Se vai usar o compose completo com RabbitMQ, não iniciar separadamente
+        if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
+            print_color $BLUE "🐰 RabbitMQ será iniciado junto com a stack completa..."
+            return 0
+        fi
+        
+        print_color $BLUE "🐰 Iniciando RabbitMQ..."
+        
+        # Verificar se arquivo RabbitMQ existe
+        if [[ -f "infra/docker/docker-compose.rabbitmq.yml" ]]; then
+            print_color $GREEN "📦 Usando configuração RabbitMQ..."
+            
+            # Limpar containers antigos se existirem
+            print_color $YELLOW "🧹 Limpando containers RabbitMQ antigos..."
+            docker-compose -f infra/docker/docker-compose.rabbitmq.yml down -v 2>/dev/null || true
+            
+            # Verificar se portas estão livres
+            if lsof -Pi :5672 -sTCP:LISTEN -t >/dev/null 2>&1; then
+                print_color $YELLOW "⚠️  Porta 5672 ocupada. Tentando liberar..."
+                pkill -f "rabbitmq" 2>/dev/null || true
+                sleep 2
+            fi
+            
+            if lsof -Pi :15672 -sTCP:LISTEN -t >/dev/null 2>&1; then
+                print_color $YELLOW "⚠️  Porta 15672 ocupada. Tentando liberar..."
+                pkill -f "rabbitmq" 2>/dev/null || true
+                sleep 2
+            fi
+            
+            # Iniciar RabbitMQ
+            docker-compose -f infra/docker/docker-compose.rabbitmq.yml up -d
+            
+            # Aguardar RabbitMQ estar pronto
+            if ! wait_for_rabbitmq; then
+                print_color $RED "❌ Falha ao iniciar RabbitMQ"
+                return 1
+            fi
+            
+        else
+            print_color $RED "❌ Arquivo de configuração RabbitMQ não encontrado!"
+            print_color $YELLOW "💡 Arquivo esperado: infra/docker/docker-compose.rabbitmq.yml"
+            return 1
+        fi
+        
+        # Verificar se RabbitMQ está rodando
+        if docker ps | grep -q "vortex-rabbitmq"; then
+            print_color $GREEN "✅ RabbitMQ iniciado com sucesso"
+            print_color $GREEN "   🌐 Management UI: http://localhost:15672"
+            print_color $GREEN "   📡 AMQP Port: localhost:5672"
+            print_color $GREEN "   👤 Usuário: vortex / Senha: vortex123"
+            
+            # Definir variáveis de ambiente para outros serviços
+            export RABBITMQ_ENABLED=true
+            export SPRING_RABBITMQ_HOST=localhost
+            export SPRING_RABBITMQ_PORT=5672
+            export SPRING_RABBITMQ_USERNAME=vortex
+            export SPRING_RABBITMQ_PASSWORD=vortex123
+        else
+            print_color $RED "❌ Falha ao iniciar RabbitMQ"
+            return 1
+        fi
+    fi
+}
+
+# Função para aguardar RabbitMQ estar pronto
+wait_for_rabbitmq() {
+    print_color $BLUE "⏳ Aguardando RabbitMQ estar pronto..."
+    
+    local max_attempts=30
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if docker exec vortex-rabbitmq rabbitmq-diagnostics status >/dev/null 2>&1; then
+            print_color $GREEN "✅ RabbitMQ está pronto!"
+            return 0
+        fi
+        
+        print_color $YELLOW "⏳ Tentativa $attempt/$max_attempts - Aguardando RabbitMQ..."
+        sleep 3
+        ((attempt++))
+    done
+    
+    print_color $RED "❌ Timeout aguardando RabbitMQ"
+    return 1
+}
+
 # Função para executar backend em desenvolvimento
 start_backend_dev() {
     print_color $BLUE "🔧 Iniciando Backend em modo desenvolvimento..."
@@ -530,10 +681,11 @@ start_backend_dev() {
     SPRING_PROFILES="dev"
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         SPRING_PROFILES="dev,kafka"
+    elif [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+        SPRING_PROFILES="dev,rabbitmq"
     elif [[ "$MESSAGING_SYSTEM" == "sqs" ]]; then
         SPRING_PROFILES="dev,sqs"
-    elif [[ "$MESSAGING_SYSTEM" == "both" ]]; then
-        SPRING_PROFILES="dev,kafka,sqs"
+
     fi
     
     # Verificar se Maven está disponível
@@ -541,8 +693,8 @@ start_backend_dev() {
         print_color $GREEN "📦 Executando com Maven local..."
         export SPRING_PROFILES_ACTIVE="$SPRING_PROFILES"
         
-        # Configurações específicas para Kafka
-        if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+        # Configurações específicas para sistemas de mensageria
+        if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
             export KAFKA_ENABLED=true
             export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
             
@@ -560,6 +712,17 @@ start_backend_dev() {
             export KAFKA_ENABLED=false
         fi
         
+        # Configurações específicas para RabbitMQ
+        if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+            export RABBITMQ_ENABLED=true
+            export SPRING_RABBITMQ_HOST=localhost
+            export SPRING_RABBITMQ_PORT=5672
+            export SPRING_RABBITMQ_USERNAME=vortex
+            export SPRING_RABBITMQ_PASSWORD=vortex123
+        else
+            export RABBITMQ_ENABLED=false
+        fi
+        
         nohup mvn spring-boot:run > ../backend.log 2>&1 &
         BACKEND_PID=$!
         echo $BACKEND_PID > ../backend.pid
@@ -568,7 +731,7 @@ start_backend_dev() {
         print_color $YELLOW "📦 Maven não encontrado, usando Docker..."
         # Criar docker-compose temporário para dev
         NETWORK_CONFIG=""
-        if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+        if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
             NETWORK_CONFIG="
     networks:
       - vortex-kafka-network
@@ -606,14 +769,15 @@ start_backend_prd() {
     SPRING_PROFILES="prd"
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         SPRING_PROFILES="prd,kafka"
+    elif [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+        SPRING_PROFILES="prd,rabbitmq"
     elif [[ "$MESSAGING_SYSTEM" == "sqs" ]]; then
         SPRING_PROFILES="prd,sqs"
-    elif [[ "$MESSAGING_SYSTEM" == "both" ]]; then
-        SPRING_PROFILES="prd,kafka,sqs"
+
     fi
     
     # Configurar variáveis de ambiente para Kafka se necessário
-    if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         export KAFKA_ENABLED=true
         export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
         
@@ -646,7 +810,7 @@ SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}
 EOF
         
         # Escolher arquivo de compose baseado no sistema de mensageria
-        if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+        if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
             print_color $BLUE "🚀 Usando stack completa com Kafka integrado..."
             
             # Verificar se o arquivo existe
@@ -742,7 +906,7 @@ show_status() {
     if [[ "$MESSAGING_SYSTEM" != "none" ]]; then
         print_color $BLUE "📨 SISTEMA DE MENSAGERIA ($MESSAGING_SYSTEM):"
         
-        if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+        if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
             # Verificar configuração simplificada primeiro
             if docker ps | grep -q "vortex-kafka-simple"; then
                 print_color $GREEN "   ✅ Kafka rodando (configuração simplificada)"
@@ -778,7 +942,26 @@ show_status() {
             fi
         fi
         
-        if [[ "$MESSAGING_SYSTEM" == "sqs" || "$MESSAGING_SYSTEM" == "both" ]]; then
+        if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+            if docker ps | grep -q "vortex-rabbitmq"; then
+                print_color $GREEN "   ✅ RabbitMQ rodando"
+                print_color $GREEN "   📡 AMQP: localhost:5672"
+                print_color $GREEN "   🌐 Management UI: http://localhost:15672"
+                print_color $GREEN "   👤 Usuário: vortex / Senha: vortex123"
+                
+                # Verificar saúde do RabbitMQ
+                if docker exec vortex-rabbitmq rabbitmq-diagnostics status >/dev/null 2>&1; then
+                    print_color $GREEN "   💚 Status: Saudável"
+                else
+                    print_color $YELLOW "   ⚠️  Status: Inicializando..."
+                fi
+            else
+                print_color $RED "   ❌ RabbitMQ não está rodando"
+                print_color $YELLOW "   💡 Execute: ./start-vortex.sh -m rabbitmq"
+            fi
+        fi
+        
+        if [[ "$MESSAGING_SYSTEM" == "sqs" ]]; then
             print_color $YELLOW "   ☁️  SQS: Configuração AWS necessária"
         fi
     fi
@@ -851,7 +1034,7 @@ show_status() {
     print_color $YELLOW "   tail -f backend.log          # Logs do backend (dev)"
     print_color $YELLOW "   tail -f frontend.log         # Logs do frontend"
     
-    if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         print_color $CYAN "
 📨 COMANDOS KAFKA:
 ═══════════════════════════════════════════════════════════════"
@@ -872,6 +1055,17 @@ show_status() {
         
         print_color $YELLOW "   # Comandos Gerais:"
         print_color $YELLOW "   ./infra/kafka/fix-kafka-issues.sh                           # Correção automática de problemas"
+    fi
+    
+    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+        print_color $CYAN "
+📨 COMANDOS RABBITMQ:
+═══════════════════════════════════════════════════════════════"
+        print_color $YELLOW "   docker logs vortex-rabbitmq -f                              # Logs do RabbitMQ"
+        print_color $YELLOW "   docker exec vortex-rabbitmq rabbitmqctl list_queues         # Listar filas"
+        print_color $YELLOW "   docker exec vortex-rabbitmq rabbitmqctl list_exchanges      # Listar exchanges"
+        print_color $YELLOW "   docker exec vortex-rabbitmq rabbitmqctl list_bindings       # Listar bindings"
+        print_color $YELLOW "   docker exec vortex-rabbitmq rabbitmq-diagnostics status     # Status do RabbitMQ"
     fi
 }
 
@@ -915,9 +1109,17 @@ main() {
                 FRONTEND_ONLY="true"
                 shift
                 ;;
+            -c|--components)
+                COMPONENTS="$2"
+                shift 2
+                ;;
             -m|--messaging)
                 MESSAGING_SYSTEM="$2"
                 shift 2
+                ;;
+            --no-interaction)
+                NO_INTERACTION="true"
+                shift
                 ;;
             --stop)
                 stop_services
@@ -950,8 +1152,14 @@ main() {
     fi
     
     # Validar sistema de mensageria se fornecido
-    if [[ -n "$MESSAGING_SYSTEM" && "$MESSAGING_SYSTEM" != "kafka" && "$MESSAGING_SYSTEM" != "sqs" && "$MESSAGING_SYSTEM" != "both" && "$MESSAGING_SYSTEM" != "none" ]]; then
-        print_color $RED "❌ Sistema de mensageria inválido: $MESSAGING_SYSTEM. Use 'kafka', 'sqs', 'both' ou 'none'."
+    if [[ -n "$MESSAGING_SYSTEM" && "$MESSAGING_SYSTEM" != "kafka" && "$MESSAGING_SYSTEM" != "rabbitmq" && "$MESSAGING_SYSTEM" != "sqs" && "$MESSAGING_SYSTEM" != "none" ]]; then
+        print_color $RED "❌ Sistema de mensageria inválido: $MESSAGING_SYSTEM. Use 'kafka', 'rabbitmq', 'sqs' ou 'none'."
+        exit 1
+    fi
+    
+    # Validar componentes se fornecido
+    if [[ -n "$COMPONENTS" && "$COMPONENTS" != "full" && "$COMPONENTS" != "backend" && "$COMPONENTS" != "frontend" ]]; then
+        print_color $RED "❌ Componentes inválidos: $COMPONENTS. Use 'full', 'backend' ou 'frontend'."
         exit 1
     fi
     
@@ -975,11 +1183,20 @@ main() {
     print_color $BLUE "🚀 Iniciando serviços..."
     
     # Iniciar Kafka se necessário (apenas se não for integrado com stack completa)
-    if [[ "$MESSAGING_SYSTEM" == "kafka" || "$MESSAGING_SYSTEM" == "both" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
             print_color $BLUE "📦 Kafka será iniciado integrado com a stack completa..."
         else
             start_kafka
+        fi
+    fi
+    
+    # Iniciar RabbitMQ se necessário (apenas se não for integrado com stack completa)
+    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+        if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
+            print_color $BLUE "📦 RabbitMQ será iniciado integrado com a stack completa..."
+        else
+            start_rabbitmq
         fi
     fi
     
@@ -1020,11 +1237,13 @@ Para parar os serviços, execute: ./start-vortex.sh --stop
 # Variáveis globais
 ENVIRONMENT=""
 MESSAGING_SYSTEM=""
+COMPONENTS=""
 BACKEND_ONLY="false"
 FRONTEND_ONLY="false"
 RUN_BACKEND="true"
 RUN_FRONTEND="true"
 SHOW_LOGS="false"
+NO_INTERACTION="false"
 NODE_AVAILABLE="false"
 NPM_AVAILABLE="false"
 
