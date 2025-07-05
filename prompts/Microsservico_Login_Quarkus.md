@@ -1,5 +1,11 @@
 ### Título: Criação de Microsserviço de Login com Quarkus, OIDC e JWT - Integração com Sistema VORTEX
 
+**⚠️ IMPORTANTE: FRONTEND REACT + VITE OBRIGATÓRIO ⚠️**
+
+**ESTE PROJETO DEVE INCLUIR:**
+1. **Backend**: Microsserviço Quarkus (conforme especificado)
+2. **Frontend**: Aplicação React + Vite COMPLETAMENTE NOVA (criar do zero)
+
 **Contexto Atual:**
 
 O sistema VORTEX é uma aplicação de controle de estoque construída com Spring Boot que já possui:
@@ -11,6 +17,8 @@ O sistema VORTEX é uma aplicação de controle de estoque construída com Sprin
 
 Preciso criar um **microsserviço de login independente** usando Quarkus que se integrará com este ecossistema existente. Este serviço será responsável exclusivamente pela autenticação de usuários e emissão de tokens JWT, mantendo consistência com a arquitetura atual.
 
+**ALÉM DISSO, É OBRIGATÓRIO CRIAR UMA APLICAÇÃO FRONTEND REACT + VITE DO ZERO** para consumir este microsserviço de autenticação.
+
 **Requisitos Essenciais:**
 
 1. **Integração com Arquitetura Existente:**
@@ -19,36 +27,48 @@ Preciso criar um **microsserviço de login independente** usando Quarkus que se 
    - Manter consistência com os DTOs existentes (AuditoriaEventDTO, etc.)
    - Configurar CORS para o frontend React com Vite (localhost:3000, 5173, etc.)
 
-2. **Autenticação Múltipla:**
+2. **Frontend React + Vite (OBRIGATÓRIO - CRIAR DO ZERO):**
+   - **IMPORTANTE**: Criar aplicação frontend completamente nova usando React + Vite
+   - Interface moderna e responsiva para autenticação
+   - Páginas: Login, Cadastro, Recuperação de Senha, Reset de Senha
+   - Integração com OAuth (Google/GitHub) e autenticação local
+   - Seguir padrão visual do sistema VORTEX (cores, tipografia, componentes)
+   - Implementar dark mode e responsividade
+   - Configurar roteamento com React Router
+   - Gerenciamento de estado para autenticação
+   - Interceptadores para requisições HTTP
+   - Tratamento de erros e loading states
+
+3. **Autenticação Múltipla:**
    - **OAuth2/OIDC**: Google e GitHub usando `quarkus-oidc`
    - **Usuário e Senha**: Sistema tradicional com hash bcrypt
    - **Cadastro de Usuário**: Endpoint para criação de contas locais
    - **Recuperação de Senha**: Sistema de reset via email
    - Configurar redirects compatíveis com o frontend React
 
-3. **Persistência de Usuário e Papéis:**
+4. **Persistência de Usuário e Papéis:**
    - Criar entidade `User` com campos: id, email, name, password, roles, createdAt, updatedAt
    - Adicionar campos para recuperação: resetToken, resetTokenExpiry
    - Usar **Quarkus Panache com JPA** para compatibilidade com PostgreSQL
    - Implementar soft delete para usuários
    - Papel padrão: `"user"`, com possibilidade de roles: `["user", "admin", "manager"]`
 
-4. **Geração de Token JWT:**
+5. **Geração de Token JWT:**
    - Token JWT com claims obrigatórias: `sub`, `email`, `groups`, `name`, `iat`, `exp`
    - Adicionar claims customizadas: `userId`, `provider` (google/github/local)
    - Configurar expiração compatível com o sistema (ex: 8 horas)
 
-5. **Validação Desacoplada (JWKS):**
+6. **Validação Desacoplada (JWKS):**
    - Endpoint `/auth/jwks.json` para chaves públicas
    - Endpoint `/auth/.well-known/openid-configuration` para descoberta
    - Configurar CORS para permitir acesso do sistema principal
 
-6. **Integração com Sistema de Mensageria:**
+7. **Integração com Sistema de Mensageria:**
    - Publicar eventos de auditoria no mesmo formato do sistema atual
    - Eventos: LOGIN_SUCCESS, LOGIN_FAILED, USER_CREATED, USER_UPDATED, PASSWORD_RESET_REQUESTED, PASSWORD_RESET_COMPLETED
    - Usar o mesmo padrão de tópicos: `vortex.auditoria`
 
-7. **Sistema de Email:**
+8. **Sistema de Email:**
    - Integração para envio de emails de recuperação de senha
    - Templates HTML para emails
    - Configuração SMTP
@@ -884,11 +904,16 @@ public class AuditService {
 
 **Fluxo de Integração Expandido:**
 
-1. **Frontend React** apresenta tela de login com opções:
+1. **Frontend React + Vite (CRIAR DO ZERO)** apresenta tela de login com opções:
+   - **IMPORTANTE**: Aplicação frontend totalmente nova e independente
    - Login com email/senha
    - Botão "Cadastrar-se"
    - Botão "Esqueci minha senha"
    - Botões para Google/GitHub
+   - Interface moderna e responsiva
+   - Gerenciamento de estado para autenticação
+   - Interceptadores HTTP para tokens
+   - Tratamento de erros e loading states
 
 2. **Autenticação Local:**
    - POST `/auth/login` com email/senha
@@ -902,7 +927,69 @@ public class AuditService {
 
 4. **Todos os fluxos** geram JWT e publicam eventos de auditoria
 
-**Frontend - Padrão de Cores e Estilos:**
+**Frontend React + Vite - CRIAR DO ZERO:**
+
+**IMPORTANTE**: Criar aplicação frontend completamente nova usando React + Vite. Não é uma integração com sistema existente, mas uma nova aplicação independente.
+
+**Estrutura do Projeto Frontend:**
+```
+vortex-auth-frontend/
+├── src/
+│   ├── components/
+│   │   ├── LoginForm.jsx
+│   │   ├── RegisterForm.jsx
+│   │   ├── ForgotPasswordForm.jsx
+│   │   ├── ResetPasswordForm.jsx
+│   │   ├── OAuthButtons.jsx
+│   │   └── LoadingSpinner.jsx
+│   ├── pages/
+│   │   ├── LoginPage.jsx
+│   │   ├── RegisterPage.jsx
+│   │   ├── ForgotPasswordPage.jsx
+│   │   └── ResetPasswordPage.jsx
+│   ├── hooks/
+│   │   ├── useAuth.js
+│   │   ├── useApi.js
+│   │   └── useLocalStorage.js
+│   ├── services/
+│   │   ├── authService.js
+│   │   ├── apiClient.js
+│   │   └── tokenService.js
+│   ├── utils/
+│   │   ├── validation.js
+│   │   └── constants.js
+│   ├── styles/
+│   │   ├── globals.css
+│   │   ├── components.css
+│   │   └── variables.css
+│   ├── App.jsx
+│   └── main.jsx
+├── package.json
+├── vite.config.js
+└── README.md
+```
+
+**Dependências do Frontend:**
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "axios": "^1.3.0",
+    "react-hook-form": "^7.43.0",
+    "react-hot-toast": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.27",
+    "@types/react-dom": "^18.0.10",
+    "@vitejs/plugin-react": "^3.1.0",
+    "vite": "^4.1.0"
+  }
+}
+```
+
+**Padrão de Cores e Estilos:**
 
 As telas de login devem seguir o mesmo padrão visual da aplicação principal VORTEX:
 
@@ -947,8 +1034,11 @@ As telas de login devem seguir o mesmo padrão visual da aplicação principal V
 ```
 
 **Exemplo de Tela React (seguindo padrão visual VORTEX):**
+
+**IMPORTANTE**: Este é um exemplo de como deve ser a aplicação React + Vite criada do zero.
+
 ```jsx
-// LoginPage.jsx
+// LoginPage.jsx - CRIAR DO ZERO
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css'; // Estilos compatíveis com VORTEX
