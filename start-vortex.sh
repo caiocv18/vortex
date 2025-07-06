@@ -675,7 +675,7 @@ wait_for_rabbitmq() {
 start_backend_dev() {
     print_color $BLUE "🔧 Iniciando Backend em modo desenvolvimento..."
     
-    cd backend
+    cd backend/vortex-application-service
     
     # Definir perfis Spring baseado no sistema de mensageria
     SPRING_PROFILES="dev"
@@ -723,9 +723,9 @@ start_backend_dev() {
             export RABBITMQ_ENABLED=false
         fi
         
-        nohup mvn spring-boot:run > ../backend.log 2>&1 &
+        nohup mvn spring-boot:run > ../../backend.log 2>&1 &
         BACKEND_PID=$!
-        echo $BACKEND_PID > ../backend.pid
+        echo $BACKEND_PID > ../../backend.pid
         print_color $GREEN "✅ Backend iniciado (PID: $BACKEND_PID) com perfis: $SPRING_PROFILES"
     else
         print_color $YELLOW "📦 Maven não encontrado, usando Docker..."
@@ -752,13 +752,13 @@ services:
       KAFKA_ENABLED: ${KAFKA_ENABLED:-false}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}
     ports:
-      - "8081:8080"$NETWORK_CONFIG
+      - "8080:8080"$NETWORK_CONFIG
 EOF
         docker-compose -f docker-compose.dev.yml up -d
         print_color $GREEN "✅ Backend iniciado no Docker com perfis: $SPRING_PROFILES"
     fi
     
-    cd ..
+    cd ../..
 }
 
 # Função para executar backend em produção
@@ -973,17 +973,17 @@ show_status() {
                 PID=$(cat backend.pid)
                 if ps -p $PID > /dev/null 2>&1; then
                     print_color $GREEN "   ✅ Rodando (PID: $PID)"
-                    print_color $GREEN "   🌐 API: http://localhost:8081"
-                    print_color $GREEN "   📚 Swagger: http://localhost:8081/swagger-ui.html"
-                    print_color $GREEN "   🗄️  H2 Console: http://localhost:8081/h2-console"
+                       print_color $GREEN "   🌐 API: http://localhost:8080"
+   print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
+   print_color $GREEN "   🗄️  H2 Console: http://localhost:8080/h2-console"
                 else
                     print_color $RED "   ❌ Não está rodando"
                 fi
             else
                 if docker ps | grep -q "vortex-app-dev"; then
                     print_color $GREEN "   ✅ Rodando no Docker"
-                    print_color $GREEN "   🌐 API: http://localhost:8081"
-                    print_color $GREEN "   📚 Swagger: http://localhost:8081/swagger-ui.html"
+                    print_color $GREEN "   🌐 API: http://localhost:8080"
+                    print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
                 else
                     print_color $RED "   ❌ Não está rodando"
                 fi
@@ -991,8 +991,8 @@ show_status() {
         else
             if docker ps | grep -q "vortex-app"; then
                 print_color $GREEN "   ✅ Rodando no Docker"
-                print_color $GREEN "   🌐 API: http://localhost:8081"
-                print_color $GREEN "   📚 Swagger: http://localhost:8081/swagger-ui.html"
+                print_color $GREEN "   🌐 API: http://localhost:8080"
+                print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
                 print_color $GREEN "   🗄️  Oracle: localhost:1521 (ORCLCDB/ORCLPDB1)"
             else
                 print_color $RED "   ❌ Não está rodando"
