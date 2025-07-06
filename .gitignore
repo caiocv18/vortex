@@ -1,7 +1,7 @@
 /.idea
 /.vscode
 
-/backend/.env
+/backend/vortex-application-service/.env
 /frontend/.env
 
 *.log

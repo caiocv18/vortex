@@ -70,7 +70,7 @@ docker-compose -f docker-compose.kafka-simple.yml ps
 #### **Passo 3: Configurar Aplicação**
 ```bash
 # Copiar configuração de teste
-cp application-kafka-test.properties backend/src/main/resources/
+cp application-kafka-test.properties backend/vortex-application-service/src/main/resources/
 
 # Executar aplicação com perfil Kafka
 cd backend
@@ -204,7 +204,7 @@ docker-compose -f docker-compose.kafka-simple.yml up -d
 docker ps | grep kafka
 
 # Verificar logs da aplicação
-tail -f backend/logs/application.log | grep -i kafka
+tail -f backend/vortex-application-service/logs/application.log | grep -i kafka
 
 # Testar conectividade manual
 telnet localhost 9092
@@ -227,7 +227,7 @@ docker exec vortex-kafka-simple kafka-topics --create --topic vortex.auditoria -
 ### **Logs Importantes**
 ```bash
 # Logs da aplicação Spring Boot
-tail -f backend/logs/application.log | grep -E "(KAFKA|ERROR|WARN)"
+tail -f backend/vortex-application-service/logs/application.log | grep -E "(KAFKA|ERROR|WARN)"
 
 # Logs do Kafka
 docker logs vortex-kafka-simple -f | grep -E "(ERROR|WARN)"

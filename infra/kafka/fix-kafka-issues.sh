@@ -267,7 +267,7 @@ print_color $BLUE "📊 Acesse o Kafka UI em: http://localhost:8090"
 print_color $BLUE "🔗 Kafka Bootstrap Server: localhost:9092"
 echo
 print_color $YELLOW "Para testar a aplicação:"
-print_color $YELLOW "1. Copie o arquivo application-kafka-test.properties para backend/src/main/resources/"
+    print_color $YELLOW "1. Copie o arquivo application-kafka-test.properties para backend/vortex-application-service/src/main/resources/"
 print_color $YELLOW "2. Execute a aplicação com o perfil: --spring.profiles.active=kafka"
 print_color $YELLOW "3. Teste adicionando estoque em um produto"
 echo

@@ -134,7 +134,7 @@ services:
     networks:
       - vortex-network
     volumes:
-      - ../../backend/logs:/app/logs
+              - ../../backend/vortex-application-service/logs:/app/logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]

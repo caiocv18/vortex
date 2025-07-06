@@ -239,7 +239,7 @@ cd vortex
 
 2. Execute com Docker Compose:
 ```bash
-cd backend
+cd backend/vortex-application-service
 docker-compose up -d
 ```
 
@@ -260,7 +260,7 @@ O frontend estará disponível em: http://localhost:5173
 
 #### Backend
 ```bash
-cd backend
+cd backend/vortex-application-service
 ./mvnw spring-boot:run
 ```
 
@@ -328,22 +328,23 @@ Para documentação completa do script, consulte: [README-LAUNCHER.md](README-LA
 ```
 vortex/
 ├── backend/                    # Aplicação Spring Boot
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/
-│   │   │   │   └── br/com/vortex/desafio/backend/
-│   │   │   │       ├── controller/     # REST Controllers
-│   │   │   │       ├── dto/           # Data Transfer Objects
-│   │   │   │       ├── exception/     # Exceções customizadas
-│   │   │   │       ├── model/         # Entidades JPA
-│   │   │   │       ├── repository/    # Repositórios JPA
-│   │   │   │       └── service/       # Lógica de negócio
-│   │   │   └── resources/
-│   │   │       └── application.properties
-│   │   └── test/              # Testes unitários e integração
-│   ├── docker-compose.yml     # Orquestração de containers
-│   ├── Dockerfile            # Imagem Docker do backend
-│   └── pom.xml              # Dependências Maven
+│   └── vortex-application-service/  # Serviço principal da aplicação
+│       ├── src/
+│       │   ├── main/
+│       │   │   ├── java/
+│       │   │   │   └── br/com/vortex/desafio/backend/
+│       │   │   │       ├── controller/     # REST Controllers
+│       │   │   │       ├── dto/           # Data Transfer Objects
+│       │   │   │       ├── exception/     # Exceções customizadas
+│       │   │   │       ├── model/         # Entidades JPA
+│       │   │   │       ├── repository/    # Repositórios JPA
+│       │   │   │       └── service/       # Lógica de negócio
+│       │   │   └── resources/
+│       │   │       └── application.properties
+│       │   └── test/              # Testes unitários e integração
+│       ├── docker-compose.yml     # Orquestração de containers
+│       ├── Dockerfile            # Imagem Docker do backend
+│       └── pom.xml              # Dependências Maven
 │
 ├── frontend/                 # Aplicação Vue.js
 │   ├── src/

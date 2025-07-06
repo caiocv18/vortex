@@ -9,11 +9,11 @@ RUN apt-get update && \
 WORKDIR /app
 
 # só pom.xml para cache de dependências
-COPY ../../backend/pom.xml .
+COPY ../../backend/vortex-application-service/pom.xml .
 RUN mvn dependency:go-offline -B
 
 # código-fonte e empacota
-COPY ../../backend/src ./src
+COPY ../../backend/vortex-application-service/src ./src
 RUN mvn clean package -DskipTests
 
 # 2) Runtime: JDK 24 Alpine, só com o jar

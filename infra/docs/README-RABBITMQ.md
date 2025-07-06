@@ -304,7 +304,7 @@ docker exec vortex-rabbitmq rabbitmqctl list_consumers
 tail -f backend.log | grep -i rabbit
 
 # Verificar configurações de listener
-grep -r "rabbitmq.listener" backend/src/main/resources/
+grep -r "rabbitmq.listener" backend/vortex-application-service/src/main/resources/
 ```
 
 #### 4. Performance baixa

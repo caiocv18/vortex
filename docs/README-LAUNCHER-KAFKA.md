@@ -263,4 +263,4 @@ curl -X POST http://localhost:8081/api/movimentos \
 3. **Monitorar** via Kafka UI
 4. **Expandir** conforme necessário
 
-Para mais detalhes sobre a integração Kafka, consulte: [README-KAFKA.md](backend/README-KAFKA.md) 
+Para mais detalhes sobre a integração Kafka, consulte: [README-KAFKA.md](backend/vortex-application-service/README-KAFKA.md) 
