@@ -849,7 +849,7 @@ start_frontend() {
         return 0
     fi
     
-    cd frontend
+    cd frontend/vortex-application-service
     
     # Verificar se node_modules existe
     if [[ ! -d "node_modules" ]]; then

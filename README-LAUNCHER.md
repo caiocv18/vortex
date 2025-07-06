@@ -162,7 +162,7 @@ cd backend && docker-compose up db -d
 cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # Frontend dev local
-cd frontend && npm run dev
+cd frontend/vortex-application-service && npm run dev
 ```
 
 ## 🐛 Troubleshooting
@@ -191,7 +191,7 @@ docker system info
 npm --version
 
 # Instalar dependências manualmente
-cd frontend && npm install
+cd frontend/vortex-application-service && npm install
 ```
 
 **4. Problemas de permissão**

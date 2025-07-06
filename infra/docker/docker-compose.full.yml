@@ -55,7 +55,7 @@ services:
   # Frontend Vue.js
   frontend:
     build: 
-      context: ../../frontend
+      context: ./frontend/vortex-application-service
     container_name: vortex-frontend
     depends_on:
       - backend

@@ -149,7 +149,7 @@ services:
   
   vortex-frontend:
     build:
-      context: ../../frontend
+      context: ../../frontend/vortex-application-service
       dockerfile: Dockerfile
     container_name: vortex-frontend
     depends_on:

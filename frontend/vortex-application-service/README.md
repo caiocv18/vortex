@@ -23,7 +23,7 @@ Frontend desenvolvido em Vue.js 3 com TypeScript para o sistema de controle de e
 
 1. Clone o repositório e acesse a pasta do frontend:
 ```bash
-cd frontend
+cd frontend/vortex-application-service
 ```
 
 2. Instale as dependências:

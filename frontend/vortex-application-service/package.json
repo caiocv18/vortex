@@ -8,12 +8,12 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test e2e",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
-    "generate-api": "openapi-generator-cli generate -i ../docs/openapi-backend.json -g typescript-axios -o src/api/generated --skip-validate-spec"
+    "generate-api": "openapi-generator-cli generate -i ../../docs/openapi-backend.json -g typescript-axios -o src/api/generated --skip-validate-spec"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
