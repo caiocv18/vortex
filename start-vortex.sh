@@ -671,6 +671,31 @@ wait_for_rabbitmq() {
     return 1
 }
 
+# Função para aguardar o healthcheck do backend
+wait_for_backend_healthcheck() {
+    local host=$1
+    local port=$2
+    local max_attempts=60
+    local attempt=1
+    local url="http://$host:$port/health"
+    
+    print_color $BLUE "⏳ Aguardando healthcheck do backend em $url..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -q "200"; then
+            print_color $GREEN "✅ Backend está saudável!"
+            return 0
+        fi
+        
+        print_color $YELLOW "⏳ Tentativa $attempt/$max_attempts - Aguardando backend..."
+        sleep 2
+        ((attempt++))
+    done
+    
+    print_color $RED "❌ Timeout aguardando healthcheck do backend em $url"
+    return 1
+}
+
 # Função para executar backend em desenvolvimento
 start_backend_dev() {
     print_color $BLUE "🔧 Iniciando Backend em modo desenvolvimento..."
@@ -727,6 +752,9 @@ start_backend_dev() {
         BACKEND_PID=$!
         echo $BACKEND_PID > ../../backend.pid
         print_color $GREEN "✅ Backend iniciado (PID: $BACKEND_PID) com perfis: $SPRING_PROFILES"
+        
+        # Aguardar healthcheck do backend
+        wait_for_backend_healthcheck "localhost" "8080"
     else
         print_color $YELLOW "📦 Maven não encontrado, usando Docker..."
         # Criar docker-compose temporário para dev
@@ -756,6 +784,9 @@ services:
 EOF
         docker-compose -f docker-compose.dev.yml up -d
         print_color $GREEN "✅ Backend iniciado no Docker com perfis: $SPRING_PROFILES"
+        
+        # Aguardar healthcheck do backend no Docker
+        wait_for_backend_healthcheck "localhost" "8080"
     fi
     
     cd ../..
@@ -826,6 +857,9 @@ EOF
         fi
         
         print_color $GREEN "✅ Stack completa iniciada com perfis: $SPRING_PROFILES"
+        
+        # Aguardar healthcheck do backend no Docker
+        wait_for_backend_healthcheck "localhost" "8080"
     else
         # Apenas backend + Oracle
         cd infra/docker
@@ -835,6 +869,9 @@ EOF
         
         docker-compose up -d --build
         print_color $GREEN "✅ Backend e Oracle iniciados com perfis: $SPRING_PROFILES"
+        
+        # Aguardar healthcheck do backend no Docker
+        wait_for_backend_healthcheck "localhost" "8080"
         cd ../..
     fi
 }
@@ -968,35 +1005,17 @@ show_status() {
     
     if [[ "$RUN_BACKEND" == "true" ]]; then
         print_color $BLUE "🔧 BACKEND ($ENVIRONMENT):"
-        if [[ "$ENVIRONMENT" == "dev" ]]; then
-            if [[ -f "backend.pid" ]]; then
-                PID=$(cat backend.pid)
-                if ps -p $PID > /dev/null 2>&1; then
-                    print_color $GREEN "   ✅ Rodando (PID: $PID)"
-                       print_color $GREEN "   🌐 API: http://localhost:8080"
-   print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
-   print_color $GREEN "   🗄️  H2 Console: http://localhost:8080/h2-console"
-                else
-                    print_color $RED "   ❌ Não está rodando"
-                fi
+        if wait_for_backend_healthcheck "localhost" "8080" >/dev/null 2>&1; then
+            print_color $GREEN "   ✅ Rodando"
+            print_color $GREEN "   🌐 API: http://localhost:8080"
+            print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
+            if [[ "$ENVIRONMENT" == "dev" ]]; then
+                print_color $GREEN "   🗄️  H2 Console: http://localhost:8080/h2-console"
             else
-                if docker ps | grep -q "vortex-app-dev"; then
-                    print_color $GREEN "   ✅ Rodando no Docker"
-                    print_color $GREEN "   🌐 API: http://localhost:8080"
-                    print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
-                else
-                    print_color $RED "   ❌ Não está rodando"
-                fi
+                print_color $GREEN "   🗄️  Oracle: localhost:1521 (ORCLCDB/ORCLPDB1)"
             fi
         else
-            if docker ps | grep -q "vortex-app"; then
-                print_color $GREEN "   ✅ Rodando no Docker"
-                print_color $GREEN "   🌐 API: http://localhost:8080"
-                print_color $GREEN "   📚 Swagger: http://localhost:8080/swagger-ui.html"
-                print_color $GREEN "   🗄️  Oracle: localhost:1521 (ORCLCDB/ORCLPDB1)"
-            else
-                print_color $RED "   ❌ Não está rodando"
-            fi
+            print_color $RED "   ❌ Não está rodando ou não responde ao healthcheck"
         fi
     fi
     
@@ -1060,7 +1079,7 @@ show_status() {
     if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
         print_color $CYAN "
 📨 COMANDOS RABBITMQ:
-═══════════════════════════════════════════════════════════════"
+════════════════════════════════════════════════════════════════"
         print_color $YELLOW "   docker logs vortex-rabbitmq -f                              # Logs do RabbitMQ"
         print_color $YELLOW "   docker exec vortex-rabbitmq rabbitmqctl list_queues         # Listar filas"
         print_color $YELLOW "   docker exec vortex-rabbitmq rabbitmqctl list_exchanges      # Listar exchanges"
@@ -1207,15 +1226,10 @@ main() {
             start_backend_prd
         fi
         
-        print_color $GREEN "⏳ Aguardando backend inicializar..."
-        sleep 12
-    fi
+        fi
     
     if [[ "$RUN_FRONTEND" == "true" ]]; then
         start_frontend
-        
-        print_color $GREEN "⏳ Aguardando frontend inicializar..."
-        sleep 8
     fi
     
     # Mostrar status
