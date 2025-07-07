@@ -89,7 +89,7 @@ check_prerequisites() {
     print_color $BLUE "🔍 Verificando pré-requisitos..."
     
     # Verificar se há problemas conhecidos do Kafka
-    if [[ -f "backend.log" ]] && grep -q "kafka:29092.*DNS resolution failed" backend.log 2>/dev/null; then
+    if [[ -f "logs/backend.log" ]] && grep -q "kafka:29092.*DNS resolution failed" logs/backend.log 2>/dev/null; then
         print_color $YELLOW "⚠️  Detectado problema conhecido do Kafka (DNS resolution)"
         print_color $YELLOW "💡 Execute: ./start-vortex.sh --fix-kafka"
     fi
@@ -372,17 +372,17 @@ stop_services() {
     pkill -f "npm run preview" 2>/dev/null || true
     
     # 7. Parar processo Maven (backend dev)
-    if [[ -f "backend.pid" ]]; then
-        PID=$(cat backend.pid)
+    if [[ -f "logs/backend.pid" ]]; then
+        PID=$(cat logs/backend.pid)
         kill $PID 2>/dev/null || true
-        rm -f backend.pid
+        rm -f logs/backend.pid
     fi
     
     # 8. Parar processo frontend
-    if [[ -f "frontend.pid" ]]; then
-        PID=$(cat frontend.pid)
+    if [[ -f "logs/frontend.pid" ]]; then
+        PID=$(cat logs/frontend.pid)
         kill $PID 2>/dev/null || true
-        rm -f frontend.pid
+        rm -f logs/frontend.pid
     fi
     
     # 9. Limpar redes Docker órfãs relacionadas ao Vortex
@@ -748,9 +748,9 @@ start_backend_dev() {
             export RABBITMQ_ENABLED=false
         fi
         
-        nohup mvn spring-boot:run > ../../backend.log 2>&1 &
+        nohup mvn spring-boot:run > ../../logs/backend.log 2>&1 &
         BACKEND_PID=$!
-        echo $BACKEND_PID > ../../backend.pid
+        echo $BACKEND_PID > ../../logs/backend.pid
         print_color $GREEN "✅ Backend iniciado (PID: $BACKEND_PID) com perfis: $SPRING_PROFILES"
         
         # Aguardar healthcheck do backend
@@ -904,13 +904,13 @@ start_frontend() {
     if [[ "$ENVIRONMENT" == "dev" ]]; then
         if [[ "$NPM_AVAILABLE" == "true" ]]; then
             print_color $GREEN "🔥 Iniciando servidor de desenvolvimento Vite..."
-            nohup npm run dev > ../frontend.log 2>&1 &
+            nohup npm run dev > ../../logs/frontend.log 2>&1 &
             FRONTEND_PID=$!
-            echo $FRONTEND_PID > ../frontend.pid
+            echo $FRONTEND_PID > ../../logs/frontend.pid
             print_color $GREEN "✅ Frontend dev server iniciado (PID: $FRONTEND_PID)"
         else
             print_color $RED "❌ npm não disponível para executar frontend em desenvolvimento."
-            cd ..
+            cd ../..
             return 1
         fi
     else
@@ -918,18 +918,18 @@ start_frontend() {
         if [[ "$NPM_AVAILABLE" == "true" ]]; then
             npm run build
             print_color $GREEN "📦 Servindo frontend com preview..."
-            nohup npm run preview > ../frontend.log 2>&1 &
+            nohup npm run preview > ../../logs/frontend.log 2>&1 &
             FRONTEND_PID=$!
-            echo $FRONTEND_PID > ../frontend.pid
+            echo $FRONTEND_PID > ../../logs/frontend.pid
             print_color $GREEN "✅ Frontend preview iniciado (PID: $FRONTEND_PID)"
         else
             print_color $RED "❌ npm não disponível para build do frontend."
-            cd ..
+            cd ../..
             return 1
         fi
     fi
     
-    cd ..
+    cd ../..
 }
 
 # Função para mostrar status
@@ -1026,8 +1026,8 @@ show_status() {
         if docker ps | grep -q "vortex-frontend"; then
             print_color $GREEN "   ✅ Rodando no Docker"
             print_color $GREEN "   🌐 App: http://localhost:3000"
-        elif [[ -f "frontend.pid" ]]; then
-            PID=$(cat frontend.pid)
+        elif [[ -f "logs/frontend.pid" ]]; then
+            PID=$(cat logs/frontend.pid)
             if ps -p $PID > /dev/null 2>&1; then
                 print_color $GREEN "   ✅ Rodando (PID: $PID)"
                 if [[ "$ENVIRONMENT" == "dev" ]]; then
@@ -1050,8 +1050,8 @@ show_status() {
     print_color $YELLOW "   ./start-vortex.sh --clean    # Limpar ambiente"
     print_color $YELLOW "   docker logs vortex-app -f    # Logs do backend (prd)"
     print_color $YELLOW "   docker logs vortex-db -f     # Logs do Oracle"
-    print_color $YELLOW "   tail -f backend.log          # Logs do backend (dev)"
-    print_color $YELLOW "   tail -f frontend.log         # Logs do frontend"
+    print_color $YELLOW "   tail -f logs/backend.log          # Logs do backend (dev)"
+    print_color $YELLOW "   tail -f logs/frontend.log         # Logs do frontend"
     
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         print_color $CYAN "
@@ -1097,8 +1097,8 @@ show_logs() {
     elif [[ "$ENVIRONMENT" == "dev" && "$RUN_BACKEND" == "true" ]]; then
         print_color $BLUE "📄 Mostrando logs do backend (desenvolvimento)..."
         sleep 2
-        if [[ -f "backend.log" ]]; then
-            tail -f backend.log
+        if [[ -f "logs/backend.log" ]]; then
+            tail -f logs/backend.log
         else
             docker logs vortex-app-dev -f 2>/dev/null || echo "Logs não disponíveis"
         fi
@@ -1108,6 +1108,7 @@ show_logs() {
 # Função principal
 main() {
     show_banner
+    mkdir -p logs
     
     # Processar argumentos
     while [[ $# -gt 0 ]]; do
