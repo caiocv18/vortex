@@ -88,6 +88,27 @@ show_help() {
 check_prerequisites() {
     print_color $BLUE "🔍 Verificando pré-requisitos..."
     
+    # Verificar se diretórios dos serviços existem
+    if [[ ! -d "backend/vortex-application-service" ]]; then
+        print_color $RED "❌ Diretório backend/vortex-application-service não encontrado."
+        exit 1
+    fi
+    
+    if [[ ! -d "backend/vortex-authorization-service" ]]; then
+        print_color $RED "❌ Diretório backend/vortex-authorization-service não encontrado."
+        exit 1
+    fi
+    
+    if [[ ! -d "frontend/vortex-application-service" ]]; then
+        print_color $RED "❌ Diretório frontend/vortex-application-service não encontrado."
+        exit 1
+    fi
+    
+    if [[ ! -d "frontend/vortex-authorization-service" ]]; then
+        print_color $RED "❌ Diretório frontend/vortex-authorization-service não encontrado."
+        exit 1
+    fi
+    
     # Verificar se há problemas conhecidos do Kafka
     if [[ -f "logs/backend.log" ]] && grep -q "kafka:29092.*DNS resolution failed" logs/backend.log 2>/dev/null; then
         print_color $YELLOW "⚠️  Detectado problema conhecido do Kafka (DNS resolution)"
@@ -349,6 +370,11 @@ stop_services() {
     docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
     cd ../.. 2>/dev/null || true
     
+    # 3. Parar serviços de autorização
+    docker-compose -f infra/docker/docker-compose.auth.yml down 2>/dev/null || true
+    docker stop vortex-auth-service vortex-auth-frontend 2>/dev/null || true
+    docker rm vortex-auth-service vortex-auth-frontend 2>/dev/null || true
+    
     # 3. Parar Kafka, RabbitMQ e Zookeeper (todas as configurações possíveis)
     docker-compose -f infra/docker/docker-compose.kafka-simple.yml down 2>/dev/null || true
     docker-compose -f infra/docker/docker-compose.kafka.yml down 2>/dev/null || true
@@ -359,12 +385,14 @@ stop_services() {
     docker stop vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
     docker stop vortex-rabbitmq 2>/dev/null || true
     docker stop vortex-app vortex-app-dev vortex-db vortex-frontend 2>/dev/null || true
+    docker stop vortex-auth-service vortex-auth-frontend 2>/dev/null || true
     
     # 5. Remover containers órfãos
     docker rm vortex-kafka-simple vortex-zookeeper-simple vortex-kafka-ui-simple 2>/dev/null || true
     docker rm vortex-kafka vortex-zookeeper vortex-kafka-ui 2>/dev/null || true
     docker rm vortex-rabbitmq 2>/dev/null || true
     docker rm vortex-app vortex-app-dev vortex-db vortex-frontend 2>/dev/null || true
+    docker rm vortex-auth-service vortex-auth-frontend 2>/dev/null || true
     
     # 6. Parar processos Node.js (frontend)
     pkill -f "vite" 2>/dev/null || true
@@ -385,15 +413,29 @@ stop_services() {
         rm -f logs/frontend.pid
     fi
     
-    # 9. Limpar redes Docker órfãs relacionadas ao Vortex
+    # 9. Parar processo backend de autorização
+    if [[ -f "logs/auth-backend.pid" ]]; then
+        PID=$(cat logs/auth-backend.pid)
+        kill $PID 2>/dev/null || true
+        rm -f logs/auth-backend.pid
+    fi
+    
+    # 10. Parar processo frontend de autorização
+    if [[ -f "logs/auth-frontend.pid" ]]; then
+        PID=$(cat logs/auth-frontend.pid)
+        kill $PID 2>/dev/null || true
+        rm -f logs/auth-frontend.pid
+    fi
+    
+    # 11. Limpar redes Docker órfãs relacionadas ao Vortex
     docker network rm vortex-kafka-network 2>/dev/null || true
     docker network rm vortex-rabbitmq-network 2>/dev/null || true
     docker network rm vortex_default 2>/dev/null || true
     
-    # 10. Aguardar um pouco para garantir que todos os containers foram parados
+    # 12. Aguardar um pouco para garantir que todos os containers foram parados
     sleep 3
     
-    # 11. Verificar se ainda há containers do Vortex rodando
+    # 13. Verificar se ainda há containers do Vortex rodando
     local remaining_containers=$(docker ps --filter "name=vortex" --format "{{.Names}}" | wc -l)
     if [[ $remaining_containers -gt 0 ]]; then
         print_color $YELLOW "⚠️  Ainda há $remaining_containers container(s) rodando:"
@@ -696,6 +738,159 @@ wait_for_backend_healthcheck() {
     return 1
 }
 
+# Função para aguardar o healthcheck do serviço de autorização
+wait_for_auth_healthcheck() {
+    local host=$1
+    local port=$2
+    local max_attempts=60
+    local attempt=1
+    local url="http://$host:$port/q/health"
+    
+    print_color $BLUE "⏳ Aguardando healthcheck do serviço de autorização em $url..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -q "200"; then
+            print_color $GREEN "✅ Serviço de autorização está saudável!"
+            return 0
+        fi
+        
+        print_color $YELLOW "⏳ Tentativa $attempt/$max_attempts - Aguardando serviço de autorização..."
+        sleep 2
+        ((attempt++))
+    done
+    
+    print_color $RED "❌ Timeout aguardando healthcheck do serviço de autorização em $url"
+    return 1
+}
+
+# Função para executar backend de autorização em desenvolvimento
+start_auth_backend_dev() {
+    print_color $BLUE "🔐 Iniciando Backend de Autorização em modo desenvolvimento..."
+    
+    cd backend/vortex-authorization-service
+    
+    # Verificar se Maven está disponível
+    if command -v mvn &> /dev/null; then
+        print_color $GREEN "📦 Executando com Maven local..."
+        
+        # Verificar se há processos na porta 8081
+        if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            print_color $YELLOW "⚠️  Porta 8081 ocupada. Tentando liberar..."
+            pkill -f "vortex-authorization-service" 2>/dev/null || true
+            sleep 2
+        fi
+        
+        # Definir variáveis de ambiente
+        export QUARKUS_PROFILE=dev
+        export QUARKUS_HTTP_PORT=8081
+        
+        # Configurações específicas para sistemas de mensageria
+        if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
+            export KAFKA_SERVERS=localhost:9092
+            
+            # Verificar se Kafka está rodando
+            if ! docker ps | grep -q "vortex-kafka"; then
+                print_color $YELLOW "⚠️  Kafka não está rodando. Serviço de autorização pode ter problemas de conectividade."
+            fi
+        fi
+        
+        nohup mvn quarkus:dev > ../../logs/auth-backend.log 2>&1 &
+        AUTH_BACKEND_PID=$!
+        echo $AUTH_BACKEND_PID > ../../logs/auth-backend.pid
+        print_color $GREEN "✅ Backend de autorização iniciado (PID: $AUTH_BACKEND_PID)"
+        
+        # Aguardar healthcheck
+        wait_for_auth_healthcheck "localhost" "8081"
+    else
+        print_color $YELLOW "📦 Maven não encontrado, usando Docker..."
+        
+        # Usar Docker para executar o backend de autorização
+        docker build -t vortex-auth-service:dev -f src/main/docker/Dockerfile.jvm .
+        docker run -d --name vortex-auth-service \
+            -p 8081:8081 \
+            -e QUARKUS_PROFILE=dev \
+            -e KAFKA_SERVERS=localhost:9092 \
+            vortex-auth-service:dev
+        
+        print_color $GREEN "✅ Backend de autorização iniciado no Docker"
+        
+        # Aguardar healthcheck
+        wait_for_auth_healthcheck "localhost" "8081"
+    fi
+    
+    cd ../..
+}
+
+# Função para executar frontend de autorização
+start_auth_frontend() {
+    print_color $BLUE "🔐 Iniciando Frontend de Autorização..."
+    
+    cd frontend/vortex-authorization-service
+    
+    # Verificar se node_modules existe
+    if [[ ! -d "node_modules" ]]; then
+        if [[ "$NPM_AVAILABLE" == "true" ]]; then
+            print_color $YELLOW "📦 Instalando dependências do frontend de autorização..."
+            npm install
+        else
+            print_color $RED "❌ npm não disponível e node_modules não existe."
+            cd ../..
+            return 1
+        fi
+    fi
+    
+    # Verificar se há processos na porta 3001
+    if lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        print_color $YELLOW "⚠️  Porta 3001 ocupada. Tentando liberar..."
+        pkill -f "vite.*3001" 2>/dev/null || true
+        sleep 2
+    fi
+    
+    if [[ "$ENVIRONMENT" == "dev" ]]; then
+        if [[ "$NPM_AVAILABLE" == "true" ]]; then
+            print_color $GREEN "🔥 Iniciando servidor de desenvolvimento Vite na porta 3001..."
+            
+            # Modificar temporariamente o vite.config.ts para usar porta 3001
+            sed -i.bak 's/port: 5173/port: 3001/g' vite.config.ts 2>/dev/null || true
+            
+            nohup npm run dev > ../../logs/auth-frontend.log 2>&1 &
+            AUTH_FRONTEND_PID=$!
+            echo $AUTH_FRONTEND_PID > ../../logs/auth-frontend.pid
+            print_color $GREEN "✅ Frontend de autorização iniciado (PID: $AUTH_FRONTEND_PID)"
+            
+            # Aguardar servidor estar pronto
+            sleep 5
+            
+            # Restaurar configuração original
+            if [[ -f "vite.config.ts.bak" ]]; then
+                mv vite.config.ts.bak vite.config.ts
+            fi
+        else
+            print_color $RED "❌ npm não disponível para executar frontend em desenvolvimento."
+            cd ../..
+            return 1
+        fi
+    else
+        print_color $GREEN "🏗️  Fazendo build do frontend de autorização para produção..."
+        if [[ "$NPM_AVAILABLE" == "true" ]]; then
+            npm run build
+            print_color $GREEN "📦 Servindo frontend de autorização com preview na porta 3001..."
+            
+            # Modificar temporariamente para porta 3001
+            nohup npm run preview -- --port 3001 > ../../logs/auth-frontend.log 2>&1 &
+            AUTH_FRONTEND_PID=$!
+            echo $AUTH_FRONTEND_PID > ../../logs/auth-frontend.pid
+            print_color $GREEN "✅ Frontend de autorização preview iniciado (PID: $AUTH_FRONTEND_PID)"
+        else
+            print_color $RED "❌ npm não disponível para build do frontend."
+            cd ../..
+            return 1
+        fi
+    fi
+    
+    cd ../..
+}
+
 # Função para executar backend em desenvolvimento
 start_backend_dev() {
     print_color $BLUE "🔧 Iniciando Backend em modo desenvolvimento..."
@@ -939,6 +1134,32 @@ show_status() {
 ═══════════════════════════════════════════════════════════════
 "
     
+    # Status do serviço de autorização
+    print_color $BLUE "🔐 SERVIÇO DE AUTORIZAÇÃO:"
+    
+    # Backend de autorização
+    if wait_for_auth_healthcheck "localhost" "8081" >/dev/null 2>&1; then
+        print_color $GREEN "   ✅ Backend de autorização rodando"
+        print_color $GREEN "   🌐 API: http://localhost:8081"
+        print_color $GREEN "   📚 Swagger: http://localhost:8081/q/swagger-ui"
+        print_color $GREEN "   💚 Health: http://localhost:8081/q/health"
+    else
+        print_color $RED "   ❌ Backend de autorização não está rodando"
+    fi
+    
+    # Frontend de autorização
+    if [[ -f "logs/auth-frontend.pid" ]]; then
+        PID=$(cat logs/auth-frontend.pid)
+        if ps -p $PID > /dev/null 2>&1; then
+            print_color $GREEN "   ✅ Frontend de autorização rodando (PID: $PID)"
+            print_color $GREEN "   🌐 App: http://localhost:3001"
+        else
+            print_color $RED "   ❌ Frontend de autorização não está rodando"
+        fi
+    else
+        print_color $RED "   ❌ Frontend de autorização não foi iniciado"
+    fi
+    
     # Status do sistema de mensageria
     if [[ "$MESSAGING_SYSTEM" != "none" ]]; then
         print_color $BLUE "📨 SISTEMA DE MENSAGERIA ($MESSAGING_SYSTEM):"
@@ -1003,8 +1224,9 @@ show_status() {
         fi
     fi
     
+    # Status do backend principal
     if [[ "$RUN_BACKEND" == "true" ]]; then
-        print_color $BLUE "🔧 BACKEND ($ENVIRONMENT):"
+        print_color $BLUE "🔧 BACKEND PRINCIPAL ($ENVIRONMENT):"
         if wait_for_backend_healthcheck "localhost" "8080" >/dev/null 2>&1; then
             print_color $GREEN "   ✅ Rodando"
             print_color $GREEN "   🌐 API: http://localhost:8080"
@@ -1019,8 +1241,9 @@ show_status() {
         fi
     fi
     
+    # Status do frontend principal
     if [[ "$RUN_FRONTEND" == "true" ]]; then
-        print_color $BLUE "🎨 FRONTEND ($ENVIRONMENT):"
+        print_color $BLUE "🎨 FRONTEND PRINCIPAL ($ENVIRONMENT):"
         
         # Verificar se está rodando via Docker
         if docker ps | grep -q "vortex-frontend"; then
@@ -1052,6 +1275,8 @@ show_status() {
     print_color $YELLOW "   docker logs vortex-db -f     # Logs do Oracle"
     print_color $YELLOW "   tail -f logs/backend.log          # Logs do backend (dev)"
     print_color $YELLOW "   tail -f logs/frontend.log         # Logs do frontend"
+    print_color $YELLOW "   tail -f logs/auth-backend.log     # Logs do backend de autorização"
+    print_color $YELLOW "   tail -f logs/auth-frontend.log    # Logs do frontend de autorização"
     
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         print_color $CYAN "
@@ -1220,14 +1445,18 @@ main() {
         fi
     fi
     
+    # Iniciar serviços de autorização primeiro
+    print_color $BLUE "🔐 Iniciando serviços de autorização..."
+    start_auth_backend_dev
+    start_auth_frontend
+    
     if [[ "$RUN_BACKEND" == "true" ]]; then
         if [[ "$ENVIRONMENT" == "dev" ]]; then
             start_backend_dev
         else
             start_backend_prd
         fi
-        
-        fi
+    fi
     
     if [[ "$RUN_FRONTEND" == "true" ]]; then
         start_frontend
@@ -1244,6 +1473,15 @@ main() {
     print_color $GREEN "
 🎉 Vortex iniciado com sucesso!
 ═══════════════════════════════════════════════════════════════
+
+🔐 SERVIÇOS DE AUTORIZAÇÃO:
+   - Backend: http://localhost:8081
+   - Frontend: http://localhost:3001
+   - Swagger: http://localhost:8081/q/swagger-ui
+
+🚀 SERVIÇOS PRINCIPAIS:
+   - Backend: http://localhost:8080
+   - Frontend: http://localhost:5173 (dev) ou http://localhost:4173 (prd)
 
 Para parar os serviços, execute: ./start-vortex.sh --stop
 "
