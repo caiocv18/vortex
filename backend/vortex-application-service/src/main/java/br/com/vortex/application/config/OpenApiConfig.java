@@ -26,14 +26,14 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Controle de Estoque - Nexdom")
+                        .title("API de Controle de Estoque - Vortex")
                         .description("API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, " +
                                 "tipos de produtos, movimentações de entrada e saída, e geração de relatórios. " +
-                                "Desenvolvida como parte do desafio FullStack da Nexdom.")
+                                "Desenvolvida como parte do desafio FullStack da Vortex.")
                         .version("1.0.0")
                         .termsOfService("https://www.vortex.com.br/termos")
                         .contact(new Contact()
-                                .name("Equipe de Desenvolvimento Nexdom")
+                                .name("Equipe de Desenvolvimento Vortex")
                                 .email("dev@vortex.com.br")
                                 .url("https://www.vortex.com.br/contato"))
                         .license(new License()

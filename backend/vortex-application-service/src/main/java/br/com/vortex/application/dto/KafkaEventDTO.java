@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * DTO base para eventos Kafka no sistema NEXDOM.
+ * DTO base para eventos Kafka no sistema VORTEX.
  * 
  * Utiliza polimorfismo JSON para suportar diferentes tipos de eventos.
  */

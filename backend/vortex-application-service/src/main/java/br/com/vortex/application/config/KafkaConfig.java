@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuração do Apache Kafka para o sistema NEXDOM.
+ * Configuração do Apache Kafka para o sistema VORTEX.
  * 
  * Esta configuração permite:
  * - Event Sourcing para movimentações de estoque
