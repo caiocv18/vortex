@@ -1,7 +1,10 @@
 package br.com.vortex.authorization.entity;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -22,7 +25,8 @@ public class AuditLog extends PanacheEntityBase {
     @Column(name = "action", nullable = false)
     public String action;
 
-    @Column(name = "details", columnDefinition = "jsonb")
+    @Column(name = "details")
+    @JdbcTypeCode(SqlTypes.JSON)
     public String details;
 
     @Column(name = "ip_address")
@@ -45,7 +49,16 @@ public class AuditLog extends PanacheEntityBase {
         AuditLog log = new AuditLog();
         log.user = user;
         log.action = action;
-        log.details = details != null ? details.toString() : null;
+        try {
+            if (details != null) {
+                ObjectMapper mapper = new ObjectMapper();
+                log.details = mapper.writeValueAsString(details);
+            } else {
+                log.details = null;
+            }
+        } catch (Exception e) {
+            log.details = "{}"; // fallback to empty JSON object
+        }
         log.ipAddress = ipAddress;
         log.userAgent = userAgent;
         log.persist();

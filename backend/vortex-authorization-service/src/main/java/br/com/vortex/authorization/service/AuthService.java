@@ -7,6 +7,7 @@ import br.com.vortex.authorization.security.JwtService;
 import br.com.vortex.authorization.security.PasswordService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -36,6 +37,9 @@ public class AuthService {
 
     @Inject
     EventPublisher eventPublisher;
+
+    @Inject
+    EntityManager entityManager;
 
     @Transactional
     public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
@@ -151,8 +155,13 @@ public class AuthService {
         Role userRole = Role.findUserRole();
         if (userRole != null) {
             user.roles = Set.of(userRole);
-            user.persist();
+        } else {
+            // Initialize empty roles set if no default role found
+            user.roles = Set.of();
         }
+        
+        // Persist user with roles
+        user.persist();
 
         // Log audit event
         AuditLog.log(user, "USER_CREATED", 
@@ -161,11 +170,14 @@ public class AuthService {
 
         // Publish user created event
         try {
+            Set<String> roleNames = user.roles != null ? 
+                user.roles.stream().map(role -> role.name).collect(Collectors.toSet()) : 
+                Set.of();
             UserCreatedEvent userCreatedEvent = new UserCreatedEvent(
                 user.id,
                 user.email,
                 user.username,
-                user.roles.stream().map(role -> role.name).collect(Collectors.toSet()),
+                roleNames,
                 user.isVerified,
                 "registration",
                 ipAddress,

@@ -18,7 +18,7 @@ public class RefreshToken extends PanacheEntityBase {
     @JoinColumn(name = "user_id", nullable = false)
     public User user;
 
-    @Column(name = "token", nullable = false, unique = true, length = 500)
+    @Column(name = "token", nullable = false, unique = true, length = 1000)
     public String token;
 
     @Column(name = "expires_at", nullable = false)

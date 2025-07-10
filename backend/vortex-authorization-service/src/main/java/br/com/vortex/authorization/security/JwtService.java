@@ -25,9 +25,9 @@ public class JwtService {
     Duration refreshTokenExpiration;
 
     public String generateAccessToken(User user) {
-        Set<String> roles = user.roles.stream()
-            .map(role -> role.name)
-            .collect(Collectors.toSet());
+        Set<String> roles = user.roles != null ? 
+            user.roles.stream().map(role -> role.name).collect(Collectors.toSet()) : 
+            Set.of();
 
         return Jwt.issuer(issuer)
             .upn(user.email)
