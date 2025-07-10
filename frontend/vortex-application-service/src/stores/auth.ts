@@ -4,24 +4,26 @@ import axios from 'axios'
 import { apiClient } from '@/api/config'
 
 export interface User {
-  id: number
+  id: string
   email: string
-  name: string
-  provider: string
+  username: string
   roles: string[]
-  lastLogin: string
-  emailVerified: boolean
+  lastLogin?: string
+  isActive: boolean
+  isVerified: boolean
 }
 
 export interface LoginResponse {
-  token: string
-  user: User
+  accessToken: string
+  refreshToken: string
   tokenType: string
   expiresIn: number
+  user: User
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('vortex_auth_token'))
+  const token = ref<string | null>(localStorage.getItem('accessToken'))
+  const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
   const user = ref<User | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -53,15 +55,30 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
 
-  function logout(): void {
+  async function logout(): Promise<void> {
     console.log('[Auth Store] Logging out...')
-    token.value = null
-    user.value = null
-    localStorage.removeItem('vortex_auth_token')
-    localStorage.removeItem('vortex_user')
     
-    // Redirect to React auth login
-    redirectToAuth('login')
+    try {
+      // Call logout endpoint if refresh token exists
+      if (refreshToken.value) {
+        await axios.post('http://localhost:8081/api/auth/logout', {
+          refreshToken: refreshToken.value
+        })
+      }
+    } catch (error) {
+      console.error('Error during logout:', error)
+    } finally {
+      // Clear all local data
+      token.value = null
+      refreshToken.value = null
+      user.value = null
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('vortex_user')
+      
+      // Redirect to React auth login
+      redirectToAuth('login')
+    }
   }
 
   async function checkAuth(): Promise<boolean> {
@@ -70,36 +87,72 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      console.log('[Auth Store] Checking auth with token:', token.value.substring(0, 20) + '...')
-      const response = await axios.get(
-        'http://localhost:8081/auth/userinfo',
-        {
-          headers: {
-            Authorization: `Bearer ${token.value}`
-          }
+      // Check if token is expired
+      if (isTokenExpired(token.value)) {
+        console.log('[Auth Store] Token expired, attempting refresh...')
+        const refreshed = await attemptTokenRefresh()
+        if (!refreshed) {
+          logout()
+          return false
         }
-      )
-      
-      console.log('[Auth Store] Auth check response:', response.data)
-      
-      if (response.data) {
-        // Update user info if needed
-        user.value = {
-          ...user.value!,
-          ...response.data
-        }
+      }
+
+      // If we have a valid token and user data, we're authenticated
+      if (token.value && user.value) {
         return true
       }
       
       return false
     } catch (err: any) {
       console.error('[Auth Store] Error checking auth:', err.message)
-      console.error('[Auth Store] Error details:', err.response?.data)
+      return false
+    }
+  }
+
+  function isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const currentTime = Date.now() / 1000
+      return payload.exp < currentTime
+    } catch {
+      return true
+    }
+  }
+
+  async function attemptTokenRefresh(): Promise<boolean> {
+    if (!refreshToken.value) {
+      return false
+    }
+
+    try {
+      console.log('[Auth Store] Refreshing token...')
+      const response = await axios.post('http://localhost:8081/api/auth/refresh', {
+        refreshToken: refreshToken.value
+      })
+
+      const { accessToken, user: userData } = response.data.data
       
-      // Don't logout on network errors, only on 401
-      if (err.response?.status === 401) {
-        logout()
-      }
+      // Update tokens and user
+      token.value = accessToken
+      user.value = userData
+      
+      // Update localStorage
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('vortex_user', JSON.stringify(userData))
+      
+      console.log('[Auth Store] Token refreshed successfully')
+      return true
+    } catch (error: any) {
+      console.error('[Auth Store] Token refresh failed:', error)
+      
+      // Clear invalid tokens
+      token.value = null
+      refreshToken.value = null
+      user.value = null
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('vortex_user')
+      
       return false
     }
   }
@@ -107,30 +160,33 @@ export const useAuthStore = defineStore('auth', () => {
   async function initializeAuth(): Promise<boolean> {
     console.log('[Auth Store] Initializing auth...')
     // Try to load auth data from localStorage
-    const authToken = localStorage.getItem('vortex_auth_token')
+    const accessToken = localStorage.getItem('accessToken')
+    const refreshTokenValue = localStorage.getItem('refreshToken')
     const storedUser = localStorage.getItem('vortex_user')
     
-    console.log('[Auth Store] Token found:', !!authToken)
+    console.log('[Auth Store] Access token found:', !!accessToken)
+    console.log('[Auth Store] Refresh token found:', !!refreshTokenValue)
     console.log('[Auth Store] User found:', !!storedUser)
     
-    if (!authToken || !storedUser) {
+    if (!accessToken || !refreshTokenValue || !storedUser) {
       console.log('[Auth Store] Missing auth data')
       return false
     }
     
     try {
-      token.value = authToken
+      token.value = accessToken
+      refreshToken.value = refreshTokenValue
       user.value = JSON.parse(storedUser)
-      console.log('[Auth Store] Auth data loaded:', user.value.email)
+      console.log('[Auth Store] Auth data loaded:', user.value?.email)
       
-      // Validate token with backend
-      console.log('[Auth Store] Validating token with backend...')
+      // Validate token
       const isValid = await checkAuth()
       console.log('[Auth Store] Token validation result:', isValid)
       
       if (!isValid) {
         // Clear invalid data
         token.value = null
+        refreshToken.value = null
         user.value = null
         return false
       }
@@ -145,12 +201,15 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     token,
+    refreshToken,
     loading,
     error,
     isAuthenticated,
     redirectToAuth,
     logout,
     checkAuth,
-    initializeAuth
+    initializeAuth,
+    isTokenExpired,
+    attemptTokenRefresh
   }
 })

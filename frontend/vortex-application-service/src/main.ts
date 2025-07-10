@@ -12,6 +12,7 @@ import '@mdi/font/css/materialdesignicons.css'
 
 import App from './App.vue'
 import router from './router'
+import { handleAuthCallback } from './utils/authCallback'
 
 // Custom theme
 const vortexTheme = {
@@ -58,6 +59,9 @@ const vuetify = createVuetify({
 
 // Tornar vuetify acessível globalmente para o tema
 ;(window as any).vuetify = vuetify
+
+// Handle auth callback before app initialization
+handleAuthCallback()
 
 const app = createApp(App)
 

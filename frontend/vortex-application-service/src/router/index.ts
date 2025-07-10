@@ -52,31 +52,34 @@ router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.meta.requiresAuth !== false
   
   if (requiresAuth) {
-    // First, check if we have a stored token
-    const hasAuthToken = localStorage.getItem('vortex_auth_token')
-    console.log('[Router] Has auth token:', !!hasAuthToken)
+    // First, check if we have stored tokens
+    const hasAccessToken = localStorage.getItem('accessToken')
+    const hasRefreshToken = localStorage.getItem('refreshToken')
+    console.log('[Router] Has access token:', !!hasAccessToken)
+    console.log('[Router] Has refresh token:', !!hasRefreshToken)
     console.log('[Router] Is authenticated:', authStore.isAuthenticated)
     
-    if (hasAuthToken) {
+    if (hasAccessToken && hasRefreshToken) {
       // Try to initialize auth store if not already authenticated
       if (!authStore.isAuthenticated) {
         console.log('[Router] Initializing auth...')
         const initialized = await authStore.initializeAuth()
         console.log('[Router] Auth initialized:', initialized)
         if (!initialized) {
-          // Clear the bad token
-          localStorage.removeItem('vortex_auth_token')
+          // Clear the bad tokens
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
           localStorage.removeItem('vortex_user')
           
-          // Token is invalid, redirect to auth
-          console.log('[Router] Token invalid, redirecting to login')
+          // Tokens are invalid, redirect to auth
+          console.log('[Router] Tokens invalid, redirecting to login')
           authStore.redirectToAuth('login')
           return false
         }
       }
     } else {
-      // No token, redirect to auth
-      console.log('[Router] No token found, redirecting to login')
+      // No tokens, redirect to auth
+      console.log('[Router] No tokens found, redirecting to login')
       authStore.redirectToAuth('login')
       return false
     }
