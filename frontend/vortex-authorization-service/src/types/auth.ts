@@ -60,4 +60,5 @@ export interface AuthContextType {
   forgotPassword: (request: ForgotPasswordRequest) => Promise<void>;
   resetPassword: (request: ResetPasswordRequest) => Promise<void>;
   refreshToken: () => Promise<boolean>;
+  forceReset: () => void;
 }

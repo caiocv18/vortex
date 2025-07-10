@@ -26,7 +26,7 @@ type AuthAction =
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false, // Changed to false to prevent initial loading state
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -72,13 +72,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check for existing token on app start
   useEffect(() => {
-    const token = apiService.getAuthToken();
-    if (token && !apiService.isTokenExpired(token)) {
-      // Try to refresh token to get user data
-      refreshToken();
-    } else {
-      dispatch({ type: 'AUTH_FAILURE' });
-    }
+    const checkInitialAuth = async () => {
+      try {
+        // Always start with loading state for initial check
+        dispatch({ type: 'SET_LOADING', payload: true });
+        
+        const token = apiService.getAuthToken();
+        if (token && !apiService.isTokenExpired(token)) {
+          // Try to refresh token to get user data
+          const refreshed = await refreshToken();
+          if (!refreshed) {
+            dispatch({ type: 'AUTH_FAILURE' });
+          }
+        } else {
+          // Clear any invalid tokens
+          apiService.removeAuthToken();
+          dispatch({ type: 'AUTH_FAILURE' });
+        }
+      } catch (error) {
+        console.error('Initial auth check failed:', error);
+        apiService.removeAuthToken();
+        dispatch({ type: 'AUTH_FAILURE' });
+      }
+    };
+    
+    checkInitialAuth();
   }, []);
 
   const login = async (request: LoginRequest): Promise<void> => {
@@ -105,6 +123,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       window.location.href = `${returnUrl}?authData=${authData}`;
     } catch (error: any) {
+      console.error('[AuthContext] Login failed:', error);
       dispatch({ type: 'AUTH_FAILURE' });
       
       const message = error.response?.data?.message || 'Login failed. Please try again.';
@@ -138,6 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       window.location.href = `${returnUrl}?authData=${authData}`;
     } catch (error: any) {
+      console.error('[AuthContext] Registration failed:', error);
       dispatch({ type: 'AUTH_FAILURE' });
       
       const message = error.response?.data?.message || 'Registration failed. Please try again.';
@@ -174,6 +194,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const forceReset = (): void => {
+    console.log('[AuthContext] Force reset called');
+    apiService.removeAuthToken();
+    dispatch({ type: 'AUTH_FAILURE' });
+  };
+
   const resetPassword = async (request: ResetPasswordRequest): Promise<void> => {
     try {
       await apiService.resetPassword(request);
@@ -201,6 +227,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       return true;
     } catch (error) {
+      console.error('Refresh token failed:', error);
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       dispatch({ type: 'AUTH_FAILURE' });
@@ -218,6 +245,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     forgotPassword,
     resetPassword,
     refreshToken,
+    forceReset,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

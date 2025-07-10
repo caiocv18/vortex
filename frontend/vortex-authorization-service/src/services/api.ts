@@ -41,7 +41,8 @@ class ApiService {
       async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Don't retry auth endpoints to prevent infinite loops
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/')) {
           originalRequest._retry = true;
 
           try {
@@ -52,16 +53,14 @@ class ApiService {
               
               if (newToken) {
                 localStorage.setItem('accessToken', newToken);
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                return this.api(originalRequest);
               }
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              
-              return this.api(originalRequest);
             }
           } catch (refreshError) {
-            // Refresh failed, redirect to login
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            window.location.href = '/login';
+            console.error('Token refresh failed:', refreshError);
+            // Don't auto-redirect from API service to prevent conflicts
+            this.removeAuthToken();
           }
         }
 
@@ -72,6 +71,7 @@ class ApiService {
 
   // Auth endpoints
   async login(request: LoginRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
+    console.log('[ApiService] Attempting login...');
     return this.api.post('/api/auth/login', request);
   }
 

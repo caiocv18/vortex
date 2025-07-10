@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -23,7 +23,30 @@ type FormData = yup.InferType<typeof schema>;
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, forceReset } = useAuth();
+
+  // Reset form state when component mounts (important for post-logout state)
+  useEffect(() => {
+    console.log('[LoginForm] Component mounted, isLoading:', isLoading);
+    
+    // Clear any stale tokens on mount to ensure clean state
+    const hasStaleTokens = localStorage.getItem('accessToken') || localStorage.getItem('refreshToken');
+    if (hasStaleTokens) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      console.log('[LoginForm] Cleared stale tokens on mount');
+    }
+    
+    // Force reset loading state after a short delay if it's stuck
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        console.log('[LoginForm] Forcing loading state reset after timeout');
+        forceReset();
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isLoading]);
 
   const {
     register,
@@ -38,13 +61,18 @@ export function LoginForm() {
 
   const onSubmit = async (data: FormData) => {
     try {
+      console.log('[LoginForm] Starting login process');
       await login(data as LoginRequest);
     } catch (error) {
+      console.error('[LoginForm] Login failed:', error);
       // Error handling is done in the AuthContext
     }
   };
 
   const loading = isLoading || isSubmitting;
+  
+  // Debug logging
+  console.log('[LoginForm] Render - isLoading:', isLoading, 'isSubmitting:', isSubmitting, 'loading:', loading);
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -170,7 +198,7 @@ export function LoginForm() {
             )}
           </button>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link
@@ -180,6 +208,20 @@ export function LoginForm() {
                 Create one here
               </Link>
             </p>
+            
+            {/* Emergency reset button - only show when loading is stuck */}
+            {loading && (
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('[LoginForm] Manual reset triggered');
+                  forceReset();
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700 underline"
+              >
+                Reset form (if stuck)
+              </button>
+            )}
           </div>
         </form>
       </div>
