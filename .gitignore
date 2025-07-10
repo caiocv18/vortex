@@ -4,5 +4,4 @@
 /backend/vortex-application-service/.env
 /frontend/vortex-application-service/.env
 
-*.log
 *.pid
