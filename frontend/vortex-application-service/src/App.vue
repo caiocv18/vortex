@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useTheme } from 'vuetify'
 import { useThemeStore } from '@/stores/theme'
-import { RouterView } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { RouterView, useRoute } from 'vue-router'
 
 const drawer = ref(true)
 const rail = ref(false)
 const theme = useTheme()
 const themeStore = useThemeStore()
+const authStore = useAuthStore()
+const route = useRoute()
 
 const menuItems = [
   { title: 'Home', value: 'home', icon: 'mdi-home', to: '/' },
@@ -21,6 +24,20 @@ const toggleTheme = () => {
   themeStore.toggleTheme()
 }
 
+const handleLogout = () => {
+  authStore.logout()
+}
+
+const showNavigation = computed(() => {
+  // Always show navigation when authenticated
+  return authStore.isAuthenticated
+})
+
+const userAvatar = computed(() => {
+  const name = authStore.user?.name || ''
+  return name.charAt(0).toUpperCase()
+})
+
 onMounted(() => {
   themeStore.setThemeInstance(theme)
   themeStore.initTheme()
@@ -31,6 +48,7 @@ onMounted(() => {
   <v-app>
     <!-- Navigation Drawer -->
     <v-navigation-drawer
+      v-if="showNavigation"
       v-model="drawer"
       :rail="rail"
       permanent
@@ -73,12 +91,18 @@ onMounted(() => {
             :title="themeStore.isDark ? 'Tema Escuro' : 'Tema Claro'"
             @click="toggleTheme"
           ></v-list-item>
+          <v-list-item
+            prepend-icon="mdi-logout"
+            title="Sair"
+            @click="handleLogout"
+          ></v-list-item>
         </v-list>
       </template>
     </v-navigation-drawer>
 
     <!-- App Bar -->
     <v-app-bar
+      v-if="showNavigation"
       flat
       color="primary"
       app
@@ -91,6 +115,48 @@ onMounted(() => {
       <v-toolbar-title>Sistema de Estoque</v-toolbar-title>
 
       <v-spacer></v-spacer>
+
+      <!-- User menu -->
+      <v-menu
+        v-if="authStore.isAuthenticated"
+        offset-y
+        :close-on-content-click="false"
+      >
+        <template v-slot:activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            class="mx-2"
+          >
+            <v-avatar color="secondary" size="36">
+              <span class="white--text text-h6">{{ userAvatar }}</span>
+            </v-avatar>
+          </v-btn>
+        </template>
+        <v-card min-width="250">
+          <v-card-text>
+            <div class="text-center mb-2">
+              <v-avatar color="secondary" size="64">
+                <span class="white--text text-h4">{{ userAvatar }}</span>
+              </v-avatar>
+            </div>
+            <p class="text-h6 text-center mb-1">{{ authStore.user?.name }}</p>
+            <p class="text-body-2 text-center text-grey">{{ authStore.user?.email }}</p>
+          </v-card-text>
+          <v-divider></v-divider>
+          <v-card-actions>
+            <v-btn
+              block
+              variant="text"
+              color="error"
+              @click="handleLogout"
+            >
+              <v-icon left>mdi-logout</v-icon>
+              Sair
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-menu>
 
       <v-btn icon @click="toggleTheme">
         <v-icon>{{ themeStore.isDark ? 'mdi-weather-night' : 'mdi-weather-sunny' }}</v-icon>

@@ -32,15 +32,22 @@ export const apiClient = axios.create({
   }
 })
 
-// Interceptor para adicionar token (se necessário no futuro)
+// Interceptor para adicionar token
 apiClient.interceptors.request.use(
   (config) => {
+    // Adicionar token de autenticação se disponível
+    const token = localStorage.getItem('vortex_auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    
     // Log das requisições para debug
     console.log('API Request:', {
       method: config.method,
       url: config.url,
       baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`
+      fullURL: `${config.baseURL}${config.url}`,
+      hasAuth: !!config.headers.Authorization
     })
     return config
   },
