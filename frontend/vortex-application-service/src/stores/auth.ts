@@ -72,9 +72,16 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = null
       refreshToken.value = null
       user.value = null
+      loading.value = false
+      error.value = null
+      
+      // Clear all possible stored tokens and data
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('vortex_user')
+      sessionStorage.removeItem('vortex_return_url')
+      
+      console.log('[Auth Store] All auth data cleared')
       
       // Redirect to React auth login
       redirectToAuth('login')
