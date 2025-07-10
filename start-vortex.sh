@@ -109,6 +109,13 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Verificar conflitos de porta usando o script dedicado
+    if [[ -f "scripts/check-ports.sh" ]]; then
+        print_color $BLUE "🚢 Verificando conflitos de porta conforme PORTS.md..."
+        chmod +x scripts/check-ports.sh
+        ./scripts/check-ports.sh --auto-kill 2>/dev/null || true
+    fi
+    
     # Verificar se há problemas conhecidos do Kafka
     if [[ -f "logs/backend.log" ]] && grep -q "kafka:29092.*DNS resolution failed" logs/backend.log 2>/dev/null; then
         print_color $YELLOW "⚠️  Detectado problema conhecido do Kafka (DNS resolution)"
@@ -399,43 +406,47 @@ stop_services() {
     pkill -f "npm run dev" 2>/dev/null || true
     pkill -f "npm run preview" 2>/dev/null || true
     
-    # 7. Parar processo Maven (backend dev)
+    # 7. Parar processos Java/Maven mais agressivamente
+    pkill -f "mvn.*quarkus:dev" 2>/dev/null || true
+    pkill -f "java.*quarkus" 2>/dev/null || true
+    
+    # 8. Parar processo Maven (backend dev)
     if [[ -f "logs/backend.pid" ]]; then
         PID=$(cat logs/backend.pid)
-        kill $PID 2>/dev/null || true
+        kill -9 $PID 2>/dev/null || true
         rm -f logs/backend.pid
     fi
     
-    # 8. Parar processo frontend
+    # 9. Parar processo frontend
     if [[ -f "logs/frontend.pid" ]]; then
         PID=$(cat logs/frontend.pid)
-        kill $PID 2>/dev/null || true
+        kill -9 $PID 2>/dev/null || true
         rm -f logs/frontend.pid
     fi
     
-    # 9. Parar processo backend de autorização
+    # 10. Parar processo backend de autorização
     if [[ -f "logs/auth-backend.pid" ]]; then
         PID=$(cat logs/auth-backend.pid)
-        kill $PID 2>/dev/null || true
+        kill -9 $PID 2>/dev/null || true
         rm -f logs/auth-backend.pid
     fi
     
-    # 10. Parar processo frontend de autorização
+    # 11. Parar processo frontend de autorização
     if [[ -f "logs/auth-frontend.pid" ]]; then
         PID=$(cat logs/auth-frontend.pid)
-        kill $PID 2>/dev/null || true
+        kill -9 $PID 2>/dev/null || true
         rm -f logs/auth-frontend.pid
     fi
     
-    # 11. Limpar redes Docker órfãs relacionadas ao Vortex
+    # 12. Limpar redes Docker órfãs relacionadas ao Vortex
     docker network rm vortex-kafka-network 2>/dev/null || true
     docker network rm vortex-rabbitmq-network 2>/dev/null || true
     docker network rm vortex_default 2>/dev/null || true
     
-    # 12. Aguardar um pouco para garantir que todos os containers foram parados
+    # 13. Aguardar um pouco para garantir que todos os containers foram parados
     sleep 3
     
-    # 13. Verificar se ainda há containers do Vortex rodando
+    # 14. Verificar se ainda há containers do Vortex rodando
     local remaining_containers=$(docker ps --filter "name=vortex" --format "{{.Names}}" | wc -l)
     if [[ $remaining_containers -gt 0 ]]; then
         print_color $YELLOW "⚠️  Ainda há $remaining_containers container(s) rodando:"
@@ -773,16 +784,30 @@ start_auth_backend_dev() {
     if command -v mvn &> /dev/null; then
         print_color $GREEN "📦 Executando com Maven local..."
         
-        # Verificar se há processos na porta 8081
+        # Verificar se há processos na porta 8081 (conforme PORTS.md)
         if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            print_color $YELLOW "⚠️  Porta 8081 ocupada. Tentando liberar..."
+            print_color $YELLOW "⚠️  Porta 8081 ocupada (Auth Backend). Liberando conforme PORTS.md..."
             pkill -f "vortex-authorization-service" 2>/dev/null || true
-            sleep 2
+            pkill -f "quarkus:dev" 2>/dev/null || true
+            lsof -ti :8081 | xargs kill -9 2>/dev/null || true
+            sleep 3
+        fi
+        
+        # Criar diretório de logs se não existir
+        mkdir -p ../../logs
+        
+        # Verificar se há erros de compilação primeiro
+        print_color $BLUE "🔧 Verificando compilação..."
+        if ! mvn compile -q; then
+            print_color $RED "❌ Erro de compilação. Verifique o código fonte."
+            cd ../..
+            return 1
         fi
         
         # Definir variáveis de ambiente
         export QUARKUS_PROFILE=dev
         export QUARKUS_HTTP_PORT=8081
+        export MAVEN_OPTS="-Xmx1g"
         
         # Configurações específicas para sistemas de mensageria
         if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
@@ -794,7 +819,8 @@ start_auth_backend_dev() {
             fi
         fi
         
-        nohup mvn quarkus:dev > ../../logs/auth-backend.log 2>&1 &
+        print_color $BLUE "🚀 Iniciando serviço de autorização..."
+        nohup mvn quarkus:dev -Dquarkus.http.port=8081 > ../../logs/auth-backend.log 2>&1 &
         AUTH_BACKEND_PID=$!
         echo $AUTH_BACKEND_PID > ../../logs/auth-backend.pid
         print_color $GREEN "✅ Backend de autorização iniciado (PID: $AUTH_BACKEND_PID)"
@@ -839,10 +865,11 @@ start_auth_frontend() {
         fi
     fi
     
-    # Verificar se há processos na porta 3001
+    # Verificar se há processos na porta 3001 (conforme PORTS.md - Auth Frontend)
     if lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        print_color $YELLOW "⚠️  Porta 3001 ocupada. Tentando liberar..."
+        print_color $YELLOW "⚠️  Porta 3001 ocupada (Auth Frontend). Liberando conforme PORTS.md..."
         pkill -f "vite.*3001" 2>/dev/null || true
+        lsof -ti :3001 | xargs kill -9 2>/dev/null || true
         sleep 2
     fi
     
@@ -850,8 +877,11 @@ start_auth_frontend() {
         if [[ "$NPM_AVAILABLE" == "true" ]]; then
             print_color $GREEN "🔥 Iniciando servidor de desenvolvimento Vite na porta 3001..."
             
-            # Modificar temporariamente o vite.config.ts para usar porta 3001
-            sed -i.bak 's/port: 5173/port: 3001/g' vite.config.ts 2>/dev/null || true
+            # Verificar se vite.config.ts já está configurado para porta 3001 (PORTS.md)
+            if ! grep -q "port: 3001" vite.config.ts 2>/dev/null; then
+                print_color $YELLOW "📝 Configurando porta 3001 conforme PORTS.md..."
+                sed -i.bak 's/port: [0-9]*/port: 3001/g' vite.config.ts 2>/dev/null || true
+            fi
             
             nohup npm run dev > ../../logs/auth-frontend.log 2>&1 &
             AUTH_FRONTEND_PID=$!
@@ -1096,9 +1126,24 @@ start_frontend() {
         fi
     fi
     
+    # Verificar se há processos na porta 5173 (conforme PORTS.md - Main Frontend Dev)
+    if lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        print_color $YELLOW "⚠️  Porta 5173 ocupada (Main Frontend). Liberando conforme PORTS.md..."
+        pkill -f "vite.*5173" 2>/dev/null || true
+        lsof -ti :5173 | xargs kill -9 2>/dev/null || true
+        sleep 2
+    fi
+
     if [[ "$ENVIRONMENT" == "dev" ]]; then
         if [[ "$NPM_AVAILABLE" == "true" ]]; then
-            print_color $GREEN "🔥 Iniciando servidor de desenvolvimento Vite..."
+            print_color $GREEN "🔥 Iniciando servidor de desenvolvimento Vite na porta 5173..."
+            
+            # Verificar se vite.config.ts já está configurado para porta 5173 (PORTS.md)
+            if ! grep -q "port: 5173" vite.config.ts 2>/dev/null; then
+                print_color $YELLOW "📝 Configurando porta 5173 conforme PORTS.md..."
+                sed -i.bak 's/port: [0-9]*/port: 5173/g' vite.config.ts 2>/dev/null || true
+            fi
+            
             nohup npm run dev > ../../logs/frontend.log 2>&1 &
             FRONTEND_PID=$!
             echo $FRONTEND_PID > ../../logs/frontend.pid
