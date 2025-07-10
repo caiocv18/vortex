@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Auth Service
+  auth-db:
+    image: postgres:17
+    container_name: vortex-auth-db
+    environment:
+      POSTGRES_DB: vortex_auth
+      POSTGRES_USER: vortex_auth
+      POSTGRES_PASSWORD: vortex_auth_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+      - ./init-auth-db.sql:/docker-entrypoint-initdb.d/init-auth-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vortex_auth -d vortex_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vortex-auth-network
+
+  # Quarkus Auth Backend
+  auth-backend:
+    build:
+      context: ../../backend/vortex-authorization-service
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: vortex-auth-service
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DB_URL: jdbc:postgresql://auth-db:5432/vortex_auth
+      DB_USER: vortex_auth
+      DB_PASSWORD: vortex_auth_password
+      
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-vortex-super-secret-jwt-key-change-in-production}
+      AUTH_JWT_ISSUER: vortex-auth-service
+      AUTH_JWT_ACCESS_TOKEN_EXPIRATION: 15m
+      AUTH_JWT_REFRESH_TOKEN_EXPIRATION: 7d
+      
+      # CORS Configuration
+      QUARKUS_HTTP_CORS_ORIGINS: "http://localhost:3001,http://localhost:5173,http://localhost:4173"
+      
+      # Application Configuration
+      QUARKUS_HTTP_PORT: 8081
+      QUARKUS_LOG_LEVEL: INFO
+      
+      # Email Configuration (for password reset)
+      AUTH_EMAIL_FROM: noreply@vortex.com
+      
+      # Rate Limiting
+      AUTH_RATE_LIMIT_LOGIN_ATTEMPTS: 5
+      AUTH_RATE_LIMIT_WINDOW_MINUTES: 15
+      AUTH_RATE_LIMIT_LOCKOUT_MINUTES: 30
+      
+      # Kafka Configuration (optional)
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}
+      
+      # RabbitMQ Configuration (optional)
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-localhost}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-vortex}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-vortex123}
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../../logs:/opt/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/q/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - vortex-auth-network
+      - vortex-simple
+    external_links:
+      - vortex-kafka-simple:kafka
+      - vortex-zookeeper-simple:zookeeper
+
+  # React Auth Frontend
+  auth-frontend:
+    build:
+      context: ../../frontend/vortex-authorization-service
+      dockerfile: Dockerfile
+    container_name: vortex-auth-frontend
+    depends_on:
+      - auth-backend
+    environment:
+      VITE_API_URL: http://localhost:8081
+    ports:
+      - "3001:80"
+    networks:
+      - vortex-auth-network
+
+volumes:
+  auth-db-data:
+
+networks:
+  vortex-auth-network:
+  vortex-simple:
+    external: true
