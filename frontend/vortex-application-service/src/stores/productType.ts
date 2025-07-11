@@ -22,7 +22,7 @@ export const useProductTypeStore = defineStore('productType', {
       this.error = null
       try {
         console.log('fetchProductTypes: chamando API...')
-        const response = await tiposProdutoApi.buscarTodos()
+        const response = await tiposProdutoApi.findAllTiposProduto()
         console.log('fetchProductTypes: resposta recebida:', response)
         this.productTypes = Array.isArray(response.data) ? response.data : [response.data]
         console.log('fetchProductTypes: tipos de produto carregados:', this.productTypes)
@@ -45,7 +45,7 @@ export const useProductTypeStore = defineStore('productType', {
       this.loading = true
       this.error = null
       try {
-        const response = await tiposProdutoApi.criar(productType)
+        const response = await tiposProdutoApi.createTipoProduto(productType)
         this.productTypes.push(response.data)
         return response.data
       } catch (error) {
@@ -60,7 +60,7 @@ export const useProductTypeStore = defineStore('productType', {
       this.loading = true
       this.error = null
       try {
-        const response = await tiposProdutoApi.atualizar(id, productType)
+        const response = await tiposProdutoApi.updateTipoProduto(id, productType)
         const index = this.productTypes.findIndex(pt => pt.id === id)
         if (index !== -1) {
           this.productTypes[index] = response.data
@@ -78,7 +78,7 @@ export const useProductTypeStore = defineStore('productType', {
       this.loading = true
       this.error = null
       try {
-        await tiposProdutoApi.excluir(id)
+        await tiposProdutoApi.deleteTipoProduto(id)
         this.productTypes = this.productTypes.filter(pt => pt.id !== id)
       } catch (error) {
         this.error = (error as AxiosError).message
@@ -90,7 +90,7 @@ export const useProductTypeStore = defineStore('productType', {
 
     async getProductTypeById(id: number) {
       try {
-        const response = await tiposProdutoApi.buscarPorId(id)
+        const response = await tiposProdutoApi.findTipoProdutoById(id)
         return response.data
       } catch (error) {
         this.error = (error as AxiosError).message
@@ -98,4 +98,5 @@ export const useProductTypeStore = defineStore('productType', {
       }
     }
   }
-}) 
+})
+ 

@@ -20,7 +20,7 @@ export const useMovementStore = defineStore('movement', {
       this.loading = true
       this.error = null
       try {
-        const response = await movimentosApi.buscarTodos2()
+        const response = await movimentosApi.findAllMovimentos()
         this.movements = Array.isArray(response.data) ? response.data : [response.data]
       } catch (error) {
         this.error = (error as AxiosError).message
@@ -34,7 +34,7 @@ export const useMovementStore = defineStore('movement', {
       this.loading = true
       this.error = null
       try {
-        const response = await movimentosApi.criar2(movement)
+        const response = await movimentosApi.createMovimento(movement)
         this.movements.push(response.data)
         return response.data
       } catch (error) {
@@ -49,7 +49,7 @@ export const useMovementStore = defineStore('movement', {
       this.loading = true
       this.error = null
       try {
-        const response = await movimentosApi.atualizar2(id, movement)
+        const response = await movimentosApi.updateMovimento(id, movement)
         const index = this.movements.findIndex(m => m.id === id)
         if (index !== -1) {
           this.movements[index] = response.data
@@ -67,7 +67,7 @@ export const useMovementStore = defineStore('movement', {
       this.loading = true
       this.error = null
       try {
-        await movimentosApi.excluir2(id)
+        await movimentosApi.deleteMovimento(id)
         this.movements = this.movements.filter(m => m.id !== id)
       } catch (error) {
         this.error = (error as AxiosError).message
@@ -79,7 +79,7 @@ export const useMovementStore = defineStore('movement', {
 
     async getMovementById(id: number) {
       try {
-        const response = await movimentosApi.buscarPorId2(id)
+        const response = await movimentosApi.findMovimentoById(id)
         return response.data
       } catch (error) {
         this.error = (error as AxiosError).message

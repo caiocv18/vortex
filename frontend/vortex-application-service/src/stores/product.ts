@@ -20,7 +20,7 @@ export const useProductStore = defineStore('product', {
       this.loading = true
       this.error = null
       try {
-        const response = await produtosApi.buscarTodos1()
+        const response = await produtosApi.findAllProdutos()
         this.products = Array.isArray(response.data) ? response.data : [response.data]
       } catch (error) {
         this.error = (error as AxiosError).message
@@ -34,7 +34,7 @@ export const useProductStore = defineStore('product', {
       this.loading = true
       this.error = null
       try {
-        const response = await produtosApi.criar1(product)
+        const response = await produtosApi.createProduto(product)
         this.products.push(response.data)
         return response.data
       } catch (error) {
@@ -49,7 +49,7 @@ export const useProductStore = defineStore('product', {
       this.loading = true
       this.error = null
       try {
-        const response = await produtosApi.atualizar1(id, product)
+        const response = await produtosApi.updateProduto(id, product)
         const index = this.products.findIndex(p => p.id === id)
         if (index !== -1) {
           this.products[index] = response.data
@@ -67,7 +67,7 @@ export const useProductStore = defineStore('product', {
       this.loading = true
       this.error = null
       try {
-        await produtosApi.excluir1(id)
+        await produtosApi.deleteProduto(id)
         this.products = this.products.filter(p => p.id !== id)
       } catch (error) {
         this.error = (error as AxiosError).message
@@ -79,7 +79,7 @@ export const useProductStore = defineStore('product', {
 
     async getProductById(id: number) {
       try {
-        const response = await produtosApi.buscarPorId1(id)
+        const response = await produtosApi.findProdutoById(id)
         return response.data
       } catch (error) {
         this.error = (error as AxiosError).message

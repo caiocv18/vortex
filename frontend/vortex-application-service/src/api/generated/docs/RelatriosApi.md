@@ -1,11 +1,11 @@
 # RelatriosApi
 
-All URIs are relative to *http://localhost:8080*
+All URIs are relative to *http://localhost:8080/api*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**gerarRelatorioLucroPorProduto**](#gerarrelatoriolucroporproduto) | **GET** /api/relatorios/lucro-por-produto | Gera relatório de lucro por produto|
-|[**gerarRelatorioProdutosPorTipo**](#gerarrelatorioprodutosportipo) | **GET** /api/relatorios/produtos-por-tipo | Gera relatório de produtos por tipo|
+|[**gerarRelatorioLucroPorProduto**](#gerarrelatoriolucroporproduto) | **GET** /relatorios/lucro-por-produto | Gera relatório de lucro por produto|
+|[**gerarRelatorioProdutosPorTipo**](#gerarrelatorioprodutosportipo) | **GET** /relatorios/produtos-por-tipo | Gera relatório de produtos por tipo|
 
 # **gerarRelatorioLucroPorProduto**
 > LucroPorProdutoDTO gerarRelatorioLucroPorProduto()

@@ -10,7 +10,7 @@
         <v-list-item>
           <v-list-item-content>
             <v-list-item-title>Nome</v-list-item-title>
-            <v-list-item-subtitle>{{ authStore.user.name }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ authStore.user.username }}</v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>
         
@@ -24,7 +24,7 @@
         <v-list-item>
           <v-list-item-content>
             <v-list-item-title>Provedor</v-list-item-title>
-            <v-list-item-subtitle>{{ authStore.user.provider || 'Local' }}</v-list-item-subtitle>
+            <v-list-item-subtitle>Local</v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>
         

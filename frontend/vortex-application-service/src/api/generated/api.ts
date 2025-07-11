@@ -200,120 +200,16 @@ export interface TipoProdutoDTO {
 export const MovimentosDeEstoqueApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Atualiza um movimento de estoque existente com os dados fornecidos
-         * @summary Atualiza um movimento de estoque
-         * @param {number} id ID do movimento de estoque a ser atualizado
-         * @param {MovimentoEstoque} movimentoEstoque 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        atualizar2: async (id: number, movimentoEstoque: MovimentoEstoque, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('atualizar2', 'id', id)
-            // verify required parameter 'movimentoEstoque' is not null or undefined
-            assertParamExists('atualizar2', 'movimentoEstoque', movimentoEstoque)
-            const localVarPath = `/api/movimentos/{id}`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(movimentoEstoque, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * Retorna um movimento de estoque específico pelo seu ID
-         * @summary Busca um movimento de estoque pelo ID
-         * @param {number} id ID do movimento de estoque a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarPorId2: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('buscarPorId2', 'id', id)
-            const localVarPath = `/api/movimentos/{id}`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * Retorna uma lista com todos os movimentos de estoque cadastrados
-         * @summary Busca todos os movimentos de estoque
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarTodos2: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/movimentos`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
          * Cria um novo movimento de estoque com os dados fornecidos
          * @summary Cria um novo movimento de estoque
          * @param {MovimentoEstoque} movimentoEstoque 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        criar2: async (movimentoEstoque: MovimentoEstoque, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        createMovimento: async (movimentoEstoque: MovimentoEstoque, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'movimentoEstoque' is not null or undefined
-            assertParamExists('criar2', 'movimentoEstoque', movimentoEstoque)
-            const localVarPath = `/api/movimentos`;
+            assertParamExists('createMovimento', 'movimentoEstoque', movimentoEstoque)
+            const localVarPath = `/movimentos`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -346,10 +242,10 @@ export const MovimentosDeEstoqueApiAxiosParamCreator = function (configuration?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        excluir2: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteMovimento: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('excluir2', 'id', id)
-            const localVarPath = `/api/movimentos/{id}`
+            assertParamExists('deleteMovimento', 'id', id)
+            const localVarPath = `/movimentos/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -367,6 +263,110 @@ export const MovimentosDeEstoqueApiAxiosParamCreator = function (configuration?:
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Retorna uma lista com todos os movimentos de estoque cadastrados
+         * @summary Busca todos os movimentos de estoque
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findAllMovimentos: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/movimentos`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Retorna um movimento de estoque específico pelo seu ID
+         * @summary Busca um movimento de estoque pelo ID
+         * @param {number} id ID do movimento de estoque a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findMovimentoById: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('findMovimentoById', 'id', id)
+            const localVarPath = `/movimentos/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Atualiza um movimento de estoque existente com os dados fornecidos
+         * @summary Atualiza um movimento de estoque
+         * @param {number} id ID do movimento de estoque a ser atualizado
+         * @param {MovimentoEstoque} movimentoEstoque 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateMovimento: async (id: number, movimentoEstoque: MovimentoEstoque, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('updateMovimento', 'id', id)
+            // verify required parameter 'movimentoEstoque' is not null or undefined
+            assertParamExists('updateMovimento', 'movimentoEstoque', movimentoEstoque)
+            const localVarPath = `/movimentos/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(movimentoEstoque, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -384,55 +384,16 @@ export const MovimentosDeEstoqueApiFp = function(configuration?: Configuration) 
     const localVarAxiosParamCreator = MovimentosDeEstoqueApiAxiosParamCreator(configuration)
     return {
         /**
-         * Atualiza um movimento de estoque existente com os dados fornecidos
-         * @summary Atualiza um movimento de estoque
-         * @param {number} id ID do movimento de estoque a ser atualizado
-         * @param {MovimentoEstoque} movimentoEstoque 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async atualizar2(id: number, movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.atualizar2(id, movimentoEstoque, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.atualizar2']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * Retorna um movimento de estoque específico pelo seu ID
-         * @summary Busca um movimento de estoque pelo ID
-         * @param {number} id ID do movimento de estoque a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async buscarPorId2(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.buscarPorId2(id, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.buscarPorId2']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * Retorna uma lista com todos os movimentos de estoque cadastrados
-         * @summary Busca todos os movimentos de estoque
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async buscarTodos2(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.buscarTodos2(options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.buscarTodos2']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
          * Cria um novo movimento de estoque com os dados fornecidos
          * @summary Cria um novo movimento de estoque
          * @param {MovimentoEstoque} movimentoEstoque 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async criar2(movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.criar2(movimentoEstoque, options);
+        async createMovimento(movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createMovimento(movimentoEstoque, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.criar2']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.createMovimento']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -442,10 +403,49 @@ export const MovimentosDeEstoqueApiFp = function(configuration?: Configuration) 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async excluir2(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.excluir2(id, options);
+        async deleteMovimento(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteMovimento(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.excluir2']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.deleteMovimento']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Retorna uma lista com todos os movimentos de estoque cadastrados
+         * @summary Busca todos os movimentos de estoque
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async findAllMovimentos(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllMovimentos(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.findAllMovimentos']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Retorna um movimento de estoque específico pelo seu ID
+         * @summary Busca um movimento de estoque pelo ID
+         * @param {number} id ID do movimento de estoque a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async findMovimentoById(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findMovimentoById(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.findMovimentoById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Atualiza um movimento de estoque existente com os dados fornecidos
+         * @summary Atualiza um movimento de estoque
+         * @param {number} id ID do movimento de estoque a ser atualizado
+         * @param {MovimentoEstoque} movimentoEstoque 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateMovimento(id: number, movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateMovimento(id, movimentoEstoque, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.updateMovimento']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -459,44 +459,14 @@ export const MovimentosDeEstoqueApiFactory = function (configuration?: Configura
     const localVarFp = MovimentosDeEstoqueApiFp(configuration)
     return {
         /**
-         * Atualiza um movimento de estoque existente com os dados fornecidos
-         * @summary Atualiza um movimento de estoque
-         * @param {number} id ID do movimento de estoque a ser atualizado
-         * @param {MovimentoEstoque} movimentoEstoque 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        atualizar2(id: number, movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
-            return localVarFp.atualizar2(id, movimentoEstoque, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Retorna um movimento de estoque específico pelo seu ID
-         * @summary Busca um movimento de estoque pelo ID
-         * @param {number} id ID do movimento de estoque a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarPorId2(id: number, options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
-            return localVarFp.buscarPorId2(id, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Retorna uma lista com todos os movimentos de estoque cadastrados
-         * @summary Busca todos os movimentos de estoque
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarTodos2(options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
-            return localVarFp.buscarTodos2(options).then((request) => request(axios, basePath));
-        },
-        /**
          * Cria um novo movimento de estoque com os dados fornecidos
          * @summary Cria um novo movimento de estoque
          * @param {MovimentoEstoque} movimentoEstoque 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        criar2(movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
-            return localVarFp.criar2(movimentoEstoque, options).then((request) => request(axios, basePath));
+        createMovimento(movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
+            return localVarFp.createMovimento(movimentoEstoque, options).then((request) => request(axios, basePath));
         },
         /**
          * Exclui um movimento de estoque existente pelo seu ID
@@ -505,8 +475,38 @@ export const MovimentosDeEstoqueApiFactory = function (configuration?: Configura
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        excluir2(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.excluir2(id, options).then((request) => request(axios, basePath));
+        deleteMovimento(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteMovimento(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Retorna uma lista com todos os movimentos de estoque cadastrados
+         * @summary Busca todos os movimentos de estoque
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findAllMovimentos(options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
+            return localVarFp.findAllMovimentos(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Retorna um movimento de estoque específico pelo seu ID
+         * @summary Busca um movimento de estoque pelo ID
+         * @param {number} id ID do movimento de estoque a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findMovimentoById(id: number, options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
+            return localVarFp.findMovimentoById(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Atualiza um movimento de estoque existente com os dados fornecidos
+         * @summary Atualiza um movimento de estoque
+         * @param {number} id ID do movimento de estoque a ser atualizado
+         * @param {MovimentoEstoque} movimentoEstoque 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateMovimento(id: number, movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
+            return localVarFp.updateMovimento(id, movimentoEstoque, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -519,42 +519,6 @@ export const MovimentosDeEstoqueApiFactory = function (configuration?: Configura
  */
 export class MovimentosDeEstoqueApi extends BaseAPI {
     /**
-     * Atualiza um movimento de estoque existente com os dados fornecidos
-     * @summary Atualiza um movimento de estoque
-     * @param {number} id ID do movimento de estoque a ser atualizado
-     * @param {MovimentoEstoque} movimentoEstoque 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof MovimentosDeEstoqueApi
-     */
-    public atualizar2(id: number, movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig) {
-        return MovimentosDeEstoqueApiFp(this.configuration).atualizar2(id, movimentoEstoque, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Retorna um movimento de estoque específico pelo seu ID
-     * @summary Busca um movimento de estoque pelo ID
-     * @param {number} id ID do movimento de estoque a ser buscado
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof MovimentosDeEstoqueApi
-     */
-    public buscarPorId2(id: number, options?: RawAxiosRequestConfig) {
-        return MovimentosDeEstoqueApiFp(this.configuration).buscarPorId2(id, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Retorna uma lista com todos os movimentos de estoque cadastrados
-     * @summary Busca todos os movimentos de estoque
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof MovimentosDeEstoqueApi
-     */
-    public buscarTodos2(options?: RawAxiosRequestConfig) {
-        return MovimentosDeEstoqueApiFp(this.configuration).buscarTodos2(options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
      * Cria um novo movimento de estoque com os dados fornecidos
      * @summary Cria um novo movimento de estoque
      * @param {MovimentoEstoque} movimentoEstoque 
@@ -562,8 +526,8 @@ export class MovimentosDeEstoqueApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof MovimentosDeEstoqueApi
      */
-    public criar2(movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig) {
-        return MovimentosDeEstoqueApiFp(this.configuration).criar2(movimentoEstoque, options).then((request) => request(this.axios, this.basePath));
+    public createMovimento(movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig) {
+        return MovimentosDeEstoqueApiFp(this.configuration).createMovimento(movimentoEstoque, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -574,8 +538,44 @@ export class MovimentosDeEstoqueApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof MovimentosDeEstoqueApi
      */
-    public excluir2(id: number, options?: RawAxiosRequestConfig) {
-        return MovimentosDeEstoqueApiFp(this.configuration).excluir2(id, options).then((request) => request(this.axios, this.basePath));
+    public deleteMovimento(id: number, options?: RawAxiosRequestConfig) {
+        return MovimentosDeEstoqueApiFp(this.configuration).deleteMovimento(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Retorna uma lista com todos os movimentos de estoque cadastrados
+     * @summary Busca todos os movimentos de estoque
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MovimentosDeEstoqueApi
+     */
+    public findAllMovimentos(options?: RawAxiosRequestConfig) {
+        return MovimentosDeEstoqueApiFp(this.configuration).findAllMovimentos(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Retorna um movimento de estoque específico pelo seu ID
+     * @summary Busca um movimento de estoque pelo ID
+     * @param {number} id ID do movimento de estoque a ser buscado
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MovimentosDeEstoqueApi
+     */
+    public findMovimentoById(id: number, options?: RawAxiosRequestConfig) {
+        return MovimentosDeEstoqueApiFp(this.configuration).findMovimentoById(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Atualiza um movimento de estoque existente com os dados fornecidos
+     * @summary Atualiza um movimento de estoque
+     * @param {number} id ID do movimento de estoque a ser atualizado
+     * @param {MovimentoEstoque} movimentoEstoque 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MovimentosDeEstoqueApi
+     */
+    public updateMovimento(id: number, movimentoEstoque: MovimentoEstoque, options?: RawAxiosRequestConfig) {
+        return MovimentosDeEstoqueApiFp(this.configuration).updateMovimento(id, movimentoEstoque, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -588,120 +588,16 @@ export class MovimentosDeEstoqueApi extends BaseAPI {
 export const ProdutosApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Atualiza um produto existente com os dados fornecidos
-         * @summary Atualiza um produto
-         * @param {number} id ID do produto a ser atualizado
-         * @param {ProdutoDTO} produtoDTO 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        atualizar1: async (id: number, produtoDTO: ProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('atualizar1', 'id', id)
-            // verify required parameter 'produtoDTO' is not null or undefined
-            assertParamExists('atualizar1', 'produtoDTO', produtoDTO)
-            const localVarPath = `/api/produtos/{id}`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(produtoDTO, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * Retorna um produto específico pelo seu ID
-         * @summary Busca um produto pelo ID
-         * @param {number} id ID do produto a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarPorId1: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('buscarPorId1', 'id', id)
-            const localVarPath = `/api/produtos/{id}`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * Retorna uma lista com todos os produtos cadastrados
-         * @summary Busca todos os produtos
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarTodos1: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/produtos`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
          * Cria um novo produto com os dados fornecidos
          * @summary Cria um novo produto
          * @param {ProdutoDTO} produtoDTO 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        criar1: async (produtoDTO: ProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        createProduto: async (produtoDTO: ProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'produtoDTO' is not null or undefined
-            assertParamExists('criar1', 'produtoDTO', produtoDTO)
-            const localVarPath = `/api/produtos`;
+            assertParamExists('createProduto', 'produtoDTO', produtoDTO)
+            const localVarPath = `/produtos`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -734,10 +630,10 @@ export const ProdutosApiAxiosParamCreator = function (configuration?: Configurat
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        excluir1: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteProduto: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('excluir1', 'id', id)
-            const localVarPath = `/api/produtos/{id}`
+            assertParamExists('deleteProduto', 'id', id)
+            const localVarPath = `/produtos/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -761,6 +657,110 @@ export const ProdutosApiAxiosParamCreator = function (configuration?: Configurat
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Retorna uma lista com todos os produtos cadastrados
+         * @summary Busca todos os produtos
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findAllProdutos: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/produtos`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Retorna um produto específico pelo seu ID
+         * @summary Busca um produto pelo ID
+         * @param {number} id ID do produto a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findProdutoById: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('findProdutoById', 'id', id)
+            const localVarPath = `/produtos/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Atualiza um produto existente com os dados fornecidos
+         * @summary Atualiza um produto
+         * @param {number} id ID do produto a ser atualizado
+         * @param {ProdutoDTO} produtoDTO 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateProduto: async (id: number, produtoDTO: ProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('updateProduto', 'id', id)
+            // verify required parameter 'produtoDTO' is not null or undefined
+            assertParamExists('updateProduto', 'produtoDTO', produtoDTO)
+            const localVarPath = `/produtos/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(produtoDTO, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -772,55 +772,16 @@ export const ProdutosApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = ProdutosApiAxiosParamCreator(configuration)
     return {
         /**
-         * Atualiza um produto existente com os dados fornecidos
-         * @summary Atualiza um produto
-         * @param {number} id ID do produto a ser atualizado
-         * @param {ProdutoDTO} produtoDTO 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async atualizar1(id: number, produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.atualizar1(id, produtoDTO, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.atualizar1']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * Retorna um produto específico pelo seu ID
-         * @summary Busca um produto pelo ID
-         * @param {number} id ID do produto a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async buscarPorId1(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.buscarPorId1(id, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.buscarPorId1']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * Retorna uma lista com todos os produtos cadastrados
-         * @summary Busca todos os produtos
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async buscarTodos1(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.buscarTodos1(options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.buscarTodos1']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
          * Cria um novo produto com os dados fornecidos
          * @summary Cria um novo produto
          * @param {ProdutoDTO} produtoDTO 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async criar1(produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.criar1(produtoDTO, options);
+        async createProduto(produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createProduto(produtoDTO, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.criar1']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.createProduto']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -830,10 +791,49 @@ export const ProdutosApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async excluir1(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.excluir1(id, options);
+        async deleteProduto(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteProduto(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.excluir1']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.deleteProduto']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Retorna uma lista com todos os produtos cadastrados
+         * @summary Busca todos os produtos
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async findAllProdutos(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllProdutos(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.findAllProdutos']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Retorna um produto específico pelo seu ID
+         * @summary Busca um produto pelo ID
+         * @param {number} id ID do produto a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async findProdutoById(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findProdutoById(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.findProdutoById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Atualiza um produto existente com os dados fornecidos
+         * @summary Atualiza um produto
+         * @param {number} id ID do produto a ser atualizado
+         * @param {ProdutoDTO} produtoDTO 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateProduto(id: number, produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateProduto(id, produtoDTO, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProdutosApi.updateProduto']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -847,44 +847,14 @@ export const ProdutosApiFactory = function (configuration?: Configuration, baseP
     const localVarFp = ProdutosApiFp(configuration)
     return {
         /**
-         * Atualiza um produto existente com os dados fornecidos
-         * @summary Atualiza um produto
-         * @param {number} id ID do produto a ser atualizado
-         * @param {ProdutoDTO} produtoDTO 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        atualizar1(id: number, produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
-            return localVarFp.atualizar1(id, produtoDTO, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Retorna um produto específico pelo seu ID
-         * @summary Busca um produto pelo ID
-         * @param {number} id ID do produto a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarPorId1(id: number, options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
-            return localVarFp.buscarPorId1(id, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Retorna uma lista com todos os produtos cadastrados
-         * @summary Busca todos os produtos
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarTodos1(options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
-            return localVarFp.buscarTodos1(options).then((request) => request(axios, basePath));
-        },
-        /**
          * Cria um novo produto com os dados fornecidos
          * @summary Cria um novo produto
          * @param {ProdutoDTO} produtoDTO 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        criar1(produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
-            return localVarFp.criar1(produtoDTO, options).then((request) => request(axios, basePath));
+        createProduto(produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
+            return localVarFp.createProduto(produtoDTO, options).then((request) => request(axios, basePath));
         },
         /**
          * Exclui um produto existente pelo seu ID
@@ -893,8 +863,38 @@ export const ProdutosApiFactory = function (configuration?: Configuration, baseP
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        excluir1(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.excluir1(id, options).then((request) => request(axios, basePath));
+        deleteProduto(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteProduto(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Retorna uma lista com todos os produtos cadastrados
+         * @summary Busca todos os produtos
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findAllProdutos(options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
+            return localVarFp.findAllProdutos(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Retorna um produto específico pelo seu ID
+         * @summary Busca um produto pelo ID
+         * @param {number} id ID do produto a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findProdutoById(id: number, options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
+            return localVarFp.findProdutoById(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Atualiza um produto existente com os dados fornecidos
+         * @summary Atualiza um produto
+         * @param {number} id ID do produto a ser atualizado
+         * @param {ProdutoDTO} produtoDTO 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateProduto(id: number, produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
+            return localVarFp.updateProduto(id, produtoDTO, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -907,42 +907,6 @@ export const ProdutosApiFactory = function (configuration?: Configuration, baseP
  */
 export class ProdutosApi extends BaseAPI {
     /**
-     * Atualiza um produto existente com os dados fornecidos
-     * @summary Atualiza um produto
-     * @param {number} id ID do produto a ser atualizado
-     * @param {ProdutoDTO} produtoDTO 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof ProdutosApi
-     */
-    public atualizar1(id: number, produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig) {
-        return ProdutosApiFp(this.configuration).atualizar1(id, produtoDTO, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Retorna um produto específico pelo seu ID
-     * @summary Busca um produto pelo ID
-     * @param {number} id ID do produto a ser buscado
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof ProdutosApi
-     */
-    public buscarPorId1(id: number, options?: RawAxiosRequestConfig) {
-        return ProdutosApiFp(this.configuration).buscarPorId1(id, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Retorna uma lista com todos os produtos cadastrados
-     * @summary Busca todos os produtos
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof ProdutosApi
-     */
-    public buscarTodos1(options?: RawAxiosRequestConfig) {
-        return ProdutosApiFp(this.configuration).buscarTodos1(options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
      * Cria um novo produto com os dados fornecidos
      * @summary Cria um novo produto
      * @param {ProdutoDTO} produtoDTO 
@@ -950,8 +914,8 @@ export class ProdutosApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof ProdutosApi
      */
-    public criar1(produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig) {
-        return ProdutosApiFp(this.configuration).criar1(produtoDTO, options).then((request) => request(this.axios, this.basePath));
+    public createProduto(produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig) {
+        return ProdutosApiFp(this.configuration).createProduto(produtoDTO, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -962,8 +926,44 @@ export class ProdutosApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof ProdutosApi
      */
-    public excluir1(id: number, options?: RawAxiosRequestConfig) {
-        return ProdutosApiFp(this.configuration).excluir1(id, options).then((request) => request(this.axios, this.basePath));
+    public deleteProduto(id: number, options?: RawAxiosRequestConfig) {
+        return ProdutosApiFp(this.configuration).deleteProduto(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Retorna uma lista com todos os produtos cadastrados
+     * @summary Busca todos os produtos
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProdutosApi
+     */
+    public findAllProdutos(options?: RawAxiosRequestConfig) {
+        return ProdutosApiFp(this.configuration).findAllProdutos(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Retorna um produto específico pelo seu ID
+     * @summary Busca um produto pelo ID
+     * @param {number} id ID do produto a ser buscado
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProdutosApi
+     */
+    public findProdutoById(id: number, options?: RawAxiosRequestConfig) {
+        return ProdutosApiFp(this.configuration).findProdutoById(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Atualiza um produto existente com os dados fornecidos
+     * @summary Atualiza um produto
+     * @param {number} id ID do produto a ser atualizado
+     * @param {ProdutoDTO} produtoDTO 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProdutosApi
+     */
+    public updateProduto(id: number, produtoDTO: ProdutoDTO, options?: RawAxiosRequestConfig) {
+        return ProdutosApiFp(this.configuration).updateProduto(id, produtoDTO, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -982,7 +982,7 @@ export const RelatriosApiAxiosParamCreator = function (configuration?: Configura
          * @throws {RequiredError}
          */
         gerarRelatorioLucroPorProduto: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/relatorios/lucro-por-produto`;
+            const localVarPath = `/relatorios/lucro-por-produto`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1015,7 +1015,7 @@ export const RelatriosApiAxiosParamCreator = function (configuration?: Configura
         gerarRelatorioProdutosPorTipo: async (tipoProdutoId: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'tipoProdutoId' is not null or undefined
             assertParamExists('gerarRelatorioProdutosPorTipo', 'tipoProdutoId', tipoProdutoId)
-            const localVarPath = `/api/relatorios/produtos-por-tipo`;
+            const localVarPath = `/relatorios/produtos-por-tipo`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1149,120 +1149,16 @@ export class RelatriosApi extends BaseAPI {
 export const TiposDeProdutoApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Atualiza um tipo de produto existente com os dados fornecidos
-         * @summary Atualiza um tipo de produto
-         * @param {number} id ID do tipo de produto a ser atualizado
-         * @param {TipoProdutoDTO} tipoProdutoDTO 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        atualizar: async (id: number, tipoProdutoDTO: TipoProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('atualizar', 'id', id)
-            // verify required parameter 'tipoProdutoDTO' is not null or undefined
-            assertParamExists('atualizar', 'tipoProdutoDTO', tipoProdutoDTO)
-            const localVarPath = `/api/tipos-produto/{id}`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(tipoProdutoDTO, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * Retorna um tipo de produto específico pelo seu ID
-         * @summary Busca um tipo de produto pelo ID
-         * @param {number} id ID do tipo de produto a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarPorId: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('buscarPorId', 'id', id)
-            const localVarPath = `/api/tipos-produto/{id}`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * Retorna uma lista com todos os tipos de produto cadastrados
-         * @summary Busca todos os tipos de produto
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarTodos: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/tipos-produto`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
          * Cria um novo tipo de produto com os dados fornecidos
          * @summary Cria um novo tipo de produto
          * @param {TipoProdutoDTO} tipoProdutoDTO 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        criar: async (tipoProdutoDTO: TipoProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        createTipoProduto: async (tipoProdutoDTO: TipoProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'tipoProdutoDTO' is not null or undefined
-            assertParamExists('criar', 'tipoProdutoDTO', tipoProdutoDTO)
-            const localVarPath = `/api/tipos-produto`;
+            assertParamExists('createTipoProduto', 'tipoProdutoDTO', tipoProdutoDTO)
+            const localVarPath = `/tipos-produto`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1295,10 +1191,10 @@ export const TiposDeProdutoApiAxiosParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        excluir: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteTipoProduto: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('excluir', 'id', id)
-            const localVarPath = `/api/tipos-produto/{id}`
+            assertParamExists('deleteTipoProduto', 'id', id)
+            const localVarPath = `/tipos-produto/{id}`
                 .replace(`{${"id"}}`, encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1322,6 +1218,110 @@ export const TiposDeProdutoApiAxiosParamCreator = function (configuration?: Conf
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Retorna uma lista com todos os tipos de produto cadastrados
+         * @summary Busca todos os tipos de produto
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findAllTiposProduto: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tipos-produto`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Retorna um tipo de produto específico pelo seu ID
+         * @summary Busca um tipo de produto pelo ID
+         * @param {number} id ID do tipo de produto a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findTipoProdutoById: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('findTipoProdutoById', 'id', id)
+            const localVarPath = `/tipos-produto/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Atualiza um tipo de produto existente com os dados fornecidos
+         * @summary Atualiza um tipo de produto
+         * @param {number} id ID do tipo de produto a ser atualizado
+         * @param {TipoProdutoDTO} tipoProdutoDTO 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateTipoProduto: async (id: number, tipoProdutoDTO: TipoProdutoDTO, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('updateTipoProduto', 'id', id)
+            // verify required parameter 'tipoProdutoDTO' is not null or undefined
+            assertParamExists('updateTipoProduto', 'tipoProdutoDTO', tipoProdutoDTO)
+            const localVarPath = `/tipos-produto/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(tipoProdutoDTO, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -1333,55 +1333,16 @@ export const TiposDeProdutoApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = TiposDeProdutoApiAxiosParamCreator(configuration)
     return {
         /**
-         * Atualiza um tipo de produto existente com os dados fornecidos
-         * @summary Atualiza um tipo de produto
-         * @param {number} id ID do tipo de produto a ser atualizado
-         * @param {TipoProdutoDTO} tipoProdutoDTO 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async atualizar(id: number, tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.atualizar(id, tipoProdutoDTO, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.atualizar']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * Retorna um tipo de produto específico pelo seu ID
-         * @summary Busca um tipo de produto pelo ID
-         * @param {number} id ID do tipo de produto a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async buscarPorId(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.buscarPorId(id, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.buscarPorId']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * Retorna uma lista com todos os tipos de produto cadastrados
-         * @summary Busca todos os tipos de produto
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async buscarTodos(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.buscarTodos(options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.buscarTodos']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
          * Cria um novo tipo de produto com os dados fornecidos
          * @summary Cria um novo tipo de produto
          * @param {TipoProdutoDTO} tipoProdutoDTO 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async criar(tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.criar(tipoProdutoDTO, options);
+        async createTipoProduto(tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createTipoProduto(tipoProdutoDTO, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.criar']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.createTipoProduto']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1391,10 +1352,49 @@ export const TiposDeProdutoApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async excluir(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.excluir(id, options);
+        async deleteTipoProduto(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteTipoProduto(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.excluir']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.deleteTipoProduto']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Retorna uma lista com todos os tipos de produto cadastrados
+         * @summary Busca todos os tipos de produto
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async findAllTiposProduto(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllTiposProduto(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.findAllTiposProduto']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Retorna um tipo de produto específico pelo seu ID
+         * @summary Busca um tipo de produto pelo ID
+         * @param {number} id ID do tipo de produto a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async findTipoProdutoById(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findTipoProdutoById(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.findTipoProdutoById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Atualiza um tipo de produto existente com os dados fornecidos
+         * @summary Atualiza um tipo de produto
+         * @param {number} id ID do tipo de produto a ser atualizado
+         * @param {TipoProdutoDTO} tipoProdutoDTO 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateTipoProduto(id: number, tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TipoProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateTipoProduto(id, tipoProdutoDTO, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TiposDeProdutoApi.updateTipoProduto']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -1408,44 +1408,14 @@ export const TiposDeProdutoApiFactory = function (configuration?: Configuration,
     const localVarFp = TiposDeProdutoApiFp(configuration)
     return {
         /**
-         * Atualiza um tipo de produto existente com os dados fornecidos
-         * @summary Atualiza um tipo de produto
-         * @param {number} id ID do tipo de produto a ser atualizado
-         * @param {TipoProdutoDTO} tipoProdutoDTO 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        atualizar(id: number, tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
-            return localVarFp.atualizar(id, tipoProdutoDTO, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Retorna um tipo de produto específico pelo seu ID
-         * @summary Busca um tipo de produto pelo ID
-         * @param {number} id ID do tipo de produto a ser buscado
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarPorId(id: number, options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
-            return localVarFp.buscarPorId(id, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Retorna uma lista com todos os tipos de produto cadastrados
-         * @summary Busca todos os tipos de produto
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        buscarTodos(options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
-            return localVarFp.buscarTodos(options).then((request) => request(axios, basePath));
-        },
-        /**
          * Cria um novo tipo de produto com os dados fornecidos
          * @summary Cria um novo tipo de produto
          * @param {TipoProdutoDTO} tipoProdutoDTO 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        criar(tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
-            return localVarFp.criar(tipoProdutoDTO, options).then((request) => request(axios, basePath));
+        createTipoProduto(tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
+            return localVarFp.createTipoProduto(tipoProdutoDTO, options).then((request) => request(axios, basePath));
         },
         /**
          * Exclui um tipo de produto existente pelo seu ID
@@ -1454,8 +1424,38 @@ export const TiposDeProdutoApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        excluir(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.excluir(id, options).then((request) => request(axios, basePath));
+        deleteTipoProduto(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteTipoProduto(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Retorna uma lista com todos os tipos de produto cadastrados
+         * @summary Busca todos os tipos de produto
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findAllTiposProduto(options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
+            return localVarFp.findAllTiposProduto(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Retorna um tipo de produto específico pelo seu ID
+         * @summary Busca um tipo de produto pelo ID
+         * @param {number} id ID do tipo de produto a ser buscado
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        findTipoProdutoById(id: number, options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
+            return localVarFp.findTipoProdutoById(id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Atualiza um tipo de produto existente com os dados fornecidos
+         * @summary Atualiza um tipo de produto
+         * @param {number} id ID do tipo de produto a ser atualizado
+         * @param {TipoProdutoDTO} tipoProdutoDTO 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateTipoProduto(id: number, tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig): AxiosPromise<TipoProdutoDTO> {
+            return localVarFp.updateTipoProduto(id, tipoProdutoDTO, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -1468,42 +1468,6 @@ export const TiposDeProdutoApiFactory = function (configuration?: Configuration,
  */
 export class TiposDeProdutoApi extends BaseAPI {
     /**
-     * Atualiza um tipo de produto existente com os dados fornecidos
-     * @summary Atualiza um tipo de produto
-     * @param {number} id ID do tipo de produto a ser atualizado
-     * @param {TipoProdutoDTO} tipoProdutoDTO 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof TiposDeProdutoApi
-     */
-    public atualizar(id: number, tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig) {
-        return TiposDeProdutoApiFp(this.configuration).atualizar(id, tipoProdutoDTO, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Retorna um tipo de produto específico pelo seu ID
-     * @summary Busca um tipo de produto pelo ID
-     * @param {number} id ID do tipo de produto a ser buscado
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof TiposDeProdutoApi
-     */
-    public buscarPorId(id: number, options?: RawAxiosRequestConfig) {
-        return TiposDeProdutoApiFp(this.configuration).buscarPorId(id, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Retorna uma lista com todos os tipos de produto cadastrados
-     * @summary Busca todos os tipos de produto
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof TiposDeProdutoApi
-     */
-    public buscarTodos(options?: RawAxiosRequestConfig) {
-        return TiposDeProdutoApiFp(this.configuration).buscarTodos(options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
      * Cria um novo tipo de produto com os dados fornecidos
      * @summary Cria um novo tipo de produto
      * @param {TipoProdutoDTO} tipoProdutoDTO 
@@ -1511,8 +1475,8 @@ export class TiposDeProdutoApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof TiposDeProdutoApi
      */
-    public criar(tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig) {
-        return TiposDeProdutoApiFp(this.configuration).criar(tipoProdutoDTO, options).then((request) => request(this.axios, this.basePath));
+    public createTipoProduto(tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig) {
+        return TiposDeProdutoApiFp(this.configuration).createTipoProduto(tipoProdutoDTO, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1523,8 +1487,44 @@ export class TiposDeProdutoApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof TiposDeProdutoApi
      */
-    public excluir(id: number, options?: RawAxiosRequestConfig) {
-        return TiposDeProdutoApiFp(this.configuration).excluir(id, options).then((request) => request(this.axios, this.basePath));
+    public deleteTipoProduto(id: number, options?: RawAxiosRequestConfig) {
+        return TiposDeProdutoApiFp(this.configuration).deleteTipoProduto(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Retorna uma lista com todos os tipos de produto cadastrados
+     * @summary Busca todos os tipos de produto
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TiposDeProdutoApi
+     */
+    public findAllTiposProduto(options?: RawAxiosRequestConfig) {
+        return TiposDeProdutoApiFp(this.configuration).findAllTiposProduto(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Retorna um tipo de produto específico pelo seu ID
+     * @summary Busca um tipo de produto pelo ID
+     * @param {number} id ID do tipo de produto a ser buscado
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TiposDeProdutoApi
+     */
+    public findTipoProdutoById(id: number, options?: RawAxiosRequestConfig) {
+        return TiposDeProdutoApiFp(this.configuration).findTipoProdutoById(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Atualiza um tipo de produto existente com os dados fornecidos
+     * @summary Atualiza um tipo de produto
+     * @param {number} id ID do tipo de produto a ser atualizado
+     * @param {TipoProdutoDTO} tipoProdutoDTO 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TiposDeProdutoApi
+     */
+    public updateTipoProduto(id: number, tipoProdutoDTO: TipoProdutoDTO, options?: RawAxiosRequestConfig) {
+        return TiposDeProdutoApiFp(this.configuration).updateTipoProduto(id, tipoProdutoDTO, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

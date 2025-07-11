@@ -97,8 +97,11 @@ export const useAuthStore = defineStore('auth', () => {
       // Check if token is expired
       if (isTokenExpired(token.value)) {
         console.log('[Auth Store] Token expired, attempting refresh...')
+        console.log('[Auth Store] Token expiration time:', new Date(JSON.parse(atob(token.value.split('.')[1])).exp * 1000))
+        console.log('[Auth Store] Current time:', new Date())
         const refreshed = await attemptTokenRefresh()
         if (!refreshed) {
+          console.log('[Auth Store] Token refresh failed, logging out')
           logout()
           return false
         }
@@ -172,8 +175,14 @@ export const useAuthStore = defineStore('auth', () => {
     const storedUser = localStorage.getItem('vortex_user')
     
     console.log('[Auth Store] Access token found:', !!accessToken)
+    console.log('[Auth Store] Access token preview:', accessToken ? `${accessToken.substring(0, 20)}...` : 'No token')
     console.log('[Auth Store] Refresh token found:', !!refreshTokenValue)
     console.log('[Auth Store] User found:', !!storedUser)
+    
+    if (accessToken) {
+      console.log('[Auth Store] Token length:', accessToken.length)
+      console.log('[Auth Store] Token parts:', accessToken.split('.').length)
+    }
     
     if (!accessToken || !refreshTokenValue || !storedUser) {
       console.log('[Auth Store] Missing auth data')

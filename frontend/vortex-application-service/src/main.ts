@@ -14,6 +14,9 @@ import App from './App.vue'
 import router from './router'
 import { handleAuthCallback } from './utils/authCallback'
 
+// Import test utilities (for debugging)
+import './test-api'
+
 // Custom theme
 const vortexTheme = {
   dark: false,

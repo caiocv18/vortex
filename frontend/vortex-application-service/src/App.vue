@@ -34,13 +34,23 @@ const showNavigation = computed(() => {
 })
 
 const userAvatar = computed(() => {
-  const name = authStore.user?.name || ''
-  return name.charAt(0).toUpperCase()
+  const username = authStore.user?.username || authStore.user?.email || ''
+  return username.charAt(0).toUpperCase()
 })
 
-onMounted(() => {
+onMounted(async () => {
   themeStore.setThemeInstance(theme)
   themeStore.initTheme()
+  
+  // Initialize auth store if user data exists in localStorage
+  const hasTokens = localStorage.getItem('accessToken') && localStorage.getItem('refreshToken')
+  if (hasTokens && !authStore.isAuthenticated) {
+    console.log('[App] Initializing auth store from localStorage')
+    const initialized = await authStore.initializeAuth()
+    if (!initialized) {
+      console.log('[App] Auth initialization failed')
+    }
+  }
 })
 </script>
 
@@ -140,7 +150,7 @@ onMounted(() => {
                 <span class="white--text text-h4">{{ userAvatar }}</span>
               </v-avatar>
             </div>
-            <p class="text-h6 text-center mb-1">{{ authStore.user?.name }}</p>
+            <p class="text-h6 text-center mb-1">{{ authStore.user?.username }}</p>
             <p class="text-body-2 text-center text-grey">{{ authStore.user?.email }}</p>
           </v-card-text>
           <v-divider></v-divider>

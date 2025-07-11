@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { tiposProdutoApi } from '@/api'
 
 // Teste de API
 const apiTestResult = ref<any>(null)
@@ -13,8 +13,8 @@ const testApi = async () => {
   apiTestError.value = null
   
   try {
-    console.log('Testando API diretamente...')
-    const response = await axios.get('http://localhost:8080/api/tipos-produto')
+    console.log('Testando API com token...')
+    const response = await tiposProdutoApi.findAllTiposProduto()
     console.log('Resposta do teste:', response)
     apiTestResult.value = response.data
   } catch (error: any) {
