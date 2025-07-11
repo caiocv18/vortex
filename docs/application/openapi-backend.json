@@ -21,7 +21,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8080",
+      "url": "http://localhost:8080/api",
       "description": "Servidor de Desenvolvimento"
     },
     {
@@ -48,14 +48,14 @@
     }
   ],
   "paths": {
-    "/api/tipos-produto/{id}": {
+    "/tipos-produto/{id}": {
       "get": {
         "tags": [
           "Tipos de Produto"
         ],
         "summary": "Busca um tipo de produto pelo ID",
         "description": "Retorna um tipo de produto específico pelo seu ID",
-        "operationId": "buscarPorId",
+        "operationId": "findTipoProdutoById",
         "parameters": [
           {
             "name": "id",
@@ -90,7 +90,7 @@
         ],
         "summary": "Atualiza um tipo de produto",
         "description": "Atualiza um tipo de produto existente com os dados fornecidos",
-        "operationId": "atualizar",
+        "operationId": "updateTipoProduto",
         "parameters": [
           {
             "name": "id",
@@ -138,7 +138,7 @@
         ],
         "summary": "Exclui um tipo de produto",
         "description": "Exclui um tipo de produto existente pelo seu ID",
-        "operationId": "excluir",
+        "operationId": "deleteTipoProduto",
         "parameters": [
           {
             "name": "id",
@@ -164,14 +164,14 @@
         }
       }
     },
-    "/api/produtos/{id}": {
+    "/produtos/{id}": {
       "get": {
         "tags": [
           "Produtos"
         ],
         "summary": "Busca um produto pelo ID",
         "description": "Retorna um produto específico pelo seu ID",
-        "operationId": "buscarPorId_1",
+        "operationId": "findProdutoById",
         "parameters": [
           {
             "name": "id",
@@ -206,7 +206,7 @@
         ],
         "summary": "Atualiza um produto",
         "description": "Atualiza um produto existente com os dados fornecidos",
-        "operationId": "atualizar_1",
+        "operationId": "updateProduto",
         "parameters": [
           {
             "name": "id",
@@ -254,7 +254,7 @@
         ],
         "summary": "Exclui um produto",
         "description": "Exclui um produto existente pelo seu ID",
-        "operationId": "excluir_1",
+        "operationId": "deleteProduto",
         "parameters": [
           {
             "name": "id",
@@ -280,14 +280,14 @@
         }
       }
     },
-    "/api/movimentos/{id}": {
+    "/movimentos/{id}": {
       "get": {
         "tags": [
           "Movimentos de Estoque"
         ],
         "summary": "Busca um movimento de estoque pelo ID",
         "description": "Retorna um movimento de estoque específico pelo seu ID",
-        "operationId": "buscarPorId_2",
+        "operationId": "findMovimentoById",
         "parameters": [
           {
             "name": "id",
@@ -322,7 +322,7 @@
         ],
         "summary": "Atualiza um movimento de estoque",
         "description": "Atualiza um movimento de estoque existente com os dados fornecidos",
-        "operationId": "atualizar_2",
+        "operationId": "updateMovimento",
         "parameters": [
           {
             "name": "id",
@@ -370,7 +370,7 @@
         ],
         "summary": "Exclui um movimento de estoque",
         "description": "Exclui um movimento de estoque existente pelo seu ID",
-        "operationId": "excluir_2",
+        "operationId": "deleteMovimento",
         "parameters": [
           {
             "name": "id",
@@ -393,14 +393,14 @@
         }
       }
     },
-    "/api/tipos-produto": {
+    "/tipos-produto": {
       "get": {
         "tags": [
           "Tipos de Produto"
         ],
         "summary": "Busca todos os tipos de produto",
         "description": "Retorna uma lista com todos os tipos de produto cadastrados",
-        "operationId": "buscarTodos",
+        "operationId": "findAllTiposProduto",
         "responses": {
           "200": {
             "description": "Operação bem-sucedida",
@@ -420,7 +420,7 @@
         ],
         "summary": "Cria um novo tipo de produto",
         "description": "Cria um novo tipo de produto com os dados fornecidos",
-        "operationId": "criar",
+        "operationId": "createTipoProduto",
         "requestBody": {
           "content": {
             "application/json": {
@@ -448,14 +448,14 @@
         }
       }
     },
-    "/api/produtos": {
+    "/produtos": {
       "get": {
         "tags": [
           "Produtos"
         ],
         "summary": "Busca todos os produtos",
         "description": "Retorna uma lista com todos os produtos cadastrados",
-        "operationId": "buscarTodos_1",
+        "operationId": "findAllProdutos",
         "responses": {
           "200": {
             "description": "Operação bem-sucedida",
@@ -475,7 +475,7 @@
         ],
         "summary": "Cria um novo produto",
         "description": "Cria um novo produto com os dados fornecidos",
-        "operationId": "criar_1",
+        "operationId": "createProduto",
         "requestBody": {
           "content": {
             "application/json": {
@@ -506,14 +506,14 @@
         }
       }
     },
-    "/api/movimentos": {
+    "/movimentos": {
       "get": {
         "tags": [
           "Movimentos de Estoque"
         ],
         "summary": "Busca todos os movimentos de estoque",
         "description": "Retorna uma lista com todos os movimentos de estoque cadastrados",
-        "operationId": "buscarTodos_2",
+        "operationId": "findAllMovimentos",
         "responses": {
           "200": {
             "description": "Operação bem-sucedida",
@@ -533,7 +533,7 @@
         ],
         "summary": "Cria um novo movimento de estoque",
         "description": "Cria um novo movimento de estoque com os dados fornecidos",
-        "operationId": "criar_2",
+        "operationId": "createMovimento",
         "requestBody": {
           "content": {
             "application/json": {
@@ -564,7 +564,7 @@
         }
       }
     },
-    "/api/relatorios/produtos-por-tipo": {
+    "/relatorios/produtos-por-tipo": {
       "get": {
         "tags": [
           "Relatórios"
@@ -601,7 +601,7 @@
         }
       }
     },
-    "/api/relatorios/lucro-por-produto": {
+    "/relatorios/lucro-por-produto": {
       "get": {
         "tags": [
           "Relatórios"
