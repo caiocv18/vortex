@@ -160,7 +160,7 @@ sequenceDiagram
 - **Maven** - Gerenciamento de dependências
 
 #### Authorization Service
-- **Java 17** - Linguagem de programação
+- **Java 24** - Linguagem de programação
 - **Quarkus 3.8.5** - Framework supersônico e subatômico
 - **Hibernate ORM with Panache** - ORM simplificado
 - **SmallRye JWT** - Implementação JWT
