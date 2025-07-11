@@ -42,67 +42,141 @@ O **VORTEX Sistema de Estoque** é um sistema completo de controle de estoque de
 
 ## 🏛 Arquitetura do Sistema
 
+### Arquitetura de Microsserviços Completa
+
 ```mermaid
 graph TB
-    subgraph "Frontend - Vue.js 3"
-        A[Vue Router] --> B[Views/Pages]
-        B --> C[Components]
-        C --> D[Vuetify UI]
-        E[Pinia Store] --> B
-        F[Axios Client] --> G[API Service Layer]
+    subgraph "Frontend Layer"
+        AF[Auth Frontend<br/>React + TypeScript<br/>Port 3001] 
+        MF[Main Frontend<br/>Vue.js 3 + TypeScript<br/>Port 5173]
+        
+        AF --> |Login/Register| AB
+        MF --> |Business Operations| MB
+        MF --> |Auth Check| AF
     end
     
-    subgraph "Backend - Spring Boot"
-        H[REST Controllers] --> I[Service Layer]
-        I --> J[Repository Layer]
-        J --> K[JPA/Hibernate]
-        K --> L[(Database)]
-        M[Exception Handlers] --> H
-        N[Validation Layer] --> I
+    subgraph "Backend Layer"
+        AB[Auth Backend<br/>Quarkus + Java 17<br/>Port 8081]
+        MB[Main Backend<br/>Spring Boot + Java 24<br/>Port 8080]
+        
+        AB --> |JWT Validation| MB
+        MB --> |User Info| AB
+    end
+    
+    subgraph "Database Layer"
+        PG[(PostgreSQL<br/>Auth Data<br/>Port 5433)]
+        OR[(Oracle<br/>Business Data<br/>Port 1521)]
+        H2[(H2<br/>Dev Database<br/>In-Memory)]
+        
+        AB --> PG
+        MB --> OR
+        MB -.-> H2
+    end
+    
+    subgraph "Messaging Layer"
+        KF[Kafka<br/>Port 9092]
+        KUI[Kafka UI<br/>Port 8090]
+        RMQ[RabbitMQ<br/>Port 5672/15672]
+        
+        MB --> KF
+        MB --> RMQ
+        KF --> KUI
     end
     
     subgraph "Infrastructure"
-        O[Docker Compose]
-        P[Oracle DB Container]
-        Q[Spring Boot Container]
+        NG[Nginx<br/>Reverse Proxy]
+        DC[Docker Compose<br/>Orchestration]
+        
+        AF -.-> NG
+        MF -.-> NG
+        AB -.-> DC
+        MB -.-> DC
     end
     
-    G -.-> H
-    L -.-> P
-    I -.-> Q
+    style AF fill:#61dafb
+    style MF fill:#42b883
+    style AB fill:#4695eb
+    style MB fill:#6db33f
+    style PG fill:#336791
+    style OR fill:#f80000
+    style KF fill:#231f20
+    style RMQ fill:#ff6600
+```
+
+### Fluxo de Autenticação
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant MF as Main Frontend<br/>(Vue.js)
+    participant AF as Auth Frontend<br/>(React)
+    participant AB as Auth Backend<br/>(Quarkus)
+    participant MB as Main Backend<br/>(Spring Boot)
+    participant PG as PostgreSQL
+    participant OR as Oracle
+
+    U->>MF: Access application
+    MF->>MF: Check JWT token
     
-    style A fill:#42b883
-    style B fill:#42b883
-    style C fill:#42b883
-    style D fill:#1976d2
-    style E fill:#ffd600
-    style H fill:#6db33f
-    style I fill:#6db33f
-    style J fill:#6db33f
-    style O fill:#2496ed
+    alt No valid token
+        MF->>AF: Redirect to login
+        U->>AF: Enter credentials
+        AF->>AB: POST /api/auth/login
+        AB->>PG: Validate credentials
+        PG-->>AB: User data
+        AB->>AB: Generate JWT + Refresh Token
+        AB-->>AF: Return tokens
+        AF->>MF: Redirect with tokens
+        MF->>MF: Store tokens
+    end
+    
+    MF->>MB: API call with JWT
+    MB->>AB: Validate JWT
+    AB-->>MB: Token valid
+    MB->>OR: Business query
+    OR-->>MB: Data
+    MB-->>MF: Response
+    MF-->>U: Display data
+    
+    Note over AB,MB: JWT validation happens<br/>for every API call
 ```
 
 ---
 
 ## 🚀 Tecnologias Utilizadas
 
-### Backend
+### Backend Services
+
+#### Main Application Service
 - **Java 24** - Linguagem de programação principal
 - **Spring Boot 3.5.3** - Framework para construção da API REST
 - **Spring Data JPA** - Abstração para acesso a dados
 - **Hibernate** - ORM para mapeamento objeto-relacional
+- **Spring Security** - Segurança e autenticação JWT
 - **Oracle Database** - Banco de dados principal
 - **H2 Database** - Banco de dados em memória para testes
 - **Lombok** - Redução de código boilerplate
 - **SpringDoc OpenAPI** - Documentação automática da API
 - **Maven** - Gerenciamento de dependências
-- **Docker** - Containerização da aplicação
 
-### Frontend
+#### Authorization Service
+- **Java 17** - Linguagem de programação
+- **Quarkus 3.8.5** - Framework supersônico e subatômico
+- **Hibernate ORM with Panache** - ORM simplificado
+- **SmallRye JWT** - Implementação JWT
+- **PostgreSQL** - Banco de dados de autenticação
+- **BCrypt** - Hash de senhas
+- **Flyway** - Migração de banco de dados
+- **SmallRye Health** - Health checks
+- **Maven** - Gerenciamento de dependências
+
+### Frontend Applications
+
+#### Main Application
 - **Vue.js 3** - Framework JavaScript progressivo
 - **TypeScript** - Superset tipado do JavaScript
 - **Vuetify 3** - Biblioteca de componentes Material Design
-- **Vue Router** - Roteamento SPA
+- **Vue Router** - Roteamento SPA com guards de autenticação
 - **Pinia** - Gerenciamento de estado
 - **Axios** - Cliente HTTP
 - **Chart.js** - Visualização de dados em gráficos
@@ -110,6 +184,26 @@ graph TB
 - **Vite** - Build tool e dev server
 - **Playwright** - Testes E2E
 - **Vitest** - Testes unitários
+
+#### Authorization Frontend
+- **React 18** - Biblioteca JavaScript para interfaces
+- **TypeScript** - Tipagem estática
+- **React Router DOM** - Roteamento
+- **React Hook Form** - Gerenciamento de formulários
+- **Yup** - Validação de esquemas
+- **TailwindCSS** - Framework CSS utilitário
+- **Axios** - Cliente HTTP
+- **React Hot Toast** - Notificações
+- **Vite** - Build tool e dev server
+- **Vitest** - Testes unitários
+
+### Infrastructure & DevOps
+- **Docker** - Containerização da aplicação
+- **Docker Compose** - Orquestração de containers
+- **Nginx** - Servidor web e reverse proxy
+- **Apache Kafka** - Mensageria distribuída
+- **RabbitMQ** - Message broker alternativo
+- **Kafka UI** - Interface web para Kafka
 
 ---
 
@@ -224,12 +318,12 @@ erDiagram
 ## 🏃 Como Executar
 
 ### Pré-requisitos
-- Docker e Docker Compose
-- Java 24 (para desenvolvimento)
-- Node.js 18+ (para desenvolvimento)
-- Maven 3.8+ (para desenvolvimento)
+- **Obrigatórios**: Docker e Docker Compose
+- **Opcionais para desenvolvimento**: 
+  - Java 17+ e Maven 3.8+ (para desenvolvimento local)
+  - Node.js 18+ e npm (para desenvolvimento local)
 
-### 🐳 Execução com Docker
+### 🚀 Execução Rápida (Recomendada)
 
 1. Clone o repositório:
 ```bash
@@ -237,38 +331,71 @@ git clone https://github.com/caiocv18/vortex.git
 cd vortex
 ```
 
-2. Execute com Docker Compose:
+2. Execute todos os serviços com o launcher:
 ```bash
-cd backend/vortex-application-service
-docker-compose up -d
+# Inicia todos os serviços automaticamente
+./start-vortex.sh
+
+# Ou especifique o ambiente
+./start-vortex.sh -e dev -m kafka
 ```
 
 Isso iniciará:
-- Oracle Database na porta 1521
-- Backend Spring Boot na porta 8080
+- **Auth Backend**: Quarkus na porta 8081
+- **Main Backend**: Spring Boot na porta 8080
+- **Auth Frontend**: React na porta 3001
+- **Main Frontend**: Vue.js na porta 5173
+- **Infraestrutura**: Bancos de dados e mensageria
 
-3. Inicie o frontend:
+3. Acesse a aplicação:
+- **Aplicação Principal**: http://localhost:5173
+- **Serviço de Autenticação**: http://localhost:3001
+- **API Principal**: http://localhost:8080/swagger-ui.html
+- **API de Autenticação**: http://localhost:8081/q/swagger-ui
+
+### 🐳 Execução com Docker (Produção)
+
 ```bash
-cd ../frontend
-npm install
-npm run dev
+# Ambiente de produção completo
+./start-vortex.sh -e prd -m kafka
+
+# Ou manualmente
+cd infra/docker
+docker-compose -f docker-compose.full-kafka.yml up -d
 ```
 
-O frontend estará disponível em: http://localhost:5173
+### 🔧 Desenvolvimento Local Manual
 
-### 🔧 Desenvolvimento Local
-
-#### Backend
+#### 1. Serviços de Autenticação
 ```bash
+# Backend de autenticação
+cd backend/vortex-authorization-service
+mvn quarkus:dev
+
+# Frontend de autenticação (nova janela de terminal)
+cd frontend/vortex-authorization-service
+npm install && npm run dev
+```
+
+#### 2. Aplicação Principal
+```bash
+# Backend principal
 cd backend/vortex-application-service
 ./mvnw spring-boot:run
+
+# Frontend principal (nova janela de terminal)
+cd frontend/vortex-application-service
+npm install && npm run dev
 ```
 
-#### Frontend
+### 🛑 Parar Serviços
 ```bash
-cd frontend
-npm install
-npm run dev
+# Para todos os serviços
+./start-vortex.sh --stop
+
+# Ou manualmente
+docker-compose down
+pkill -f "spring-boot\|quarkus\|vite"
 ```
 
 ---
@@ -327,62 +454,209 @@ Para documentação completa do script, consulte: [README-LAUNCHER.md](README-LA
 
 ```
 vortex/
-├── backend/                    # Aplicação Spring Boot
-│   └── vortex-application-service/  # Serviço principal da aplicação
+├── backend/                              # Serviços Backend
+│   ├── vortex-application-service/       # Serviço Principal (Spring Boot)
+│   │   ├── src/main/java/br/com/vortex/application/
+│   │   │   ├── controller/               # REST Controllers
+│   │   │   ├── service/                  # Lógica de negócio
+│   │   │   ├── repository/               # Repositórios JPA
+│   │   │   ├── model/                    # Entidades JPA
+│   │   │   ├── dto/                      # Data Transfer Objects
+│   │   │   ├── config/                   # Configurações (CORS, Security, Messaging)
+│   │   │   ├── factory/                  # Message Broker Factory
+│   │   │   └── exception/                # Exceções customizadas
+│   │   ├── src/test/                     # Testes unitários e integração
+│   │   ├── Dockerfile                    # Container Spring Boot
+│   │   └── pom.xml                       # Dependências Maven
+│   │
+│   └── vortex-authorization-service/     # Serviço de Autenticação (Quarkus)
+│       ├── src/main/java/br/com/vortex/authorization/
+│       │   ├── resource/                 # JAX-RS Resources
+│       │   ├── service/                  # Lógica de autenticação
+│       │   ├── entity/                   # Entidades de usuário/auth
+│       │   ├── dto/                      # DTOs de auth
+│       │   ├── security/                 # JWT e criptografia
+│       │   ├── event/                    # Eventos de autenticação
+│       │   └── config/                   # Configurações Quarkus
+│       ├── src/main/resources/db/migration/  # Migrações Flyway
+│       ├── src/main/docker/              # Dockerfiles nativos
+│       └── pom.xml                       # Dependências Maven
+│
+├── frontend/                             # Aplicações Frontend
+│   ├── vortex-application-service/       # Frontend Principal (Vue.js)
+│   │   ├── src/
+│   │   │   ├── api/                      # Serviços de API
+│   │   │   │   └── generated/            # Cliente gerado do OpenAPI
+│   │   │   ├── views/                    # Páginas da aplicação
+│   │   │   ├── components/               # Componentes Vue reutilizáveis
+│   │   │   ├── stores/                   # Estado global (Pinia)
+│   │   │   ├── router/                   # Configuração de rotas + guards
+│   │   │   └── utils/                    # Utilitários (auth callback)
+│   │   ├── e2e/                          # Testes E2E (Playwright)
+│   │   ├── Dockerfile                    # Container Vue.js
+│   │   └── package.json                  # Dependências npm
+│   │
+│   └── vortex-authorization-service/     # Frontend de Auth (React)
 │       ├── src/
-│       │   ├── main/
-│       │   │   ├── java/
-│       │   │   │   └── br/com/vortex/desafio/backend/
-│       │   │   │       ├── controller/     # REST Controllers
-│       │   │   │       ├── dto/           # Data Transfer Objects
-│       │   │   │       ├── exception/     # Exceções customizadas
-│       │   │   │       ├── model/         # Entidades JPA
-│       │   │   │       ├── repository/    # Repositórios JPA
-│       │   │   │       └── service/       # Lógica de negócio
-│       │   │   └── resources/
-│       │   │       └── application.properties
-│       │   └── test/              # Testes unitários e integração
-│       ├── docker-compose.yml     # Orquestração de containers
-│       ├── Dockerfile            # Imagem Docker do backend
-│       └── pom.xml              # Dependências Maven
+│       │   ├── pages/                    # Páginas de autenticação
+│       │   ├── components/               # Componentes React
+│       │   ├── contexts/                 # Context API (auth state)
+│       │   ├── services/                 # Integração com API auth
+│       │   └── types/                    # Tipos TypeScript
+│       ├── Dockerfile                    # Container React
+│       └── package.json                  # Dependências npm
 │
-├── frontend/                 # Aplicação Vue.js
-│   ├── src/
-│   │   ├── api/             # Serviços de API
-│   │   ├── assets/          # Recursos estáticos
-│   │   ├── components/      # Componentes reutilizáveis
-│   │   ├── router/          # Configuração de rotas
-│   │   ├── stores/          # Estado global (Pinia)
-│   │   └── views/           # Páginas da aplicação
-│   ├── e2e/                 # Testes E2E
-│   └── package.json         # Dependências npm
+├── infra/                               # Infraestrutura
+│   ├── docker/                          # Configurações Docker Compose
+│   │   ├── docker-compose.yml           # Stack básica
+│   │   ├── docker-compose.full.yml      # Stack completa
+│   │   ├── docker-compose.auth.yml      # Apenas auth services
+│   │   └── docker-compose.full-kafka.yml # Com Kafka integrado
+│   ├── kafka/                           # Configurações Kafka
+│   ├── rabbitmq/                        # Configurações RabbitMQ
+│   ├── oracle/                          # Scripts Oracle
+│   └── docs/                            # Documentação de infraestrutura
 │
-└── docs/                    # Documentação
-    └── openapi-backend.json # Especificação OpenAPI
+├── docs/                                # Documentação Geral
+│   ├── application/openapi-backend.json # Especificação OpenAPI
+│   ├── authentication/README.md         # Documentação de auth
+│   ├── PORTS.md                         # Mapeamento de portas
+│   └── prompts/                         # Prompts de desenvolvimento
+│
+├── scripts/                             # Scripts utilitários
+│   ├── check-ports.sh                   # Verificação de portas
+│   └── test-queue-endpoint.sh           # Testes de messaging
+│
+├── start-vortex.sh                      # Launcher principal
+├── CLAUDE.md                            # Instruções para Claude
+├── README.md                            # Documentação principal
+├── README-LAUNCHER.md                   # Documentação do launcher
+└── KUBERNETES_GUIDE.md                  # Guia de deploy Kubernetes
 ```
 
 ---
 
 ## 🧪 Testes
 
-### Backend
+### Backend Services
+
+#### Main Application Service (Spring Boot)
 - **Testes Unitários**: Controllers e Services
 - **Testes de Integração**: API completa com banco H2
-- Execução: `./mvnw test`
+- **Execução**: 
+  ```bash
+  cd backend/vortex-application-service
+  ./mvnw test
+  ./mvnw test -Dtest=*ControllerTest  # Apenas controllers
+  ```
 
-### Frontend
+#### Authorization Service (Quarkus)
+- **Testes Unitários**: Resources e Services
+- **Testes de Integração**: REST Assured com TestContainers
+- **Execução**:
+  ```bash
+  cd backend/vortex-authorization-service
+  mvn test
+  mvn test -Dtest=AuthResourceTest  # Teste específico
+  ```
+
+### Frontend Applications
+
+#### Main Application (Vue.js)
 - **Testes Unitários**: Componentes Vue com Vitest
 - **Testes E2E**: Fluxos completos com Playwright
-- Execução: `npm run test:unit` e `npm run test:e2e`
+- **Execução**:
+  ```bash
+  cd frontend/vortex-application-service
+  npm run test:unit     # Testes unitários
+  npm run test:e2e      # Testes E2E
+  npm run test:coverage # Coverage report
+  ```
+
+#### Authorization Frontend (React)
+- **Testes Unitários**: Componentes React com Vitest
+- **Testes de Integração**: Context e hooks
+- **Execução**:
+  ```bash
+  cd frontend/vortex-authorization-service
+  npm run test          # Testes unitários
+  npm run test:coverage # Coverage report
+  ```
+
+### Execução de Todos os Testes
+```bash
+# Script para executar todos os testes
+find . -name "pom.xml" -execdir mvn test \;
+find . -name "package.json" -path "*/frontend/*" -execdir npm test \;
+```
 
 ---
 
 ## 📚 Documentação da API
 
-A documentação completa da API está disponível através do Swagger UI:
+### Main Application Service (Spring Boot)
+A documentação completa da API principal está disponível através do Swagger UI:
 
-- **Local**: http://localhost:8080/swagger-ui.html
+- **Interface Swagger**: http://localhost:8080/swagger-ui.html
 - **Especificação OpenAPI**: http://localhost:8080/v3/api-docs
+- **Health Check**: http://localhost:8080/health
+
+### Authorization Service (Quarkus)
+A documentação da API de autenticação está disponível através do Swagger UI do Quarkus:
+
+- **Interface Swagger**: http://localhost:8081/q/swagger-ui
+- **Especificação OpenAPI**: http://localhost:8081/q/openapi
+- **Health Check**: http://localhost:8081/q/health
+- **Métricas**: http://localhost:8081/q/metrics
+
+### Arquivo OpenAPI
+O arquivo de especificação OpenAPI da aplicação principal está disponível em:
+- **Localização**: `docs/application/openapi-backend.json`
+- **Uso**: Para geração de clientes API no frontend
+
+---
+
+## 🔐 Sistema de Autenticação
+
+O Vortex inclui um sistema completo de autenticação e autorização baseado em microsserviços:
+
+### Características de Segurança
+- ✅ **JWT Tokens**: Autenticação stateless com tokens de acesso e refresh
+- ✅ **Múltiplos Roles**: Sistema de papéis (ADMIN, USER, MANAGER, VIEWER)
+- ✅ **Rate Limiting**: Proteção contra ataques de força bruta
+- ✅ **Password Policy**: Política de senhas robusta
+- ✅ **Audit Logs**: Registro completo de ações de autenticação
+- ✅ **Token Refresh**: Renovação automática de tokens
+- ✅ **CORS Configuration**: Configuração segura para comunicação entre services
+
+### Usuários de Teste
+O sistema inclui usuários pré-configurados para desenvolvimento:
+
+| Email | Username | Password | Roles | Status |
+|-------|----------|----------|-------|---------|
+| admin@vortex.com | admin | Test@123 | ADMIN, USER | Ativo |
+| user@vortex.com | user | Test@123 | USER | Ativo |
+| manager@vortex.com | manager | Test@123 | MANAGER, USER | Ativo |
+| viewer@vortex.com | viewer | Test@123 | VIEWER | Ativo |
+
+### Fluxo de Autenticação Detalhado
+1. **Acesso Inicial**: Usuário tenta acessar a aplicação principal
+2. **Verificação de Token**: Router guard verifica presença e validade do JWT
+3. **Redirecionamento**: Se não autenticado, redireciona para página de login
+4. **Autenticação**: Usuário insere credenciais no frontend React
+5. **Validação**: Backend Quarkus valida contra banco PostgreSQL
+6. **Geração de Tokens**: Sistema gera JWT (15min) + Refresh Token (7 dias)
+7. **Armazenamento**: Frontend armazena tokens de forma segura
+8. **Autorização**: Cada requisição inclui JWT para validação
+9. **Renovação**: Tokens são renovados automaticamente quando necessário
+
+### Endpoints de Autenticação
+- `POST /api/auth/login` - Login de usuário
+- `POST /api/auth/register` - Registro de novo usuário
+- `POST /api/auth/logout` - Logout e invalidação de tokens
+- `POST /api/auth/refresh` - Renovação de tokens
+- `POST /api/auth/forgot-password` - Solicitação de reset de senha
+- `POST /api/auth/reset-password` - Reset de senha com token
 
 ---
 

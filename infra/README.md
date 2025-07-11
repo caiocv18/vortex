@@ -59,11 +59,17 @@ infra/
 ### Script Principal (na raiz)
 
 ```bash
-# Iniciar sistema completo (interativo)
+# Iniciar sistema completo (interativo) - inclui autenticação
 ./start-vortex.sh
 
 # Iniciar com opções específicas
 ./start-vortex.sh -e prd -m kafka --logs
+
+# Iniciar apenas serviços de autenticação
+./start-vortex.sh --auth-only
+
+# Iniciar apenas aplicação principal (sem auth)
+./start-vortex.sh --backend-only
 
 # Parar todos os serviços
 ./start-vortex.sh --stop
@@ -80,22 +86,28 @@ cd infra/docker
 docker-compose up -d
 ```
 
-### Stack Completa
+### Stack Completa (com Autenticação)
 ```bash
 cd infra/docker
 docker-compose -f docker-compose.full.yml up -d
 ```
 
-### Stack com Kafka Integrado
+### Stack com Kafka Integrado (com Autenticação)
 ```bash
 cd infra/docker
 docker-compose -f docker-compose.full-kafka.yml up -d
 ```
 
-### Stack com RabbitMQ Integrado
+### Stack com RabbitMQ Integrado (com Autenticação)
 ```bash
 cd infra/docker
 docker-compose -f docker-compose.full-rabbitmq.yml up -d
+```
+
+### Apenas Serviços de Autenticação
+```bash
+cd infra/docker
+docker-compose -f docker-compose.auth.yml up -d
 ```
 
 ### Apenas Kafka
