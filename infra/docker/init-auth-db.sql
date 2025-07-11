@@ -1,6 +1,5 @@
 -- Initialize auth database
-CREATE DATABASE vortex_auth;
-\c vortex_auth;
+-- Database is already created by POSTGRES_DB environment variable
 
 -- Create auth schema
 CREATE SCHEMA IF NOT EXISTS auth;

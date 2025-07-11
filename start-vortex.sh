@@ -724,6 +724,152 @@ wait_for_rabbitmq() {
     return 1
 }
 
+# Função para aguardar Oracle estar pronto
+wait_for_oracle() {
+    local max_attempts=60
+    local attempt=1
+    
+    print_color $BLUE "⏳ Aguardando Oracle Database estar pronto..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if docker logs vortex-db 2>&1 | grep -q "DATABASE IS READY TO USE"; then
+            print_color $GREEN "✅ Oracle Database está pronto!"
+            return 0
+        fi
+        
+        if [[ $attempt -eq $max_attempts ]]; then
+            print_color $RED "❌ Timeout aguardando Oracle Database"
+            return 1
+        fi
+        
+        print_color $YELLOW "   ⏳ Aguardando Oracle Database... ($attempt/$max_attempts)"
+        sleep 5
+        ((attempt++))
+    done
+}
+
+# Função para aguardar PostgreSQL estar pronto
+wait_for_postgresql() {
+    local max_attempts=30
+    local attempt=1
+    
+    print_color $BLUE "⏳ Aguardando PostgreSQL estar pronto..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if docker exec vortex-auth-db pg_isready -U vortex_auth -d vortex_auth >/dev/null 2>&1; then
+            print_color $GREEN "✅ PostgreSQL está pronto!"
+            return 0
+        fi
+        
+        if [[ $attempt -eq $max_attempts ]]; then
+            print_color $RED "❌ Timeout aguardando PostgreSQL"
+            return 1
+        fi
+        
+        print_color $YELLOW "   ⏳ Aguardando PostgreSQL... ($attempt/$max_attempts)"
+        sleep 2
+        ((attempt++))
+    done
+}
+
+# Função para iniciar bancos de dados
+start_databases() {
+    print_color $BLUE "🗄️  Iniciando bancos de dados..."
+    
+    local databases_started=false
+    
+    # SEMPRE iniciar PostgreSQL para serviço de autorização (tanto dev quanto prd)
+    print_color $BLUE "🐘 Iniciando PostgreSQL para serviço de autorização..."
+    
+    # Verificar se o container já existe
+    if docker ps -a --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+        if ! docker ps --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+            print_color $YELLOW "🔄 PostgreSQL já existe mas está parado. Iniciando..."
+            docker start vortex-auth-db
+        else
+            print_color $GREEN "✅ PostgreSQL já está rodando"
+        fi
+    else
+        # Verificar se existe docker-compose para auth e criar o container
+        if [[ -f "infra/docker/docker-compose.auth.yml" ]]; then
+            print_color $BLUE "📦 Criando e iniciando PostgreSQL via docker-compose..."
+            docker-compose -f infra/docker/docker-compose.auth.yml up -d auth-db
+        else
+            print_color $RED "❌ Arquivo docker-compose.auth.yml não encontrado!"
+            return 1
+        fi
+    fi
+    
+    # Aguardar PostgreSQL estar pronto
+    if docker ps --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+        wait_for_postgresql
+        databases_started=true
+        
+        # Verificar configuração de porta
+        print_color $BLUE "🔗 Verificando configuração de porta..."
+        local port_mapping=$(docker port vortex-auth-db 2>/dev/null | grep "5432/tcp" | head -1 | cut -d':' -f2)
+        if [[ -n "$port_mapping" ]]; then
+            print_color $GREEN "✅ PostgreSQL mapeado para porta $port_mapping"
+        else
+            print_color $YELLOW "⚠️  Aviso: Mapeamento de porta não encontrado"
+        fi
+    else
+        print_color $RED "❌ Falha ao iniciar PostgreSQL"
+        return 1
+    fi
+    
+    # Iniciar Oracle para ambiente de produção
+    if [[ "$ENVIRONMENT" == "prd" ]]; then
+        print_color $BLUE "🏛️  Iniciando Oracle Database..."
+        
+        # Verificar se o container já existe
+        if docker ps -a --format "{{.Names}}" | grep -q "^vortex-db$"; then
+            if ! docker ps --format "{{.Names}}" | grep -q "^vortex-db$"; then
+                print_color $YELLOW "🔄 Oracle já existe mas está parado. Iniciando..."
+                docker start vortex-db
+            else
+                print_color $GREEN "✅ Oracle já está rodando"
+            fi
+        else
+            # Iniciar Oracle via docker-compose
+            if [[ -f "infra/docker/docker-compose.yml" ]]; then
+                cd infra/docker
+                docker-compose up -d vortex-db 2>/dev/null || true
+                cd ../..
+            elif [[ -f "infra/docker/docker-compose.full.yml" ]]; then
+                docker-compose -f infra/docker/docker-compose.full.yml up -d vortex-db 2>/dev/null || true
+            fi
+        fi
+        
+        # Aguardar Oracle estar pronto
+        if docker ps --format "{{.Names}}" | grep -q "^vortex-db$"; then
+            wait_for_oracle
+            databases_started=true
+        fi
+    fi
+    
+    if [[ "$databases_started" == "true" ]]; then
+        print_color $GREEN "✅ Bancos de dados iniciados com sucesso!"
+        
+        # Mostrar informações dos bancos
+        if [[ "$ENVIRONMENT" == "prd" ]]; then
+            if docker ps --format "{{.Names}}" | grep -q "^vortex-db$"; then
+                print_color $GREEN "   🏛️  Oracle: localhost:1521 (ORCLCDB/ORCLPDB1)"
+            fi
+        fi
+        
+        if docker ps --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+            print_color $GREEN "   🐘 PostgreSQL: localhost:5432 (vortex_auth/vortex_auth_password)"
+        fi
+    else
+        if [[ "$ENVIRONMENT" == "dev" ]]; then
+            print_color $GREEN "✅ Ambiente de desenvolvimento usa H2 (em memória)"
+        else
+            print_color $YELLOW "⚠️  Nenhum banco de dados foi iniciado"
+        fi
+    fi
+}
+
 # Função para aguardar o healthcheck do backend
 wait_for_backend_healthcheck() {
     local host=$1
@@ -1472,7 +1618,10 @@ main() {
     # Iniciar serviços
     print_color $BLUE "🚀 Iniciando serviços..."
     
-    # Iniciar Kafka se necessário (apenas se não for integrado com stack completa)
+    # PRIMEIRO: Iniciar bancos de dados (Oracle e PostgreSQL)
+    start_databases
+    
+    # SEGUNDO: Iniciar Kafka se necessário (apenas se não for integrado com stack completa)
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
             print_color $BLUE "📦 Kafka será iniciado integrado com a stack completa..."
@@ -1481,7 +1630,7 @@ main() {
         fi
     fi
     
-    # Iniciar RabbitMQ se necessário (apenas se não for integrado com stack completa)
+    # TERCEIRO: Iniciar RabbitMQ se necessário (apenas se não for integrado com stack completa)
     if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
         if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
             print_color $BLUE "📦 RabbitMQ será iniciado integrado com a stack completa..."
@@ -1490,7 +1639,7 @@ main() {
         fi
     fi
     
-    # Iniciar serviços de autorização primeiro
+    # QUARTO: Iniciar serviços de autorização
     print_color $BLUE "🔐 Iniciando serviços de autorização..."
     start_auth_backend_dev
     start_auth_frontend

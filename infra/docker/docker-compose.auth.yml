@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: vortex_auth_password
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - auth-db-data:/var/lib/postgresql/data
       - ./init-auth-db.sql:/docker-entrypoint-initdb.d/init-auth-db.sql:ro
