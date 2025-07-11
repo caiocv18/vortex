@@ -5,6 +5,7 @@ import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.event.*;
 import br.com.vortex.authorization.security.JwtService;
 import br.com.vortex.authorization.security.PasswordService;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -367,6 +368,67 @@ public class AuthService {
         } catch (Exception e) {
             LOGGER.warn("Failed to publish password changed event for user: {}", user.email, e);
         }
+    }
+
+    public ValidateTokenResponse validateToken(ValidateTokenRequest request) {
+        try {
+            // Parse JWT without verifying signature first to get claims
+            String[] tokenParts = request.getToken().split("\\.");
+            if (tokenParts.length != 3) {
+                return new ValidateTokenResponse(false, null, null, null, null);
+            }
+
+            // Decode payload
+            String payload = new String(java.util.Base64.getUrlDecoder().decode(tokenParts[1]));
+            
+            // Parse JSON claims manually (simple approach)
+            Map<String, Object> claims = parseJsonClaims(payload);
+            
+            String subject = (String) claims.get("sub");
+            String email = (String) claims.get("email");
+            String username = (String) claims.get("username");
+            
+            if (subject == null || email == null) {
+                return new ValidateTokenResponse(false, null, null, null, null);
+            }
+
+            // Check if user exists and is active
+            User user = User.findById(UUID.fromString(subject));
+            if (user == null || !user.isActive) {
+                return new ValidateTokenResponse(false, null, null, null, null);
+            }
+
+            // Get user roles
+            java.util.List<String> roles = user.roles != null ? 
+                user.roles.stream().map(role -> role.name).collect(java.util.stream.Collectors.toList()) :
+                java.util.List.of();
+
+            return new ValidateTokenResponse(true, username, email, roles, subject);
+            
+        } catch (Exception e) {
+            LOGGER.debug("Token validation failed: {}", e.getMessage());
+            return new ValidateTokenResponse(false, null, null, null, null);
+        }
+    }
+
+    private Map<String, Object> parseJsonClaims(String json) {
+        // Simple JSON parsing for JWT claims
+        Map<String, Object> claims = new java.util.HashMap<>();
+        
+        // Remove braces and split by comma
+        json = json.trim().substring(1, json.length() - 1);
+        String[] pairs = json.split(",");
+        
+        for (String pair : pairs) {
+            String[] keyValue = pair.split(":", 2);
+            if (keyValue.length == 2) {
+                String key = keyValue[0].trim().replace("\"", "");
+                String value = keyValue[1].trim().replace("\"", "");
+                claims.put(key, value);
+            }
+        }
+        
+        return claims;
     }
 
     private LoginResponse.UserResponse mapToUserResponse(User user) {

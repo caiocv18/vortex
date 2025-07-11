@@ -34,7 +34,7 @@ public class AuthServiceClient {
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
             
             ResponseEntity<Map> response = restTemplate.exchange(
-                    authServiceUrl + "/auth/validate-token",
+                    authServiceUrl + "/api/auth/validate-token",
                     HttpMethod.POST,
                     entity,
                     Map.class

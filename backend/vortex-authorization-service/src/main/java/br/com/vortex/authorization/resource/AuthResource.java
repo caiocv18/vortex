@@ -119,6 +119,19 @@ public class AuthResource {
         }
     }
 
+    @POST
+    @Path("/validate-token")
+    @Operation(summary = "Validate JWT token", description = "Validate JWT token and return user information")
+    public Response validateToken(@Valid ValidateTokenRequest request) {
+        try {
+            ValidateTokenResponse response = authService.validateToken(request);
+            return Response.ok(response).build();
+        } catch (Exception e) {
+            ValidateTokenResponse invalidResponse = new ValidateTokenResponse(false, null, null, null, null);
+            return Response.ok(invalidResponse).build();
+        }
+    }
+
     private String getClientIpAddress() {
         // Try to get real IP from various headers
         String xForwardedFor = httpHeaders.getRequestHeaders().getFirst("X-Forwarded-For");
