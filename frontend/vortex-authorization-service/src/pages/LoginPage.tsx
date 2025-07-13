@@ -1,9 +1,12 @@
 import React from 'react';
 import { LoginForm } from '@/components/LoginForm';
+import { useTheme } from '@/hooks/useTheme';
 
 export function LoginPage() {
+  // Garantir que o tema seja aplicado
+  useTheme();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex flex-col lg:flex-row">
       {/* Left side - Branding */}
       <div className="lg:flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-md lg:max-w-none">

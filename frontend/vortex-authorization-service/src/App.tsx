@@ -5,8 +5,11 @@ import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { useTheme } from '@/hooks/useTheme';
 
 function App() {
+  // Aplicar tema selecionado
+  const { cssVars } = useTheme();
   return (
     <Router>
       <AuthProvider>
@@ -31,14 +34,14 @@ function App() {
               success: {
                 duration: 3000,
                 iconTheme: {
-                  primary: '#4ade80',
+                  primary: cssVars.successColor,
                   secondary: '#fff',
                 },
               },
               error: {
                 duration: 5000,
                 iconTheme: {
-                  primary: '#ef4444',
+                  primary: cssVars.errorColor,
                   secondary: '#fff',
                 },
               },

@@ -6,6 +6,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Loader2, CheckCircle, XCircle, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ResetPasswordRequest } from '@/types/auth';
+import { useTheme } from '@/hooks/useTheme';
 
 const schema = yup.object({
   password: yup
@@ -39,6 +40,9 @@ const passwordRequirements: PasswordRequirement[] = [
 ];
 
 export function ResetPasswordPage() {
+  // Garantir que o tema seja aplicado
+  useTheme();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { token } = useParams<{ token: string }>();
@@ -86,7 +90,7 @@ export function ResetPasswordPage() {
 
   if (isSubmitSuccessful) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           <div className="bg-white shadow-lg rounded-lg p-8 text-center">
             <div className="mx-auto w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-6">
@@ -112,7 +116,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="text-center mb-8">

@@ -79,7 +79,7 @@ export function RegisterForm() {
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white shadow-lg rounded-lg p-8">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-secondary-500 rounded-full flex items-center justify-center mb-4">
+          <div className="mx-auto w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center mb-4">
             <User className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
@@ -102,8 +102,8 @@ export function RegisterForm() {
                 {...register('email')}
                 className={`
                   block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-secondary-500 
-                  focus:border-secondary-500 transition-colors
+                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  focus:border-primary-500 transition-colors
                   ${errors.email ? 'border-red-300' : 'border-gray-300'}
                 `}
                 placeholder="Enter your email address"
@@ -130,8 +130,8 @@ export function RegisterForm() {
                 {...register('username')}
                 className={`
                   block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-secondary-500 
-                  focus:border-secondary-500 transition-colors
+                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  focus:border-primary-500 transition-colors
                   ${errors.username ? 'border-red-300' : 'border-gray-300'}
                 `}
                 placeholder="Choose a username"
@@ -158,8 +158,8 @@ export function RegisterForm() {
                 {...register('password')}
                 className={`
                   block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-secondary-500 
-                  focus:border-secondary-500 transition-colors
+                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  focus:border-primary-500 transition-colors
                   ${errors.password ? 'border-red-300' : 'border-gray-300'}
                 `}
                 placeholder="Create a strong password"
@@ -220,8 +220,8 @@ export function RegisterForm() {
                 {...register('confirmPassword')}
                 className={`
                   block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-secondary-500 
-                  focus:border-secondary-500 transition-colors
+                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  focus:border-primary-500 transition-colors
                   ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'}
                 `}
                 placeholder="Confirm your password"
@@ -251,8 +251,8 @@ export function RegisterForm() {
             className="
               w-full flex justify-center py-3 px-4 border border-transparent 
               rounded-lg shadow-sm text-sm font-medium text-white 
-              bg-secondary-600 hover:bg-secondary-700 focus:outline-none 
-              focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500 
+              bg-primary-600 hover:bg-primary-700 focus:outline-none 
+              focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors
             "
@@ -272,7 +272,7 @@ export function RegisterForm() {
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-medium text-secondary-600 hover:text-secondary-500 transition-colors"
+                className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
               >
                 Sign in here
               </Link>

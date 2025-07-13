@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ForgotPasswordRequest } from '@/types/auth';
+import { useTheme } from '@/hooks/useTheme';
 
 const schema = yup.object({
   email: yup
@@ -17,6 +18,9 @@ const schema = yup.object({
 type FormData = yup.InferType<typeof schema>;
 
 export function ForgotPasswordPage() {
+  // Garantir que o tema seja aplicado
+  useTheme();
+  
   const { forgotPassword, isLoading } = useAuth();
 
   const {
@@ -39,7 +43,7 @@ export function ForgotPasswordPage() {
 
   if (isSubmitSuccessful) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           <div className="bg-white shadow-lg rounded-lg p-8 text-center">
             <div className="mx-auto w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-6">
@@ -67,7 +71,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="text-center mb-8">
