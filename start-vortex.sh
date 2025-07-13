@@ -162,6 +162,97 @@ check_prerequisites() {
     print_color $GREEN "✅ Docker encontrado e rodando"
 }
 
+# Função para escolher cor do tema
+choose_color_theme() {
+    if [[ -n "$COLOR_THEME" ]]; then
+        return
+    fi
+    
+    # Modo não interativo usa verde por padrão (tema original)
+    if [[ "$NO_INTERACTION" == "true" ]]; then
+        COLOR_THEME="verde"
+        print_color $GREEN "✅ Tema verde selecionado (padrão)"
+        return
+    fi
+    
+    print_color $CYAN "
+🎨 ESCOLHA A COR DO TEMA DA APLICAÇÃO:
+
+1) 🔴 Vermelho     2) 🟢 Verde        3) 🔵 Azul         4) 🟠 Laranja
+5) 🟣 Roxo         6) 🩷 Rosa         7) 🔷 Azul Claro   8) 🔹 Azul Escuro  
+9) 🟡 Amarelo     10) ⚫ Cinza       11) ⚫ Preto       12) ⚪ Branco
+"
+    
+    while true; do
+        read -p "Digite sua escolha (1-12): " choice
+        case $choice in
+            1)
+                COLOR_THEME="vermelho"
+                print_color $RED "✅ Tema vermelho selecionado"
+                break
+                ;;
+            2)
+                COLOR_THEME="verde"
+                print_color $GREEN "✅ Tema verde selecionado"
+                break
+                ;;
+            3)
+                COLOR_THEME="azul"
+                print_color $BLUE "✅ Tema azul selecionado"
+                break
+                ;;
+            4)
+                COLOR_THEME="laranja"
+                print_color $YELLOW "✅ Tema laranja selecionado"
+                break
+                ;;
+            5)
+                COLOR_THEME="roxo"
+                print_color $PURPLE "✅ Tema roxo selecionado"
+                break
+                ;;
+            6)
+                COLOR_THEME="rosa"
+                print_color $PURPLE "✅ Tema rosa selecionado"
+                break
+                ;;
+            7)
+                COLOR_THEME="azulClaro"
+                print_color $CYAN "✅ Tema azul claro selecionado"
+                break
+                ;;
+            8)
+                COLOR_THEME="azulEscuro"
+                print_color $BLUE "✅ Tema azul escuro selecionado"
+                break
+                ;;
+            9)
+                COLOR_THEME="amarelo"
+                print_color $YELLOW "✅ Tema amarelo selecionado"
+                break
+                ;;
+            10)
+                COLOR_THEME="cinza"
+                print_color $NC "✅ Tema cinza selecionado"
+                break
+                ;;
+            11)
+                COLOR_THEME="preto"
+                print_color $NC "✅ Tema preto selecionado"
+                break
+                ;;
+            12)
+                COLOR_THEME="branco"
+                print_color $NC "✅ Tema branco selecionado"
+                break
+                ;;
+            *)
+                print_color $RED "❌ Opção inválida. Digite um número de 1 a 12."
+                ;;
+        esac
+    done
+}
+
 # Função para escolher ambiente
 choose_environment() {
     if [[ -n "$ENVIRONMENT" ]]; then
@@ -1247,6 +1338,34 @@ EOF
     fi
 }
 
+# Função para gerar arquivo de configuração do tema
+generate_theme_config() {
+    local main_frontend_dir="frontend/vortex-application-service"
+    local auth_frontend_dir="frontend/vortex-authorization-service"
+    
+    print_color $BLUE "🎨 Configurando tema ${COLOR_THEME}..."
+    
+    # Criar arquivo .env.local para frontend principal (Vue.js)
+    cat > "${main_frontend_dir}/.env.local" << EOF
+# Arquivo gerado automaticamente pelo start-vortex.sh
+# Configuração do tema de cores selecionado pelo usuário
+
+VITE_THEME_COLOR=${COLOR_THEME}
+EOF
+    
+    # Criar arquivo .env.local para frontend de autorização (React)
+    cat > "${auth_frontend_dir}/.env.local" << EOF
+# Arquivo gerado automaticamente pelo start-vortex.sh
+# Configuração do tema de cores selecionado pelo usuário
+
+VITE_THEME_COLOR=${COLOR_THEME}
+EOF
+    
+    print_color $GREEN "✅ Tema ${COLOR_THEME} configurado em ambos frontends:"
+    print_color $GREEN "   - ${main_frontend_dir}/.env.local"
+    print_color $GREEN "   - ${auth_frontend_dir}/.env.local"
+}
+
 # Função para executar frontend
 start_frontend() {
     print_color $BLUE "🎨 Iniciando Frontend..."
@@ -1256,6 +1375,9 @@ start_frontend() {
         print_color $GREEN "✅ Frontend já iniciado via Docker Compose"
         return 0
     fi
+    
+    # Gerar configuração do tema antes de iniciar
+    generate_theme_config
     
     cd frontend/vortex-application-service
     
@@ -1601,6 +1723,9 @@ main() {
     
     # Verificar pré-requisitos
     check_prerequisites
+    
+    # Escolher cor do tema se não fornecido (PRIMEIRA pergunta)
+    choose_color_theme
     
     # Escolher ambiente se não fornecido
     choose_environment
