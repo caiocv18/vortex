@@ -17,33 +17,27 @@ import { handleAuthCallback } from './utils/authCallback'
 // Import test utilities (for debugging)
 import './test-api'
 
-// Custom theme
+// Import theme system
+import { getThemeByName, defaultTheme } from './themes/colorThemes'
+
+// Get selected theme from environment or use default
+const selectedTheme = import.meta.env.VITE_THEME_COLOR || defaultTheme
+const themeConfig = getThemeByName(selectedTheme)
+
+// Fallback to default if theme not found
+const finalTheme = themeConfig || getThemeByName(defaultTheme)!
+
+console.log(`🎨 [Theme] Using ${finalTheme.displayName} theme (${selectedTheme})`)
+
+// Custom theme based on selection
 const vortexTheme = {
   dark: false,
-  colors: {
-    primary: '#59cb9b',
-    secondary: '#00262c',
-    background: '#f5ffff',
-    surface: '#FFFFFF',
-    error: '#B00020',
-    info: '#2196F3',
-    success: '#4CAF50',
-    warning: '#FB8C00',
-  }
+  colors: finalTheme.light
 }
 
 const vortexThemeDark = {
   dark: true,
-  colors: {
-    primary: '#59cb9b',
-    secondary: '#00262c',
-    background: '#121212',
-    surface: '#1E1E1E',
-    error: '#CF6679',
-    info: '#2196F3',
-    success: '#4CAF50',
-    warning: '#FB8C00',
-  }
+  colors: finalTheme.dark
 }
 
 const savedTheme = localStorage.getItem('theme') || 'light'
