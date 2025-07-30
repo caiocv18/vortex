@@ -11,6 +11,9 @@
 # - Parada de serviços mais robusta com verificação de containers órfãos
 # - Tempos de espera aumentados para inicialização mais confiável
 # - Banner do terminal corrigido
+# - Gerenciamento automático de redes Docker com recuperação inteligente
+# - Tratamento robusto de erros de rede no docker-compose
+# - Monitoramento opcional de redes Docker em tempo real
 
 set -e
 
@@ -54,8 +57,10 @@ show_help() {
     echo "  --stop              Parar todos os serviços"
     echo "  --clean             Limpar containers e volumes"
     echo "  --fix-kafka         Executar correção automática do Kafka"
+    echo "  --fix-networks      Limpar e recriar redes Docker problemáticas"
     echo "  --logs              Mostrar logs após iniciar"
     echo "  --no-interaction    Modo não interativo (usa valores padrão)"
+    echo "  --monitor-networks  Monitorar e recuperar redes Docker automaticamente"
     echo ""
     echo "Ambientes:"
     echo "  dev  - Desenvolvimento com H2 Database"
@@ -81,7 +86,9 @@ show_help() {
     echo "  $0 --backend-only -m sqs             # Apenas backend com SQS"
     echo "  $0 --stop                            # Parar serviços"
     echo "  $0 --fix-kafka                       # Corrigir problemas do Kafka"
+    echo "  $0 --fix-networks                    # Corrigir redes Docker"
     echo "  $0 --no-interaction -e dev -m kafka  # Modo não interativo"
+    echo "  $0 --monitor-networks                # Monitorar redes Docker"
 }
 
 # Função para verificar pré-requisitos
@@ -160,6 +167,123 @@ check_prerequisites() {
     fi
     
     print_color $GREEN "✅ Docker encontrado e rodando"
+}
+
+# Função para garantir que as redes Docker necessárias existam
+ensure_docker_networks() {
+    print_color $BLUE "🌐 Verificando e criando redes Docker necessárias..."
+    
+    # Lista de redes necessárias com suas configurações específicas
+    local networks=("vortex-simple" "vortex-kafka-network" "vortex-rabbitmq-network")
+    
+    for network in "${networks[@]}"; do
+        if ! docker network ls --format "{{.Name}}" | grep -q "^${network}$"; then
+            print_color $YELLOW "📡 Criando rede Docker: $network"
+            # Criar rede com configurações específicas para evitar conflitos IPv4/IPv6
+            docker network create \
+                --driver bridge \
+                --opt com.docker.network.enable_ipv6=false \
+                --opt com.docker.network.bridge.enable_ip_masquerade=true \
+                "$network" >/dev/null 2>&1 || true
+        else
+            print_color $GREEN "✅ Rede Docker $network já existe"
+        fi
+    done
+    
+    print_color $GREEN "✅ Todas as redes Docker necessárias estão disponíveis"
+}
+
+# Função para validar se todas as redes necessárias existem
+validate_docker_networks() {
+    local missing_networks=()
+    local networks=("vortex-simple" "vortex-kafka-network" "vortex-rabbitmq-network")
+    
+    for network in "${networks[@]}"; do
+        if ! docker network ls --format "{{.Name}}" | grep -q "^${network}$"; then
+            missing_networks+=("$network")
+        fi
+    done
+    
+    if [[ ${#missing_networks[@]} -gt 0 ]]; then
+        print_color $YELLOW "⚠️  Redes Docker faltando: ${missing_networks[*]}"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Função para executar docker-compose com tratamento automático de erro de rede
+safe_docker_compose() {
+    local compose_file="$1"
+    local compose_action="$2"
+    local additional_args="${3:-}"
+    local max_retries=3
+    local retry_count=0
+    
+    # Validar redes antes de executar
+    if ! validate_docker_networks; then
+        print_color $BLUE "🔧 Recriando redes Docker antes de executar docker-compose..."
+        ensure_docker_networks
+    fi
+    
+    while [[ $retry_count -lt $max_retries ]]; do
+        if [[ -n "$additional_args" ]]; then
+            if docker-compose -f "$compose_file" $compose_action $additional_args 2>/dev/null; then
+                return 0
+            fi
+        else
+            if docker-compose -f "$compose_file" $compose_action 2>/dev/null; then
+                return 0
+            fi
+        fi
+        
+        # Capturar o erro específico
+        local error_output
+        if [[ -n "$additional_args" ]]; then
+            error_output=$(docker-compose -f "$compose_file" $compose_action $additional_args 2>&1 || true)
+        else
+            error_output=$(docker-compose -f "$compose_file" $compose_action 2>&1 || true)
+        fi
+        
+        # Verificar se o erro é relacionado a rede
+        if echo "$error_output" | grep -q "Network.*declared as external, but could not be found\|needs to be recreated.*option.*has changed"; then
+            local missing_network=$(echo "$error_output" | grep -o "Network [^ ]* declared as external\|Network \"[^\"]*\"" | awk '{print $2}' | tr -d '"')
+            print_color $YELLOW "⚠️  Problema com rede '$missing_network'. Recriando todas as redes..."
+            
+            # Forçar remoção e recriação de todas as redes
+            print_color $BLUE "🧹 Removendo redes conflitantes..."
+            docker network rm vortex-simple vortex-kafka-network vortex-rabbitmq-network 2>/dev/null || true
+            sleep 2
+            
+            # Recriar todas as redes necessárias
+            ensure_docker_networks
+            
+            ((retry_count++))
+            print_color $BLUE "🔄 Tentativa $retry_count de $max_retries para executar docker-compose..."
+            sleep 2
+        else
+            # Se não for erro de rede, falhar imediatamente
+            print_color $RED "❌ Erro ao executar docker-compose:"
+            echo "$error_output"
+            return 1
+        fi
+    done
+    
+    print_color $RED "❌ Falha ao executar docker-compose após $max_retries tentativas"
+    return 1
+}
+
+# Função para monitorar e recuperar redes Docker automaticamente
+monitor_docker_networks() {
+    local check_interval=30  # Verificar a cada 30 segundos
+    
+    while true; do
+        if ! validate_docker_networks >/dev/null 2>&1; then
+            print_color $YELLOW "🔧 Detectada ausência de redes Docker. Recuperando automaticamente..."
+            ensure_docker_networks
+        fi
+        sleep $check_interval
+    done
 }
 
 # Função para escolher cor do tema
@@ -529,15 +653,23 @@ stop_services() {
         rm -f logs/auth-frontend.pid
     fi
     
-    # 12. Limpar redes Docker órfãs relacionadas ao Vortex
-    docker network rm vortex-kafka-network 2>/dev/null || true
-    docker network rm vortex-rabbitmq-network 2>/dev/null || true
+    # 12. Parar monitoramento de redes se estiver rodando
+    if [[ -f "logs/network-monitor.pid" ]]; then
+        PID=$(cat logs/network-monitor.pid)
+        kill -9 $PID 2>/dev/null || true
+        rm -f logs/network-monitor.pid
+        print_color $GREEN "✅ Monitoramento de redes Docker parado"
+    fi
+    
+    # 13. Limpar redes Docker órfãs relacionadas ao Vortex
+    # NOTA: Não removemos vortex-simple, vortex-kafka-network e vortex-rabbitmq-network
+    # pois elas são necessárias para inicializações subsequentes
     docker network rm vortex_default 2>/dev/null || true
     
-    # 13. Aguardar um pouco para garantir que todos os containers foram parados
+    # 14. Aguardar um pouco para garantir que todos os containers foram parados
     sleep 3
     
-    # 14. Verificar se ainda há containers do Vortex rodando
+    # 15. Verificar se ainda há containers do Vortex rodando
     local remaining_containers=$(docker ps --filter "name=vortex" --format "{{.Names}}" | wc -l)
     if [[ $remaining_containers -gt 0 ]]; then
         print_color $YELLOW "⚠️  Ainda há $remaining_containers container(s) rodando:"
@@ -572,6 +704,50 @@ fix_kafka_issues() {
     fi
 }
 
+# Função para corrigir problemas de redes Docker
+fix_docker_networks() {
+    print_color $BLUE "🔧 Executando correção automática das redes Docker..."
+    
+    # Parar todos os containers relacionados primeiro
+    print_color $YELLOW "🛑 Parando containers que podem estar usando as redes..."
+    docker stop $(docker ps --filter "network=vortex-simple" -q) 2>/dev/null || true
+    docker stop $(docker ps --filter "network=vortex-kafka-network" -q) 2>/dev/null || true
+    docker stop $(docker ps --filter "network=vortex-rabbitmq-network" -q) 2>/dev/null || true
+    
+    # Remover redes problemáticas
+    print_color $BLUE "🧹 Removendo redes Docker problemáticas..."
+    docker network rm vortex-simple 2>/dev/null || true
+    docker network rm vortex-kafka-network 2>/dev/null || true
+    docker network rm vortex-rabbitmq-network 2>/dev/null || true
+    
+    # Limpar redes órfãs
+    print_color $BLUE "🧹 Limpando redes órfãs..."
+    docker network prune -f
+    
+    # Aguardar um pouco
+    sleep 3
+    
+    # Recriar redes necessárias
+    print_color $BLUE "🌐 Recriando redes Docker necessárias..."
+    
+    # Lista de redes necessárias com suas configurações específicas
+    local networks=("vortex-simple" "vortex-kafka-network" "vortex-rabbitmq-network")
+    
+    for network in "${networks[@]}"; do
+        print_color $YELLOW "📡 Criando rede Docker: $network"
+        # Criar rede com configurações específicas para evitar conflitos IPv4/IPv6
+        docker network create \
+            --driver bridge \
+            --opt com.docker.network.enable_ipv6=false \
+            --opt com.docker.network.bridge.enable_ip_masquerade=true \
+            "$network" >/dev/null 2>&1 || true
+        print_color $GREEN "✅ Rede Docker $network criada"
+    done
+    
+    print_color $GREEN "✅ Correção das redes Docker concluída com sucesso!"
+    print_color $GREEN "💡 Agora você pode executar novamente: ./start-vortex.sh"
+}
+
 # Função para limpar ambiente
 clean_environment() {
     print_color $YELLOW "🧹 Limpando ambiente..."
@@ -595,8 +771,18 @@ clean_environment() {
         docker volume rm vortex_zookeeper-data 2>/dev/null || true
         docker volume rm vortex_zookeeper-logs 2>/dev/null || true
         
+        # Remover redes do Vortex durante limpeza completa
+        docker network rm vortex-simple 2>/dev/null || true
+        docker network rm vortex-kafka-network 2>/dev/null || true
+        docker network rm vortex-rabbitmq-network 2>/dev/null || true
+        
         docker system prune -f
-        print_color $GREEN "✅ Ambiente limpo."
+        
+        # Recriar redes necessárias após limpeza
+        print_color $BLUE "🌐 Recriando redes Docker necessárias após limpeza..."
+        ensure_docker_networks
+        
+        print_color $GREEN "✅ Ambiente limpo e redes recriadas."
     else
         print_color $YELLOW "❌ Operação cancelada."
     fi
@@ -668,7 +854,10 @@ start_kafka() {
             fi
             
             # Iniciar Kafka com configuração simplificada
-            docker-compose -f infra/docker/docker-compose.kafka-simple.yml up -d
+            if ! safe_docker_compose "infra/docker/docker-compose.kafka-simple.yml" "up -d"; then
+                print_color $RED "❌ Falha ao iniciar Kafka via docker-compose!"
+                return 1
+            fi
             
             # Usar função centralizada para aguardar Kafka
             if ! wait_for_kafka; then
@@ -700,7 +889,10 @@ start_kafka() {
         elif [[ -f "infra/docker/docker-compose.kafka.yml" ]]; then
             print_color $YELLOW "📦 Usando configuração Kafka legada..."
             # Verificar se arquivo existe
-            docker-compose -f infra/docker/docker-compose.kafka.yml up -d
+            if ! safe_docker_compose "infra/docker/docker-compose.kafka.yml" "up -d"; then
+                print_color $RED "❌ Falha ao iniciar Kafka legado via docker-compose!"
+                return 1
+            fi
             print_color $GREEN "⏳ Aguardando Kafka inicializar..."
             sleep 15
         else
@@ -759,7 +951,10 @@ start_rabbitmq() {
             fi
             
             # Iniciar RabbitMQ
-            docker-compose -f infra/docker/docker-compose.rabbitmq.yml up -d
+            if ! safe_docker_compose "infra/docker/docker-compose.rabbitmq.yml" "up -d"; then
+                print_color $RED "❌ Falha ao iniciar RabbitMQ via docker-compose!"
+                return 1
+            fi
             
             # Aguardar RabbitMQ estar pronto
             if ! wait_for_rabbitmq; then
@@ -884,7 +1079,10 @@ start_databases() {
         # Verificar se existe docker-compose para auth e criar o container
         if [[ -f "infra/docker/docker-compose.auth.yml" ]]; then
             print_color $BLUE "📦 Criando e iniciando PostgreSQL via docker-compose..."
-            docker-compose -f infra/docker/docker-compose.auth.yml up -d auth-db
+            if ! safe_docker_compose "infra/docker/docker-compose.auth.yml" "up -d" "auth-db"; then
+                print_color $RED "❌ Falha ao iniciar PostgreSQL via docker-compose!"
+                return 1
+            fi
         else
             print_color $RED "❌ Arquivo docker-compose.auth.yml não encontrado!"
             return 1
@@ -1244,7 +1442,11 @@ services:
     ports:
       - "8080:8080"$NETWORK_CONFIG
 EOF
-        docker-compose -f docker-compose.dev.yml up -d
+        if ! safe_docker_compose "docker-compose.dev.yml" "up -d"; then
+            print_color $RED "❌ Falha ao iniciar backend dev via docker-compose!"
+            cd ../..
+            return 1
+        fi
         print_color $GREEN "✅ Backend iniciado no Docker com perfis: $SPRING_PROFILES"
         
         # Aguardar healthcheck do backend no Docker
@@ -1310,12 +1512,21 @@ EOF
             if [[ ! -f "infra/docker/docker-compose.full-kafka.yml" ]]; then
                 print_color $RED "❌ Arquivo infra/docker/docker-compose.full-kafka.yml não encontrado!"
                 print_color $YELLOW "💡 Usando configuração padrão e Kafka separado..."
-                docker-compose -f infra/docker/docker-compose.full.yml up -d --build
+                if ! safe_docker_compose "infra/docker/docker-compose.full.yml" "up -d --build"; then
+                    print_color $RED "❌ Falha ao iniciar stack completa via docker-compose!"
+                    return 1
+                fi
             else
-                docker-compose -f infra/docker/docker-compose.full-kafka.yml up -d --build
+                if ! safe_docker_compose "infra/docker/docker-compose.full-kafka.yml" "up -d --build"; then
+                    print_color $RED "❌ Falha ao iniciar stack completa com Kafka via docker-compose!"
+                    return 1
+                fi
             fi
         else
-            docker-compose -f infra/docker/docker-compose.full.yml up -d --build
+            if ! safe_docker_compose "infra/docker/docker-compose.full.yml" "up -d --build"; then
+                print_color $RED "❌ Falha ao iniciar stack completa via docker-compose!"
+                return 1
+            fi
         fi
         
         print_color $GREEN "✅ Stack completa iniciada com perfis: $SPRING_PROFILES"
@@ -1691,9 +1902,21 @@ main() {
                 fix_kafka_issues
                 exit 0
                 ;;
+            --fix-networks)
+                fix_docker_networks
+                exit 0
+                ;;
             --logs)
                 SHOW_LOGS="true"
                 shift
+                ;;
+            --monitor-networks)
+                print_color $BLUE "🔍 Iniciando monitoramento automático de redes Docker..."
+                monitor_docker_networks &
+                MONITOR_PID=$!
+                print_color $GREEN "✅ Monitoramento de redes ativo (PID: $MONITOR_PID)"
+                echo $MONITOR_PID > logs/network-monitor.pid
+                exit 0
                 ;;
             *)
                 print_color $RED "❌ Opção desconhecida: $1"
@@ -1723,6 +1946,9 @@ main() {
     
     # Verificar pré-requisitos
     check_prerequisites
+    
+    # Garantir que as redes Docker necessárias existam
+    ensure_docker_networks
     
     # Escolher cor do tema se não fornecido (PRIMEIRA pergunta)
     choose_color_theme

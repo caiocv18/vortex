@@ -94,5 +94,4 @@ volumes:
 # ================================
 networks:
   vortex-simple:
-    driver: bridge
-    name: vortex-simple 
+    external: true 
