@@ -59,6 +59,16 @@ cd backend/vortex-application-service
 cd backend/vortex-authorization-service
 mvn test                      # All tests
 
+# Backend - Authorization Registration Flow tests (Specialized)
+./scripts/run-auth-registration-tests.sh --all      # All registration tests (42 tests)
+./scripts/run-auth-registration-tests.sh --unit     # Unit tests only (32 tests)
+./scripts/run-auth-registration-tests.sh --integration # Integration tests only (10 tests)
+./scripts/run-auth-registration-tests.sh --verbose  # Verbose output
+./scripts/run-auth-registration-tests.sh --coverage # With coverage report
+./scripts/run-auth-registration-tests.sh --quick    # Skip slow tests
+./scripts/run-auth-registration-tests.sh --watch    # Watch mode
+./scripts/run-auth-registration-tests.sh --ci       # CI optimized mode
+
 # Frontend - Main Application tests
 cd frontend/vortex-application-service
 npm run test:unit             # Vitest unit tests
@@ -221,14 +231,18 @@ npm run test:coverage         # Coverage report
 ### Testing Strategy
 - **Unit Tests**: 
   - JUnit 5 for Spring Boot backend
-  - Quarkus Test for authorization service
+  - Quarkus Test for authorization service (42 focused tests for registration flow)
   - Vitest for Vue.js frontend
   - Vitest for React auth frontend
 - **Integration Tests**: 
   - Spring Boot Test with H2 database
   - REST Assured for Quarkus service
+  - Jakarta Bean Validation tests for DTO validation
 - **E2E Tests**: Playwright covering complete user workflows
 - **API Testing**: Dedicated script `test-queue-endpoint.sh`
+- **Specialized Test Scripts**: 
+  - `./scripts/run-auth-registration-tests.sh` - Focused on account creation flow (42 tests)
+  - Multiple execution modes: unit, integration, coverage, watch, CI
 
 ## Key Development Notes
 
