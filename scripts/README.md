@@ -1,0 +1,359 @@
+# Scripts do Vortex
+
+Este diretório contém scripts utilitários para automação de tarefas no projeto Vortex.
+
+## Scripts Disponíveis
+
+### 🧪 run-auth-registration-tests.sh
+Script especializado para execução de testes do fluxo de criação de conta do serviço de autorização.
+
+#### Funcionalidades
+- **42 testes focados** no fluxo de criação de conta
+- **Múltiplos modos de execução** com opções flexíveis
+- **Saída colorizada** para melhor visualização
+- **Relatórios automáticos** de cobertura e resultados
+- **Integração CI/CD** com modo otimizado
+
+#### Uso Básico
+```bash
+# Executar todos os testes (padrão)
+./scripts/run-auth-registration-tests.sh
+
+# Executar apenas testes unitários (32 testes)
+./scripts/run-auth-registration-tests.sh --unit
+
+# Executar apenas testes de integração (10 testes)
+./scripts/run-auth-registration-tests.sh --integration
+```
+
+#### Opções Avançadas
+```bash
+# Modo verboso com detalhes completos
+./scripts/run-auth-registration-tests.sh --verbose
+
+# Modo rápido (pula testes lentos)
+./scripts/run-auth-registration-tests.sh --quick
+
+# Gerar relatório de cobertura
+./scripts/run-auth-registration-tests.sh --coverage
+
+# Modo watch (re-executa em mudanças)
+./scripts/run-auth-registration-tests.sh --watch
+
+# Modo CI (coverage + report + formato simplificado)
+./scripts/run-auth-registration-tests.sh --ci
+```
+
+#### Filtros e Configurações
+```bash
+# Filtrar testes por padrão
+./scripts/run-auth-registration-tests.sh --filter "Password"
+
+# Executar com perfil específico
+./scripts/run-auth-registration-tests.sh --profile dev
+
+# Gerar relatório HTML detalhado
+./scripts/run-auth-registration-tests.sh --report
+```
+
+#### Cobertura de Testes
+- **SimplePasswordServiceTest**: 24 testes de validação e criptografia
+- **ValidationTest**: 10 testes de validação de DTOs
+- **SimpleAuthServiceTest**: 8 testes de estruturas e TestDataBuilder
+
+**Total**: 42 testes cobrindo validação, criptografia, DTOs e estruturas de entidades.
+
+#### Saída de Exemplo
+```
+========================================
+Vortex Auth Registration Test Runner
+========================================
+Configuration:
+  Test Type: all
+  Profile: test
+  Verbose: false
+  Coverage: false
+
+========================================
+Running All Tests
+========================================
+[INFO] Tests run: 42, Failures: 0, Errors: 0
+
+✓ All Tests PASSED
+
+========================================
+Test Execution Complete
+========================================
+✓ All tests passed successfully!
+```
+
+#### Localização dos Relatórios
+- **Testes**: `test-reports/auth-registration/`
+- **Cobertura**: `coverage-reports/auth-registration/`
+
+---
+
+### 🔍 test-queue-endpoint.sh
+Script para testar endpoints de monitoramento de filas de mensagens.
+
+#### Uso
+```bash
+./scripts/test-queue-endpoint.sh
+```
+
+#### Funcionalidade
+- Testa conectividade com endpoints de filas
+- Valida respostas da API de monitoramento
+- Útil para debugging de messaging
+
+---
+
+### 🔗 check-ports.sh
+Script para verificação de portas utilizadas pelos serviços.
+
+#### Uso
+```bash
+./scripts/check-ports.sh
+```
+
+#### Funcionalidade
+- Verifica disponibilidade das portas padrão
+- Lista serviços em execução
+- Identifica conflitos de porta
+
+#### Portas Monitoradas
+- **8080**: Vortex Application Service (Spring Boot)
+- **8081**: Vortex Authorization Service (Quarkus)
+- **5173**: Frontend Application Service (Vue.js)
+- **3001**: Frontend Authorization Service (React)
+- **5432**: PostgreSQL
+- **1521**: Oracle
+
+---
+
+## Convenções de Scripts
+
+### Estrutura Padrão
+Todos os scripts seguem as seguintes convenções:
+
+1. **Shebang**: `#!/bin/bash`
+2. **Set options**: `set -e` (exit on error)
+3. **Colors**: Definições de cores para saída
+4. **Functions**: Funções auxiliares bem documentadas
+5. **Help**: Função de ajuda com `--help`
+6. **Error handling**: Tratamento adequado de erros
+
+### Exemplo de Estrutura
+```bash
+#!/bin/bash
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Functions
+print_color() {
+    local color=$1
+    shift
+    echo -e "${color}$@${NC}"
+}
+
+show_help() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  --help    Show this help"
+    exit 0
+}
+
+# Main logic
+main() {
+    # Implementation
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help)
+            show_help
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_help
+            ;;
+    esac
+done
+
+main "$@"
+```
+
+### Saída Colorizada
+- **Verde**: Sucesso, operações bem-sucedidas
+- **Amarelo**: Avisos, informações importantes
+- **Vermelho**: Erros, falhas
+- **Azul**: Informações gerais
+- **Ciano**: Headers e separadores
+
+### Códigos de Saída
+- **0**: Sucesso
+- **1**: Erro geral
+- **2**: Uso incorreto (argumentos inválidos)
+- **3**: Falha de dependência (serviços indisponíveis)
+
+---
+
+## Execução em CI/CD
+
+### GitHub Actions
+```yaml
+- name: Run Auth Registration Tests
+  run: ./scripts/run-auth-registration-tests.sh --ci
+  
+- name: Check Ports
+  run: ./scripts/check-ports.sh
+  
+- name: Test Queue Endpoints
+  run: ./scripts/test-queue-endpoint.sh
+```
+
+### Jenkins Pipeline
+```groovy
+stage('Tests') {
+    steps {
+        sh './scripts/run-auth-registration-tests.sh --ci'
+        sh './scripts/check-ports.sh'
+    }
+}
+```
+
+---
+
+## Troubleshooting
+
+### Problema: Permission denied
+```bash
+# Solução: Dar permissão de execução
+chmod +x scripts/*.sh
+```
+
+### Problema: Script não encontrado
+```bash
+# Solução: Executar do diretório raiz do projeto
+cd /path/to/vortex
+./scripts/script-name.sh
+```
+
+### Problema: Dependências não encontradas
+```bash
+# Solução: Verificar se Maven e Java estão instalados
+java --version
+mvn --version
+```
+
+### Problema: Portas em uso
+```bash
+# Solução: Verificar e parar serviços conflitantes
+./scripts/check-ports.sh
+./start-vortex.sh --stop
+```
+
+---
+
+## Desenvolvimento de Novos Scripts
+
+### Padrões a Seguir
+1. **Nomenclatura**: `kebab-case.sh`
+2. **Localização**: Diretório `/scripts/`
+3. **Documentação**: Adicionar seção neste README
+4. **Testes**: Incluir validação básica
+5. **Logs**: Usar função `print_color` para saída consistente
+
+### Template para Novo Script
+```bash
+#!/bin/bash
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Configuration
+SCRIPT_NAME="$(basename "$0")"
+BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+print_color() {
+    local color=$1
+    shift
+    echo -e "${color}$@${NC}"
+}
+
+print_header() {
+    echo ""
+    print_color "$CYAN" "========================================"
+    print_color "$CYAN" "$1"
+    print_color "$CYAN" "========================================"
+    echo ""
+}
+
+show_help() {
+    echo "Usage: $SCRIPT_NAME [options]"
+    echo ""
+    echo "Description: Your script description here"
+    echo ""
+    echo "Options:"
+    echo "  --help              Show this help message"
+    echo "  --verbose           Enable verbose output"
+    echo ""
+    echo "Examples:"
+    echo "  $SCRIPT_NAME --verbose"
+    exit 0
+}
+
+main() {
+    print_header "Script Name"
+    
+    # Your implementation here
+    
+    print_color "$GREEN" "✓ Operation completed successfully!"
+}
+
+# Parse command line arguments
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --help)
+            show_help
+            ;;
+        *)
+            print_color "$RED" "Unknown option: $1"
+            show_help
+            ;;
+    esac
+done
+
+main "$@"
+```
+
+---
+
+## Referências
+
+- [Bash Scripting Guide](https://tldp.org/LDP/abs/html/)
+- [Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
+- [Testing Best Practices](https://martinfowler.com/articles/practical-test-pyramid.html)
+- [CI/CD Integration](https://docs.github.com/en/actions)
+
+---
+
+*Última atualização: Scripts implementados para automação de testes e verificações de infraestrutura.*
