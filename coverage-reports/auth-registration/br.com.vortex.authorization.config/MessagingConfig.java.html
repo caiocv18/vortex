@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MessagingConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.config</a> &gt; <span class="el_source">MessagingConfig.java</span></div><h1>MessagingConfig.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.config;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Produces;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@ApplicationScoped
+<span class="nc" id="L10">public class MessagingConfig {</span>
+
+<span class="nc" id="L12">    private static final Logger LOGGER = LoggerFactory.getLogger(MessagingConfig.class);</span>
+
+    @ConfigProperty(name = &quot;auth.event.enabled&quot;, defaultValue = &quot;true&quot;)
+    boolean eventEnabled;
+
+    @ConfigProperty(name = &quot;auth.event.routing-key&quot;, defaultValue = &quot;auth&quot;)
+    String routingKey;
+
+    @Produces
+    @ApplicationScoped
+    public MessagingProperties messagingProperties() {
+<span class="nc" id="L23">        LOGGER.info(&quot;Messaging configuration - Events enabled: {}, Routing key: {}&quot;, </span>
+<span class="nc" id="L24">                   eventEnabled, routingKey);</span>
+<span class="nc" id="L25">        return new MessagingProperties(eventEnabled, routingKey);</span>
+    }
+
+    public static class MessagingProperties {
+        public final boolean eventEnabled;
+        public final String routingKey;
+
+<span class="nc" id="L32">        public MessagingProperties(boolean eventEnabled, String routingKey) {</span>
+<span class="nc" id="L33">            this.eventEnabled = eventEnabled;</span>
+<span class="nc" id="L34">            this.routingKey = routingKey;</span>
+<span class="nc" id="L35">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

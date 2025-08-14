@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RateLimitService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.service</a> &gt; <span class="el_source">RateLimitService.java</span></div><h1>RateLimitService.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.service;
+
+import br.com.vortex.authorization.entity.LoginAttempt;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+import java.time.OffsetDateTime;
+
+@ApplicationScoped
+<span class="nc" id="L10">public class RateLimitService {</span>
+
+    @ConfigProperty(name = &quot;auth.rate-limit.login-attempts&quot;)
+    int maxLoginAttempts;
+
+    @ConfigProperty(name = &quot;auth.rate-limit.window-minutes&quot;)
+    int windowMinutes;
+
+    @ConfigProperty(name = &quot;auth.rate-limit.lockout-minutes&quot;)
+    int lockoutMinutes;
+
+    public boolean isAllowed(String email, String ipAddress) {
+<span class="nc" id="L22">        OffsetDateTime windowStart = OffsetDateTime.now().minusMinutes(windowMinutes);</span>
+        
+<span class="nc" id="L24">        long recentFailedAttempts = LoginAttempt.countRecentFailedAttempts(email, ipAddress, windowStart);</span>
+        
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        return recentFailedAttempts &lt; maxLoginAttempts;</span>
+    }
+
+    public boolean isEmailBlocked(String email) {
+<span class="nc" id="L30">        OffsetDateTime windowStart = OffsetDateTime.now().minusMinutes(lockoutMinutes);</span>
+        
+<span class="nc" id="L32">        long recentFailedAttempts = LoginAttempt.countRecentFailedAttemptsByEmail(email, windowStart);</span>
+        
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        return recentFailedAttempts &gt;= maxLoginAttempts;</span>
+    }
+
+    public boolean isIpBlocked(String ipAddress) {
+<span class="nc" id="L38">        OffsetDateTime windowStart = OffsetDateTime.now().minusMinutes(lockoutMinutes);</span>
+        
+<span class="nc" id="L40">        long recentFailedAttempts = LoginAttempt.countRecentFailedAttemptsByIp(ipAddress, windowStart);</span>
+        
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        return recentFailedAttempts &gt;= maxLoginAttempts;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

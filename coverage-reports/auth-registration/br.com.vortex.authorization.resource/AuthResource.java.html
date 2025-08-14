@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthResource.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.resource</a> &gt; <span class="el_source">AuthResource.java</span></div><h1>AuthResource.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.resource;
+
+import br.com.vortex.authorization.dto.*;
+import br.com.vortex.authorization.service.AuthService;
+import jakarta.inject.Inject;
+import jakarta.validation.Valid;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
+@Path(&quot;/api/auth&quot;)
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = &quot;Authentication&quot;, description = &quot;Authentication and authorization endpoints&quot;)
+<span class="nc" id="L22">public class AuthResource {</span>
+
+    @Inject
+    AuthService authService;
+
+    @Context
+    UriInfo uriInfo;
+    
+    @Context
+    HttpHeaders httpHeaders;
+
+    @POST
+    @Path(&quot;/login&quot;)
+    @Operation(summary = &quot;User login&quot;, description = &quot;Authenticate user and return JWT tokens&quot;)
+    public Response login(@Valid LoginRequest request) {
+<span class="nc" id="L37">        String ipAddress = getClientIpAddress();</span>
+<span class="nc" id="L38">        String userAgent = getUserAgent();</span>
+        
+        try {
+<span class="nc" id="L41">            LoginResponse response = authService.login(request, ipAddress, userAgent);</span>
+<span class="nc" id="L42">            return Response.ok(ApiResponse.success(&quot;Login successful&quot;, response)).build();</span>
+<span class="nc" id="L43">        } catch (Exception e) {</span>
+<span class="nc" id="L44">            return Response.status(Response.Status.UNAUTHORIZED)</span>
+<span class="nc" id="L45">                .entity(ApiResponse.error(e.getMessage()))</span>
+<span class="nc" id="L46">                .build();</span>
+        }
+    }
+
+    @POST
+    @Path(&quot;/register&quot;)
+    @Operation(summary = &quot;User registration&quot;, description = &quot;Register a new user account&quot;)
+    public Response register(@Valid RegisterRequest request) {
+<span class="nc" id="L54">        String ipAddress = getClientIpAddress();</span>
+<span class="nc" id="L55">        String userAgent = getUserAgent();</span>
+        
+        try {
+<span class="nc" id="L58">            LoginResponse response = authService.register(request, ipAddress, userAgent);</span>
+<span class="nc" id="L59">            return Response.status(Response.Status.CREATED)</span>
+<span class="nc" id="L60">                .entity(ApiResponse.success(&quot;Registration successful&quot;, response))</span>
+<span class="nc" id="L61">                .build();</span>
+<span class="nc" id="L62">        } catch (BadRequestException e) {</span>
+<span class="nc" id="L63">            return Response.status(Response.Status.BAD_REQUEST)</span>
+<span class="nc" id="L64">                .entity(ApiResponse.error(e.getMessage()))</span>
+<span class="nc" id="L65">                .build();</span>
+        }
+    }
+
+    @POST
+    @Path(&quot;/refresh&quot;)
+    @Operation(summary = &quot;Refresh access token&quot;, description = &quot;Generate new access token using refresh token&quot;)
+    public Response refreshToken(@Valid RefreshTokenRequest request) {
+        try {
+<span class="nc" id="L74">            LoginResponse response = authService.refreshToken(request);</span>
+<span class="nc" id="L75">            return Response.ok(ApiResponse.success(&quot;Token refreshed successfully&quot;, response)).build();</span>
+<span class="nc" id="L76">        } catch (Exception e) {</span>
+<span class="nc" id="L77">            return Response.status(Response.Status.UNAUTHORIZED)</span>
+<span class="nc" id="L78">                .entity(ApiResponse.error(e.getMessage()))</span>
+<span class="nc" id="L79">                .build();</span>
+        }
+    }
+
+    @POST
+    @Path(&quot;/logout&quot;)
+    @Operation(summary = &quot;User logout&quot;, description = &quot;Invalidate refresh token and logout user&quot;)
+    public Response logout(@Valid RefreshTokenRequest request) {
+<span class="nc" id="L87">        String ipAddress = getClientIpAddress();</span>
+<span class="nc" id="L88">        String userAgent = getUserAgent();</span>
+        
+<span class="nc" id="L90">        authService.logout(request.refreshToken, ipAddress, userAgent);</span>
+<span class="nc" id="L91">        return Response.ok(ApiResponse.success(&quot;Logout successful&quot;)).build();</span>
+    }
+
+    @POST
+    @Path(&quot;/forgot-password&quot;)
+    @Operation(summary = &quot;Forgot password&quot;, description = &quot;Request password reset email&quot;)
+    public Response forgotPassword(@Valid ForgotPasswordRequest request) {
+<span class="nc" id="L98">        String ipAddress = getClientIpAddress();</span>
+<span class="nc" id="L99">        String userAgent = getUserAgent();</span>
+        
+<span class="nc" id="L101">        authService.forgotPassword(request, ipAddress, userAgent);</span>
+<span class="nc" id="L102">        return Response.ok(ApiResponse.success(&quot;If the email exists, a password reset link has been sent&quot;)).build();</span>
+    }
+
+    @POST
+    @Path(&quot;/reset-password&quot;)
+    @Operation(summary = &quot;Reset password&quot;, description = &quot;Reset password using reset token&quot;)
+    public Response resetPassword(@Valid ResetPasswordRequest request) {
+<span class="nc" id="L109">        String ipAddress = getClientIpAddress();</span>
+<span class="nc" id="L110">        String userAgent = getUserAgent();</span>
+        
+        try {
+<span class="nc" id="L113">            authService.resetPassword(request, ipAddress, userAgent);</span>
+<span class="nc" id="L114">            return Response.ok(ApiResponse.success(&quot;Password reset successful&quot;)).build();</span>
+<span class="nc" id="L115">        } catch (BadRequestException e) {</span>
+<span class="nc" id="L116">            return Response.status(Response.Status.BAD_REQUEST)</span>
+<span class="nc" id="L117">                .entity(ApiResponse.error(e.getMessage()))</span>
+<span class="nc" id="L118">                .build();</span>
+        }
+    }
+
+    @POST
+    @Path(&quot;/validate-token&quot;)
+    @Operation(summary = &quot;Validate JWT token&quot;, description = &quot;Validate JWT token and return user information&quot;)
+    public Response validateToken(@Valid ValidateTokenRequest request) {
+        try {
+<span class="nc" id="L127">            ValidateTokenResponse response = authService.validateToken(request);</span>
+<span class="nc" id="L128">            return Response.ok(response).build();</span>
+<span class="nc" id="L129">        } catch (Exception e) {</span>
+<span class="nc" id="L130">            ValidateTokenResponse invalidResponse = new ValidateTokenResponse(false, null, null, null, null);</span>
+<span class="nc" id="L131">            return Response.ok(invalidResponse).build();</span>
+        }
+    }
+
+    private String getClientIpAddress() {
+        // Try to get real IP from various headers
+<span class="nc" id="L137">        String xForwardedFor = httpHeaders.getRequestHeaders().getFirst(&quot;X-Forwarded-For&quot;);</span>
+<span class="nc bnc" id="L138" title="All 4 branches missed.">        if (xForwardedFor != null &amp;&amp; !xForwardedFor.isEmpty()) {</span>
+<span class="nc" id="L139">            return xForwardedFor.split(&quot;,&quot;)[0].trim();</span>
+        }
+        
+<span class="nc" id="L142">        String xRealIp = httpHeaders.getRequestHeaders().getFirst(&quot;X-Real-IP&quot;);</span>
+<span class="nc bnc" id="L143" title="All 4 branches missed.">        if (xRealIp != null &amp;&amp; !xRealIp.isEmpty()) {</span>
+<span class="nc" id="L144">            return xRealIp;</span>
+        }
+        
+        // Fallback to remote address (may be proxy)
+<span class="nc" id="L148">        return &quot;unknown&quot;;</span>
+    }
+
+    private String getUserAgent() {
+<span class="nc" id="L152">        return httpHeaders.getRequestHeaders().getFirst(&quot;User-Agent&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

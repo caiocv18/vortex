@@ -245,6 +245,8 @@ Obrigatório:
 - **3 categorias**: Unitários, Integração e Validação
 - **Environment isolado** sem dependências externas
 - **BCrypt testing** com configuração de 12 rounds
+- **JaCoCo Coverage** com relatórios HTML, XML e CSV automáticos
+- **Quality Gates** com cobertura mínima configurada
 
 ### Execução dos Testes
 ```bash
@@ -254,20 +256,32 @@ Obrigatório:
 # Testes unitários apenas
 ./scripts/run-auth-registration-tests.sh --unit
 
-# Com cobertura de código
+# Com cobertura de código JaCoCo
 ./scripts/run-auth-registration-tests.sh --coverage
+
+# Modo CI completo (coverage + reports)
+./scripts/run-auth-registration-tests.sh --ci
 
 # Modo watch para desenvolvimento
 ./scripts/run-auth-registration-tests.sh --watch
 
 # Maven tradicional
 mvn test
+
+# Maven com cobertura manual
+mvn test jacoco:report
 ```
 
 ### Cobertura de Testes
 - **SimplePasswordServiceTest**: 24 testes (validação e criptografia)
 - **ValidationTest**: 10 testes (DTOs com Bean Validation)
 - **SimpleAuthServiceTest**: 8 testes (estruturas e TestDataBuilder)
+
+### Relatórios de Cobertura
+- **HTML Visual**: `coverage-reports/auth-registration/index.html`
+- **XML CI/CD**: `coverage-reports/auth-registration/jacoco.xml`
+- **CSV Dados**: `coverage-reports/auth-registration/jacoco.csv`
+- **Cobertura Atual**: ~64% PasswordService (área principal dos testes)
 
 ## 🔧 Configuração
 
@@ -339,6 +353,12 @@ curl http://localhost:8081/q/health
 - **Endpoint**: `/q/metrics`
 - **Format**: Prometheus
 - **Includes**: JVM, Database, HTTP, Custom business metrics
+
+### Code Coverage (JaCoCo)
+- **Endpoint**: `coverage-reports/auth-registration/index.html`
+- **Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
+- **Configuração**: Plugin Maven integrado com quality gates
+- **Critérios**: Mínimo 60% cobertura de linhas, 50% branches
 
 ### Logging
 ```yaml
@@ -452,11 +472,12 @@ mvn quarkus:dev
 - [ ] Session management dashboard
 
 ### Melhorias Técnicas
-- [ ] JaCoCo plugin para coverage reports
-- [ ] Performance benchmarks
+- [x] JaCoCo plugin para coverage reports (✅ Implementado)
+- [ ] Performance benchmarks com JMH
 - [ ] Load testing com Gatling
 - [ ] Security scanning com OWASP ZAP
 - [ ] Contract testing com Pact
+- [ ] Integração com SonarQube para métricas avançadas
 
 ## 🐛 Troubleshooting
 

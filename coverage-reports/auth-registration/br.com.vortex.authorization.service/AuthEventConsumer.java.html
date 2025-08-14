@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthEventConsumer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.service</a> &gt; <span class="el_source">AuthEventConsumer.java</span></div><h1>AuthEventConsumer.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.service;
+
+import br.com.vortex.authorization.event.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.arc.profile.IfBuildProfile;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Example event consumer for demonstration purposes.
+ * In a real application, this would be in a separate service.
+ * This shows how other services can react to authentication events.
+ */
+@ApplicationScoped
+@IfBuildProfile(&quot;dev&quot;)
+<span class="nc" id="L20">public class AuthEventConsumer {</span>
+
+<span class="nc" id="L22">    private static final Logger LOGGER = LoggerFactory.getLogger(AuthEventConsumer.class);</span>
+
+    @Inject
+    ObjectMapper objectMapper;
+
+    @Incoming(&quot;user-events&quot;)
+    public void handleUserEvent(String eventJson) {
+        try {
+<span class="nc" id="L30">            JsonNode eventNode = objectMapper.readTree(eventJson);</span>
+<span class="nc" id="L31">            String eventType = eventNode.get(&quot;eventType&quot;).asText();</span>
+<span class="nc" id="L32">            String userEmail = eventNode.get(&quot;userEmail&quot;).asText();</span>
+            
+<span class="nc" id="L34">            LOGGER.info(&quot;Processing auth event: {} for user: {}&quot;, eventType, userEmail);</span>
+            
+<span class="nc bnc" id="L36" title="All 7 branches missed.">            switch (eventType) {</span>
+                case &quot;user.created&quot;:
+<span class="nc" id="L38">                    handleUserCreated(eventJson);</span>
+<span class="nc" id="L39">                    break;</span>
+                case &quot;user.logged_in&quot;:
+<span class="nc" id="L41">                    handleUserLoggedIn(eventJson);</span>
+<span class="nc" id="L42">                    break;</span>
+                case &quot;user.logged_out&quot;:
+<span class="nc" id="L44">                    handleUserLoggedOut(eventJson);</span>
+<span class="nc" id="L45">                    break;</span>
+                case &quot;password.changed&quot;:
+<span class="nc" id="L47">                    handlePasswordChanged(eventJson);</span>
+<span class="nc" id="L48">                    break;</span>
+                case &quot;password.reset_requested&quot;:
+<span class="nc" id="L50">                    handlePasswordResetRequested(eventJson);</span>
+<span class="nc" id="L51">                    break;</span>
+                case &quot;email.verified&quot;:
+<span class="nc" id="L53">                    handleEmailVerified(eventJson);</span>
+<span class="nc" id="L54">                    break;</span>
+                default:
+<span class="nc" id="L56">                    LOGGER.warn(&quot;Unknown event type: {}&quot;, eventType);</span>
+            }
+            
+<span class="nc" id="L59">        } catch (Exception e) {</span>
+<span class="nc" id="L60">            LOGGER.error(&quot;Failed to process auth event: {}&quot;, eventJson, e);</span>
+<span class="nc" id="L61">        }</span>
+<span class="nc" id="L62">    }</span>
+
+    private void handleUserCreated(String eventJson) {
+        try {
+<span class="nc" id="L66">            UserCreatedEvent event = objectMapper.readValue(eventJson, UserCreatedEvent.class);</span>
+            
+<span class="nc" id="L68">            LOGGER.info(&quot;User created: {} ({})&quot;, event.userEmail, event.username);</span>
+<span class="nc" id="L69">            LOGGER.debug(&quot;User roles: {}, verified: {}&quot;, event.roles, event.isVerified);</span>
+            
+            // Example: Send welcome email
+            // emailService.sendWelcomeEmail(event.userEmail, event.username);
+            
+            // Example: Create user profile in other services
+            // profileService.createUserProfile(event.userId, event.username, event.userEmail);
+            
+            // Example: Setup default preferences
+            // preferencesService.createDefaultPreferences(event.userId);
+            
+<span class="nc" id="L80">        } catch (Exception e) {</span>
+<span class="nc" id="L81">            LOGGER.error(&quot;Failed to handle user created event&quot;, e);</span>
+<span class="nc" id="L82">        }</span>
+<span class="nc" id="L83">    }</span>
+
+    private void handleUserLoggedIn(String eventJson) {
+        try {
+<span class="nc" id="L87">            UserLoggedInEvent event = objectMapper.readValue(eventJson, UserLoggedInEvent.class);</span>
+            
+<span class="nc" id="L89">            LOGGER.info(&quot;User logged in: {} from IP: {}&quot;, event.userEmail, event.ipAddress);</span>
+<span class="nc" id="L90">            LOGGER.debug(&quot;Login method: {}, session: {}&quot;, event.loginMethod, event.sessionId);</span>
+            
+            // Example: Update last login analytics
+            // analyticsService.recordLogin(event.userId, event.timestamp, event.ipAddress);
+            
+            // Example: Check for suspicious login patterns
+            // securityService.checkLoginPattern(event.userId, event.ipAddress, event.userAgent);
+            
+            // Example: Send login notification if from new device
+            // if (securityService.isNewDevice(event.userId, event.userAgent)) {
+            //     notificationService.sendLoginAlert(event.userEmail, event.ipAddress);
+            // }
+            
+<span class="nc" id="L103">        } catch (Exception e) {</span>
+<span class="nc" id="L104">            LOGGER.error(&quot;Failed to handle user logged in event&quot;, e);</span>
+<span class="nc" id="L105">        }</span>
+<span class="nc" id="L106">    }</span>
+
+    private void handleUserLoggedOut(String eventJson) {
+        try {
+<span class="nc" id="L110">            UserLoggedOutEvent event = objectMapper.readValue(eventJson, UserLoggedOutEvent.class);</span>
+            
+<span class="nc" id="L112">            LOGGER.info(&quot;User logged out: {} - reason: {}&quot;, event.userEmail, event.logoutReason);</span>
+            
+            // Example: Clean up user sessions
+            // sessionService.cleanupUserSession(event.userId, event.sessionId);
+            
+            // Example: Update analytics
+            // analyticsService.recordLogout(event.userId, event.timestamp, event.logoutReason);
+            
+<span class="nc" id="L120">        } catch (Exception e) {</span>
+<span class="nc" id="L121">            LOGGER.error(&quot;Failed to handle user logged out event&quot;, e);</span>
+<span class="nc" id="L122">        }</span>
+<span class="nc" id="L123">    }</span>
+
+    private void handlePasswordChanged(String eventJson) {
+        try {
+<span class="nc" id="L127">            PasswordChangedEvent event = objectMapper.readValue(eventJson, PasswordChangedEvent.class);</span>
+            
+<span class="nc" id="L129">            LOGGER.info(&quot;Password changed for user: {} - reason: {}&quot;, event.userEmail, event.changeReason);</span>
+            
+            // Example: Send security notification
+            // emailService.sendPasswordChangedNotification(event.userEmail, event.changeReason);
+            
+            // Example: Log security event
+            // securityService.logPasswordChange(event.userId, event.changeReason, event.ipAddress);
+            
+            // Example: Revoke all existing sessions if password was compromised
+            // if (&quot;security_breach&quot;.equals(event.changeReason)) {
+            //     sessionService.revokeAllUserSessions(event.userId);
+            // }
+            
+<span class="nc" id="L142">        } catch (Exception e) {</span>
+<span class="nc" id="L143">            LOGGER.error(&quot;Failed to handle password changed event&quot;, e);</span>
+<span class="nc" id="L144">        }</span>
+<span class="nc" id="L145">    }</span>
+
+    private void handlePasswordResetRequested(String eventJson) {
+        try {
+<span class="nc" id="L149">            PasswordResetRequestedEvent event = objectMapper.readValue(eventJson, PasswordResetRequestedEvent.class);</span>
+            
+<span class="nc" id="L151">            LOGGER.info(&quot;Password reset requested for user: {}&quot;, event.userEmail);</span>
+            
+            // Example: Send reset email
+            // emailService.sendPasswordResetEmail(event.userEmail, event.resetTokenId.toString());
+            
+            // Example: Log security event
+            // securityService.logPasswordResetRequest(event.userId, event.ipAddress);
+            
+            // Example: Check for suspicious reset patterns
+            // securityService.checkResetPattern(event.userId, event.ipAddress);
+            
+<span class="nc" id="L162">        } catch (Exception e) {</span>
+<span class="nc" id="L163">            LOGGER.error(&quot;Failed to handle password reset requested event&quot;, e);</span>
+<span class="nc" id="L164">        }</span>
+<span class="nc" id="L165">    }</span>
+
+    private void handleEmailVerified(String eventJson) {
+        try {
+<span class="nc" id="L169">            EmailVerifiedEvent event = objectMapper.readValue(eventJson, EmailVerifiedEvent.class);</span>
+            
+<span class="nc" id="L171">            LOGGER.info(&quot;Email verified for user: {}&quot;, event.userEmail);</span>
+            
+            // Example: Send welcome email after verification
+            // emailService.sendWelcomeEmail(event.userEmail, event.username);
+            
+            // Example: Enable full account features
+            // accountService.enableFullFeatures(event.userId);
+            
+            // Example: Update user preferences
+            // preferencesService.enableEmailNotifications(event.userId);
+            
+<span class="nc" id="L182">        } catch (Exception e) {</span>
+<span class="nc" id="L183">            LOGGER.error(&quot;Failed to handle email verified event&quot;, e);</span>
+<span class="nc" id="L184">        }</span>
+<span class="nc" id="L185">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

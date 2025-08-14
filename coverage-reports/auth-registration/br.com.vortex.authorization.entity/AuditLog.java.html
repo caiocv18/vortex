@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuditLog.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.entity</a> &gt; <span class="el_source">AuditLog.java</span></div><h1>AuditLog.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.entity;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;audit_logs&quot;, schema = &quot;auth&quot;)
+<span class="nc" id="L14">public class AuditLog extends PanacheEntityBase {</span>
+
+    @Id
+    @GeneratedValue
+    @Column(name = &quot;id&quot;)
+    public UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;user_id&quot;)
+    public User user;
+
+    @Column(name = &quot;action&quot;, nullable = false)
+    public String action;
+
+    @Column(name = &quot;details&quot;)
+    @JdbcTypeCode(SqlTypes.JSON)
+    public String details;
+
+    @Column(name = &quot;ip_address&quot;)
+    public String ipAddress;
+
+    @Column(name = &quot;user_agent&quot;)
+    public String userAgent;
+
+    @Column(name = &quot;created_at&quot;)
+    public OffsetDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (createdAt == null) {</span>
+<span class="nc" id="L44">            createdAt = OffsetDateTime.now();</span>
+        }
+<span class="nc" id="L46">    }</span>
+
+    public static void log(User user, String action, Map&lt;String, Object&gt; details, String ipAddress, String userAgent) {
+<span class="nc" id="L49">        AuditLog log = new AuditLog();</span>
+<span class="nc" id="L50">        log.user = user;</span>
+<span class="nc" id="L51">        log.action = action;</span>
+        try {
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            if (details != null) {</span>
+<span class="nc" id="L54">                ObjectMapper mapper = new ObjectMapper();</span>
+<span class="nc" id="L55">                log.details = mapper.writeValueAsString(details);</span>
+<span class="nc" id="L56">            } else {</span>
+<span class="nc" id="L57">                log.details = null;</span>
+            }
+<span class="nc" id="L59">        } catch (Exception e) {</span>
+<span class="nc" id="L60">            log.details = &quot;{}&quot;; // fallback to empty JSON object</span>
+<span class="nc" id="L61">        }</span>
+<span class="nc" id="L62">        log.ipAddress = ipAddress;</span>
+<span class="nc" id="L63">        log.userAgent = userAgent;</span>
+<span class="nc" id="L64">        log.persist();</span>
+<span class="nc" id="L65">    }</span>
+
+    public static void log(UUID userId, String action, Map&lt;String, Object&gt; details, String ipAddress, String userAgent) {
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        User user = userId != null ? User.findById(userId) : null;</span>
+<span class="nc" id="L69">        log(user, action, details, ipAddress, userAgent);</span>
+<span class="nc" id="L70">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

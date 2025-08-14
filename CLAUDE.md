@@ -64,10 +64,10 @@ mvn test                      # All tests
 ./scripts/run-auth-registration-tests.sh --unit     # Unit tests only (32 tests)
 ./scripts/run-auth-registration-tests.sh --integration # Integration tests only (10 tests)
 ./scripts/run-auth-registration-tests.sh --verbose  # Verbose output
-./scripts/run-auth-registration-tests.sh --coverage # With coverage report
+./scripts/run-auth-registration-tests.sh --coverage # With JaCoCo coverage report (HTML, XML, CSV)
 ./scripts/run-auth-registration-tests.sh --quick    # Skip slow tests
 ./scripts/run-auth-registration-tests.sh --watch    # Watch mode
-./scripts/run-auth-registration-tests.sh --ci       # CI optimized mode
+./scripts/run-auth-registration-tests.sh --ci       # CI optimized mode (coverage + reports)
 
 # Frontend - Main Application tests
 cd frontend/vortex-application-service
@@ -139,6 +139,8 @@ npm run test:coverage         # Coverage report
   - `security/`: JWT service and password handling
   - `event/`: Event-driven authentication logging
   - `config/`: Messaging and security configuration
+- **Testing**: 42 focused tests for registration flow with JaCoCo coverage
+- **Quality Assurance**: Maven plugin with automated coverage reporting
 
 ### Frontend Architecture
 
@@ -240,9 +242,15 @@ npm run test:coverage         # Coverage report
   - Jakarta Bean Validation tests for DTO validation
 - **E2E Tests**: Playwright covering complete user workflows
 - **API Testing**: Dedicated script `test-queue-endpoint.sh`
+- **Code Coverage**: 
+  - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.11)
+  - Quality gates: 60% line coverage, 50% branch coverage
+  - Reports in HTML, XML, and CSV formats
+  - Located in `coverage-reports/auth-registration/`
 - **Specialized Test Scripts**: 
   - `./scripts/run-auth-registration-tests.sh` - Focused on account creation flow (42 tests)
   - Multiple execution modes: unit, integration, coverage, watch, CI
+  - Automatic JaCoCo integration via `--coverage` and `--ci` flags
 
 ## Key Development Notes
 
@@ -283,3 +291,32 @@ npm run test:coverage         # Coverage report
 5. **Token Exchange**: Auth service returns JWT + refresh token
 6. **Callback**: Redirects back to main app with authentication data
 7. **Session**: Main app stores tokens and allows access to protected routes
+
+### Code Coverage & Quality Assurance
+
+#### JaCoCo Integration
+- **Plugin Version**: jacoco-maven-plugin 0.8.11
+- **Quality Gates**: Minimum 60% line coverage, 50% branch coverage
+- **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
+- **Location**: `coverage-reports/auth-registration/`
+
+#### Coverage Commands
+```bash
+# Generate coverage report via specialized script
+./scripts/run-auth-registration-tests.sh --coverage
+
+# CI mode with coverage and reports  
+./scripts/run-auth-registration-tests.sh --ci
+
+# Manual Maven execution
+cd backend/vortex-authorization-service && mvn test jacoco:report
+
+# View HTML report
+open coverage-reports/auth-registration/index.html
+```
+
+#### Coverage Configuration
+- **Exclusions**: DTOs, main application classes, test utilities
+- **Integration**: Automatic with test execution via Maven lifecycle
+- **CI/CD Ready**: XML format for continuous integration pipelines
+- **Quality Control**: Build fails if coverage thresholds not met
