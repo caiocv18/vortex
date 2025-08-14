@@ -14,7 +14,18 @@ Script especializado para execução de testes do fluxo de criação de conta do
 - **Relatórios automáticos** de cobertura e resultados
 - **Integração CI/CD** com modo otimizado
 
-#### Uso Básico
+### 🔐 run-auth-password-recovery-tests.sh
+Script especializado para execução de testes do fluxo de recuperação de senha do serviço de autorização.
+
+#### Funcionalidades ✅ 100% ESTÁVEIS
+- **56 testes focados** no fluxo de recuperação de senha
+- **4 categorias especializadas**: Service, Resource, Security, Validation
+- **Testes de segurança** abrangentes contra vulnerabilidades
+- **Cobertura completa** de DTOs e validações
+- **Múltiplos modos de execução** com opções flexíveis
+- **Correções implementadas**: Rate limiting, token invalidation, concurrent handling, timing attacks
+
+#### Uso Básico - Registro
 ```bash
 # Executar todos os testes (padrão)
 ./scripts/run-auth-registration-tests.sh
@@ -26,22 +37,39 @@ Script especializado para execução de testes do fluxo de criação de conta do
 ./scripts/run-auth-registration-tests.sh --integration
 ```
 
-#### Opções Avançadas
+#### Uso Básico - Recuperação de Senha
+```bash
+# Executar todos os testes de password recovery (56 testes)
+./scripts/run-auth-password-recovery-tests.sh --all
+
+# Por categoria específica
+./scripts/run-auth-password-recovery-tests.sh --unit        # Service tests (15)
+./scripts/run-auth-password-recovery-tests.sh --integration # Resource tests (15)
+./scripts/run-auth-password-recovery-tests.sh --security    # Security tests (8)
+./scripts/run-auth-password-recovery-tests.sh --validation  # Validation tests (18)
+```
+
+#### Opções Avançadas - Ambos Scripts
 ```bash
 # Modo verboso com detalhes completos
 ./scripts/run-auth-registration-tests.sh --verbose
+./scripts/run-auth-password-recovery-tests.sh --verbose
 
 # Modo rápido (pula testes lentos)
 ./scripts/run-auth-registration-tests.sh --quick
+./scripts/run-auth-password-recovery-tests.sh --quick
 
 # Gerar relatório de cobertura
 ./scripts/run-auth-registration-tests.sh --coverage
+./scripts/run-auth-password-recovery-tests.sh --coverage
 
 # Modo watch (re-executa em mudanças)
 ./scripts/run-auth-registration-tests.sh --watch
+./scripts/run-auth-password-recovery-tests.sh --watch
 
 # Modo CI (coverage + report + formato simplificado)
 ./scripts/run-auth-registration-tests.sh --ci
+./scripts/run-auth-password-recovery-tests.sh --ci
 ```
 
 #### Filtros e Configurações
@@ -57,11 +85,19 @@ Script especializado para execução de testes do fluxo de criação de conta do
 ```
 
 #### Cobertura de Testes
+
+##### Registro de Usuário (42 testes)
 - **SimplePasswordServiceTest**: 24 testes de validação e criptografia
 - **ValidationTest**: 10 testes de validação de DTOs
 - **SimpleAuthServiceTest**: 8 testes de estruturas e TestDataBuilder
 
-**Total**: 42 testes cobrindo validação, criptografia, DTOs e estruturas de entidades.
+##### Recuperação de Senha (56 testes)
+- **PasswordRecoveryServiceTest**: 15 testes de lógica de negócio
+- **PasswordRecoveryResourceTest**: 15 testes de endpoints REST
+- **PasswordRecoverySecurityTest**: 8 testes de segurança e vulnerabilidades
+- **PasswordRecoveryValidationTest**: 18 testes de validação de DTOs
+
+**Total**: 98 testes cobrindo validação, criptografia, DTOs, estruturas de entidades, segurança e fluxos completos.
 
 #### Saída de Exemplo
 ```
@@ -219,6 +255,9 @@ main "$@"
 ```yaml
 - name: Run Auth Registration Tests
   run: ./scripts/run-auth-registration-tests.sh --ci
+
+- name: Run Password Recovery Tests  
+  run: ./scripts/run-auth-password-recovery-tests.sh --ci
   
 - name: Check Ports
   run: ./scripts/check-ports.sh
@@ -232,6 +271,7 @@ main "$@"
 stage('Tests') {
     steps {
         sh './scripts/run-auth-registration-tests.sh --ci'
+        sh './scripts/run-auth-password-recovery-tests.sh --ci'
         sh './scripts/check-ports.sh'
     }
 }
@@ -365,4 +405,4 @@ main "$@"
 
 ---
 
-*Última atualização: Scripts implementados para automação de testes e verificações de infraestrutura.*
+*Última atualização: Scripts implementados para automação de testes - 42 testes de registro e 56 testes de recuperação de senha (100% estáveis).*

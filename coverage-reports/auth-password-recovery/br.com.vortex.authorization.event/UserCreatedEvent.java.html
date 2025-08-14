@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserCreatedEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.event</a> &gt; <span class="el_source">UserCreatedEvent.java</span></div><h1>UserCreatedEvent.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.event;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+public class UserCreatedEvent extends AuthEvent {
+
+    @JsonProperty(&quot;username&quot;)
+    public String username;
+
+    @JsonProperty(&quot;roles&quot;)
+    public Set&lt;String&gt; roles;
+
+    @JsonProperty(&quot;isVerified&quot;)
+    public Boolean isVerified;
+
+    @JsonProperty(&quot;registrationMethod&quot;)
+    public String registrationMethod;
+
+    public UserCreatedEvent() {
+<span class="nc" id="L23">        super();</span>
+<span class="nc" id="L24">        this.eventType = &quot;user.created&quot;;</span>
+<span class="nc" id="L25">    }</span>
+
+    public UserCreatedEvent(UUID userId, String userEmail, String username, Set&lt;String&gt; roles, 
+                           Boolean isVerified, String registrationMethod, String ipAddress, String userAgent) {
+<span class="nc" id="L29">        super(&quot;user.created&quot;, userId, userEmail, ipAddress, userAgent);</span>
+<span class="nc" id="L30">        this.username = username;</span>
+<span class="nc" id="L31">        this.roles = roles;</span>
+<span class="nc" id="L32">        this.isVerified = isVerified;</span>
+<span class="nc" id="L33">        this.registrationMethod = registrationMethod;</span>
+<span class="nc" id="L34">        this.details = Map.of(</span>
+            &quot;registrationMethod&quot;, registrationMethod,
+<span class="nc" id="L36">            &quot;rolesCount&quot;, roles.size(),</span>
+            &quot;isVerified&quot;, isVerified
+        );
+<span class="nc" id="L39">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

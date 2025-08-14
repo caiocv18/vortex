@@ -551,13 +551,25 @@ vortex/
   ```
 
 #### Authorization Service (Quarkus)
-- **Testes Unitários**: Resources e Services
-- **Testes de Integração**: REST Assured com TestContainers
-- **Execução**:
+- **Testes Especializados**: 98 testes focados em fluxos específicos
+- **Registro de Usuário**: 42 testes (validação, criptografia, DTOs)
+- **Recuperação de Senha**: 56 testes (service, security, validation)
+- **Execução via Scripts**:
+  ```bash
+  # Testes de registro (42 testes)
+  ./scripts/run-auth-registration-tests.sh --all
+  ./scripts/run-auth-registration-tests.sh --coverage
+  
+  # Testes de recuperação de senha (56 testes)
+  ./scripts/run-auth-password-recovery-tests.sh --all
+  ./scripts/run-auth-password-recovery-tests.sh --security
+  ```
+- **Execução Maven**:
   ```bash
   cd backend/vortex-authorization-service
   mvn test
-  mvn test -Dtest=AuthResourceTest  # Teste específico
+  mvn test -Dtest="*PasswordRecovery*"  # Apenas password recovery
+  mvn test -Dtest=AuthResourceTest      # Teste específico
   ```
 
 ### Frontend Applications

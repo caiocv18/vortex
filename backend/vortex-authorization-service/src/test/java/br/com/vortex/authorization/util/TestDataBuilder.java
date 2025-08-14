@@ -61,7 +61,7 @@ public class TestDataBuilder {
     public static User createTestUser() {
         userCounter++;
         User user = new User();
-        user.id = UUID.randomUUID();
+        // Don't set ID - let Hibernate assign it
         user.email = "testuser" + userCounter + "@test.com";
         user.username = "testuser" + userCounter;
         user.isActive = true;
@@ -85,7 +85,7 @@ public class TestDataBuilder {
     
     public static Credential createCredential(User user, String passwordHash) {
         Credential credential = new Credential();
-        credential.id = UUID.randomUUID();
+        // Don't set ID - let Hibernate assign it
         credential.user = user;
         credential.passwordHash = passwordHash;
         credential.createdAt = OffsetDateTime.now();
@@ -95,7 +95,7 @@ public class TestDataBuilder {
     
     public static Role createUserRole() {
         Role role = new Role();
-        role.id = UUID.randomUUID();
+        // Don't set ID - let Hibernate assign it
         role.name = "USER";
         role.description = "Default user role";
         role.createdAt = OffsetDateTime.now();
@@ -104,7 +104,7 @@ public class TestDataBuilder {
     
     public static Role createAdminRole() {
         Role role = new Role();
-        role.id = UUID.randomUUID();
+        // Don't set ID - let Hibernate assign it
         role.name = "ADMIN";
         role.description = "Administrator role";
         role.createdAt = OffsetDateTime.now();
@@ -113,7 +113,7 @@ public class TestDataBuilder {
     
     public static RefreshToken createRefreshToken(User user, String token) {
         RefreshToken refreshToken = new RefreshToken();
-        refreshToken.id = UUID.randomUUID();
+        // Don't set ID - let Hibernate assign it
         refreshToken.user = user;
         refreshToken.token = token;
         refreshToken.expiresAt = OffsetDateTime.now().plusDays(7);
@@ -129,11 +129,12 @@ public class TestDataBuilder {
     
     public static PasswordResetToken createPasswordResetToken(User user, String token) {
         PasswordResetToken resetToken = new PasswordResetToken();
-        resetToken.id = UUID.randomUUID();
+        // Don't set ID - let Hibernate assign it
         resetToken.user = user;
         resetToken.token = token;
         resetToken.expiresAt = OffsetDateTime.now().plusHours(1);
         resetToken.createdAt = OffsetDateTime.now();
+        resetToken.used = false;
         return resetToken;
     }
     

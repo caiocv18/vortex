@@ -271,6 +271,11 @@ public class AuthService {
 
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request, String ipAddress, String userAgent) {
+        // Check rate limiting first
+        if (!rateLimitService.isAllowed(request.email, ipAddress)) {
+            throw new BadRequestException("Too many failed login attempts. Please try again later.");
+        }
+
         User user = User.findByEmail(request.email);
         if (user == null || !user.isActive) {
             // Don't reveal if email exists
@@ -342,8 +347,9 @@ public class AuthService {
         credential.passwordHash = passwordService.hashPassword(request.password);
         credential.persist();
 
-        // Mark token as used
+        // Mark token as used and invalidate all other reset tokens
         resetToken.markAsUsed();
+        PasswordResetToken.expireAllUserTokens(user.id);
 
         // Revoke all refresh tokens
         RefreshToken.revokeAllUserTokens(user.id);

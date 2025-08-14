@@ -98,8 +98,14 @@ public class AuthResource {
         String ipAddress = getClientIpAddress();
         String userAgent = getUserAgent();
         
-        authService.forgotPassword(request, ipAddress, userAgent);
-        return Response.ok(ApiResponse.success("If the email exists, a password reset link has been sent")).build();
+        try {
+            authService.forgotPassword(request, ipAddress, userAgent);
+            return Response.ok(ApiResponse.success("If the email exists, a password reset link has been sent")).build();
+        } catch (BadRequestException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(ApiResponse.error(e.getMessage()))
+                .build();
+        }
     }
 
     @POST

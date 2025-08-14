@@ -170,8 +170,8 @@ class SimpleAuthServiceTest {
         Credential credential = TestDataBuilder.createCredential(user, "hash");
         RefreshToken refreshToken = TestDataBuilder.createRefreshToken(user, "token");
         
-        // Test User entity structure
-        assertNotNull(user.id);
+        // Test User entity structure (ID is null before persistence)
+        assertNull(user.id); // ID is only assigned when persisted by Hibernate
         assertNotNull(user.email);
         assertNotNull(user.username);
         assertNotNull(user.createdAt);
@@ -179,21 +179,21 @@ class SimpleAuthServiceTest {
         assertTrue(user.isActive);
         assertTrue(user.isVerified);
         
-        // Test Role entity structure
-        assertNotNull(userRole.id);
+        // Test Role entity structure (ID is null before persistence)
+        assertNull(userRole.id); // ID is only assigned when persisted by Hibernate
         assertEquals("USER", userRole.name);
         assertEquals("Default user role", userRole.description);
         assertNotNull(userRole.createdAt);
         
-        // Test Credential entity structure
-        assertNotNull(credential.id);
+        // Test Credential entity structure (ID is null before persistence)
+        assertNull(credential.id); // ID is only assigned when persisted by Hibernate
         assertEquals(user, credential.user);
         assertEquals("hash", credential.passwordHash);
         assertNotNull(credential.createdAt);
         assertNotNull(credential.updatedAt);
         
-        // Test RefreshToken entity structure
-        assertNotNull(refreshToken.id);
+        // Test RefreshToken entity structure (ID is null before persistence)
+        assertNull(refreshToken.id); // ID is only assigned when persisted by Hibernate
         assertEquals(user, refreshToken.user);
         assertEquals("token", refreshToken.token);
         assertNotNull(refreshToken.expiresAt);

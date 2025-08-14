@@ -241,14 +241,24 @@ Obrigatório:
 ## 🧪 Testes
 
 ### Estratégia Implementada
-- **42 testes** focados no fluxo de criação de conta
+
+#### Testes de Registro de Usuário (42 testes)
 - **3 categorias**: Unitários, Integração e Validação
 - **Environment isolado** sem dependências externas
 - **BCrypt testing** com configuração de 12 rounds
 - **JaCoCo Coverage** com relatórios HTML, XML e CSV automáticos
 - **Quality Gates** com cobertura mínima configurada
 
+#### Testes de Recuperação de Senha (56 testes) ✅ 100% ESTÁVEIS
+- **4 categorias especializadas**: Service, Resource, Security, Validation
+- **Cobertura completa** do fluxo de password recovery
+- **Testes de segurança** focados em vulnerabilidades e ataques
+- **Validação abrangente** de DTOs e políticas de senha
+- **Correções implementadas**: Rate limiting, token invalidation, concurrent handling, timing attacks
+
 ### Execução dos Testes
+
+#### Testes de Registro
 ```bash
 # Script especializado (recomendado)
 ./scripts/run-auth-registration-tests.sh --all
@@ -264,18 +274,57 @@ Obrigatório:
 
 # Modo watch para desenvolvimento
 ./scripts/run-auth-registration-tests.sh --watch
+```
 
-# Maven tradicional
+#### Testes de Recuperação de Senha
+```bash
+# Todos os testes de password recovery (56 testes)
+./scripts/run-auth-password-recovery-tests.sh --all
+
+# Por categoria específica
+./scripts/run-auth-password-recovery-tests.sh --unit        # Service tests (15)
+./scripts/run-auth-password-recovery-tests.sh --integration # Resource tests (15)
+./scripts/run-auth-password-recovery-tests.sh --security    # Security tests (8)
+./scripts/run-auth-password-recovery-tests.sh --validation  # Validation tests (18)
+
+# Com cobertura de código JaCoCo
+./scripts/run-auth-password-recovery-tests.sh --coverage
+
+# Modo CI completo (coverage + reports)
+./scripts/run-auth-password-recovery-tests.sh --ci
+
+# Modo watch para desenvolvimento
+./scripts/run-auth-password-recovery-tests.sh --watch
+
+# Execução rápida (skip tests lentos)
+./scripts/run-auth-password-recovery-tests.sh --quick
+```
+
+#### Maven Tradicional
+```bash
+# Todos os testes
 mvn test
 
-# Maven com cobertura manual
+# Apenas testes específicos
+mvn test -Dtest="*PasswordRecovery*"
+mvn test -Dtest="SimplePasswordServiceTest"
+
+# Com cobertura manual
 mvn test jacoco:report
 ```
 
 ### Cobertura de Testes
+
+#### Registro de Usuário
 - **SimplePasswordServiceTest**: 24 testes (validação e criptografia)
 - **ValidationTest**: 10 testes (DTOs com Bean Validation)
 - **SimpleAuthServiceTest**: 8 testes (estruturas e TestDataBuilder)
+
+#### Recuperação de Senha
+- **PasswordRecoveryServiceTest**: 15 testes (lógica de negócio)
+- **PasswordRecoveryResourceTest**: 15 testes (endpoints REST)
+- **PasswordRecoverySecurityTest**: 8 testes (segurança e vulnerabilidades)
+- **PasswordRecoveryValidationTest**: 18 testes (validação de DTOs)
 
 ### Relatórios de Cobertura
 - **HTML Visual**: `coverage-reports/auth-registration/index.html`
@@ -473,6 +522,9 @@ mvn quarkus:dev
 
 ### Melhorias Técnicas
 - [x] JaCoCo plugin para coverage reports (✅ Implementado)
+- [x] Comprehensive password recovery test suite (✅ 56 testes estáveis)
+- [x] Security vulnerability testing (✅ Rate limiting, timing attacks, token reuse)
+- [x] Concurrent operation testing (✅ Thread-safe token handling)
 - [ ] Performance benchmarks com JMH
 - [ ] Load testing com Gatling
 - [ ] Security scanning com OWASP ZAP
@@ -551,4 +603,4 @@ Este projeto faz parte do sistema Vortex - TCC PUCRS.
 
 ---
 
-*Última atualização: Implementação completa do serviço de autorização com 42 testes focados no fluxo de criação de conta.*
+*Última atualização: Implementação completa do serviço de autorização com 42 testes de criação de conta e 56 testes de recuperação de senha - todos os testes passando com 100% de estabilidade.*

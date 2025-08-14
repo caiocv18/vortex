@@ -70,6 +70,7 @@ public class EventPublisher {
 
 @ApplicationScoped
 @IfBuildProfile("test")
+@jakarta.enterprise.inject.Alternative
 class MockEventPublisher extends EventPublisher {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(MockEventPublisher.class);

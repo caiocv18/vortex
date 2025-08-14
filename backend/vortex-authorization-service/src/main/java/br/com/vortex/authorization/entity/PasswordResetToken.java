@@ -2,7 +2,9 @@ package br.com.vortex.authorization.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -49,8 +51,13 @@ public class PasswordResetToken extends PanacheEntityBase {
                    token, OffsetDateTime.now()).firstResult();
     }
 
+    @Transactional
     public static void expireAllUserTokens(UUID userId) {
-        update("used = true WHERE user.id = ?1 AND used = false", userId);
+        List<PasswordResetToken> tokens = list("user.id = ?1 AND used = false", userId);
+        for (PasswordResetToken token : tokens) {
+            token.used = true;
+            token.persist();
+        }
     }
 
     public boolean isValid() {
