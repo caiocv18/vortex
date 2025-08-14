@@ -262,7 +262,10 @@ npm run test:coverage         # Coverage report
 ### Database Configuration
 - **Development**: H2 in-memory database for rapid iteration
 - **Production**: Oracle with persistent storage and advanced features
-- **Migrations**: Handled via `import.sql` files
+- **Migrations**: 
+  - Handled via Flyway for authorization service
+  - `import.sql` files for main application
+  - Migration files located in `src/main/resources/db/migration/`
 
 ### Type Safety
 - **Backend**: 
@@ -320,3 +323,54 @@ open coverage-reports/auth-registration/index.html
 - **Integration**: Automatic with test execution via Maven lifecycle
 - **CI/CD Ready**: XML format for continuous integration pipelines
 - **Quality Control**: Build fails if coverage thresholds not met
+
+## Troubleshooting
+
+### Common Issues
+
+#### Flyway Migration Problems
+**Problema**: `FlywayValidateException: Detected applied migration not resolved locally`
+
+**Causa**: Uma migração foi aplicada ao banco anteriormente mas o arquivo de migração foi removido ou modificado.
+
+**Soluções**:
+1. **Para desenvolvimento**: Desabilitar validação do Flyway
+   ```properties
+   # Em application.properties
+   %dev.quarkus.flyway.validate-on-migrate=false
+   ```
+
+2. **Para produção**: Executar Flyway repair ou recriar banco
+   ```bash
+   # Recrear banco PostgreSQL (desenvolvimento)
+   docker stop vortex-auth-db && docker rm vortex-auth-db
+   cd infra/docker && docker-compose -f docker-compose.auth.yml up -d auth-db
+   ```
+
+3. **Criar migração faltante**: Se uma migração específica está faltando
+   ```sql
+   -- Exemplo: V4__Fix_missing_migration_history.sql
+   -- No changes needed - this is just to satisfy Flyway validation
+   SELECT 1;
+   ```
+
+#### Authorization Service Startup Issues
+**Sintomas**: Serviço não inicia, erro de conexão com banco
+
+**Verificações**:
+1. PostgreSQL está rodando: `docker ps | grep vortex-auth-db`
+2. Banco está acessível: `docker exec vortex-auth-db pg_isready -U vortex_auth`
+3. Flyway migrations aplicadas: Verificar logs para erros de migração
+4. Porta 8081 livre: `lsof -i :8081`
+
+**Comandos úteis**:
+```bash
+# Verificar health do serviço
+curl http://localhost:8081/q/health
+
+# Logs do banco PostgreSQL
+docker logs vortex-auth-db -f
+
+# Iniciar apenas serviço de autorização
+cd backend/vortex-authorization-service && mvn quarkus:dev
+```
