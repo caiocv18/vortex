@@ -1,0 +1,25 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+Vortex Authorization Service,br.com.vortex.authorization.entity,PasswordResetToken,72,7,10,0,14,3,11,1,6,1
+Vortex Authorization Service,br.com.vortex.authorization.entity,RefreshToken,72,7,10,0,14,3,11,1,6,1
+Vortex Authorization Service,br.com.vortex.authorization.entity,AuditLog,64,0,6,0,22,0,7,0,4,0
+Vortex Authorization Service,br.com.vortex.authorization.entity,Credential,28,3,4,0,8,1,5,1,3,1
+Vortex Authorization Service,br.com.vortex.authorization.entity,User,97,11,16,0,17,5,16,1,8,1
+Vortex Authorization Service,br.com.vortex.authorization.entity,Role,24,3,2,0,6,1,5,1,4,1
+Vortex Authorization Service,br.com.vortex.authorization.entity,LoginAttempt,81,0,4,0,17,0,8,0,6,0
+Vortex Authorization Service,br.com.vortex.authorization.resource,AuthResource,207,0,8,0,54,0,14,0,10,0
+Vortex Authorization Service,br.com.vortex.authorization.service,RateLimitService,64,0,6,0,10,0,7,0,4,0
+Vortex Authorization Service,br.com.vortex.authorization.service,EventPublisher,149,0,4,0,26,0,6,0,4,0
+Vortex Authorization Service,br.com.vortex.authorization.service,AuthEventConsumer,207,0,7,0,62,0,15,0,9,0
+Vortex Authorization Service,br.com.vortex.authorization.service,MockEventPublisher,23,0,0,0,6,0,4,0,4,0
+Vortex Authorization Service,br.com.vortex.authorization.service,AuthService,890,0,56,0,193,0,43,0,15,0
+Vortex Authorization Service,br.com.vortex.authorization.security,PasswordService,0,161,8,24,0,33,8,15,0,7
+Vortex Authorization Service,br.com.vortex.authorization.security,JwtService,88,0,2,0,22,0,7,0,6,0
+Vortex Authorization Service,br.com.vortex.authorization.config,MessagingConfig,23,0,0,0,5,0,3,0,3,0
+Vortex Authorization Service,br.com.vortex.authorization.config,MessagingConfig.MessagingProperties,9,0,0,0,4,0,1,0,1,0
+Vortex Authorization Service,br.com.vortex.authorization.event,PasswordChangedEvent,38,0,4,0,11,0,4,0,2,0
+Vortex Authorization Service,br.com.vortex.authorization.event,UserLoggedInEvent,44,0,2,0,13,0,3,0,2,0
+Vortex Authorization Service,br.com.vortex.authorization.event,UserCreatedEvent,37,0,0,0,11,0,2,0,2,0
+Vortex Authorization Service,br.com.vortex.authorization.event,EmailVerifiedEvent,39,0,4,0,11,0,4,0,2,0
+Vortex Authorization Service,br.com.vortex.authorization.event,UserLoggedOutEvent,38,0,4,0,11,0,4,0,2,0
+Vortex Authorization Service,br.com.vortex.authorization.event,PasswordResetRequestedEvent,41,0,2,0,13,0,3,0,2,0
+Vortex Authorization Service,br.com.vortex.authorization.event,AuthEvent,30,0,0,0,12,0,2,0,2,0

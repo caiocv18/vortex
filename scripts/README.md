@@ -89,7 +89,16 @@ Test Execution Complete
 
 #### Localização dos Relatórios
 - **Testes**: `test-reports/auth-registration/`
-- **Cobertura**: `coverage-reports/auth-registration/`
+- **Cobertura JaCoCo**: `coverage-reports/auth-registration/`
+  - **HTML**: `index.html` (navegável no browser)
+  - **XML**: `jacoco.xml` (integração CI/CD)
+  - **CSV**: `jacoco.csv` (análise de dados)
+
+#### Configuração JaCoCo
+- **Plugin**: jacoco-maven-plugin 0.8.11
+- **Quality Gates**: Mínimo 60% linhas, 50% branches
+- **Exclusões**: DTOs, classes principais, test utilities
+- **Integração**: Automática com o script via `--coverage`
 
 ---
 

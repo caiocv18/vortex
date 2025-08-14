@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Vortex Authorization Service</a> &gt; <a href="index.source.html" class="el_package">br.com.vortex.authorization.service</a> &gt; <span class="el_source">AuthService.java</span></div><h1>AuthService.java</h1><pre class="source lang-java linenums">package br.com.vortex.authorization.service;
+
+import br.com.vortex.authorization.dto.*;
+import br.com.vortex.authorization.entity.*;
+import br.com.vortex.authorization.event.*;
+import br.com.vortex.authorization.security.JwtService;
+import br.com.vortex.authorization.security.PasswordService;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.NotFoundException;
+
+import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@ApplicationScoped
+<span class="nc" id="L26">public class AuthService {</span>
+
+<span class="nc" id="L28">    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);</span>
+
+    @Inject
+    JwtService jwtService;
+
+    @Inject
+    PasswordService passwordService;
+
+    @Inject
+    RateLimitService rateLimitService;
+
+    @Inject
+    EventPublisher eventPublisher;
+
+    @Inject
+    EntityManager entityManager;
+
+    @Transactional
+    public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
+        // Check rate limiting
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (!rateLimitService.isAllowed(request.identifier, ipAddress)) {</span>
+<span class="nc" id="L49">            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);</span>
+<span class="nc" id="L50">            throw new BadRequestException(&quot;Too many failed login attempts. Please try again later.&quot;);</span>
+        }
+
+        // Find user
+<span class="nc" id="L54">        User user = User.findByEmailOrUsername(request.identifier);</span>
+<span class="nc bnc" id="L55" title="All 4 branches missed.">        if (user == null || !user.isActiveAndVerified()) {</span>
+<span class="nc" id="L56">            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);</span>
+<span class="nc" id="L57">            throw new NotAuthorizedException(&quot;Invalid credentials&quot;);</span>
+        }
+
+        // Verify password
+<span class="nc" id="L61">        Credential credential = Credential.findByUserId(user.id);</span>
+<span class="nc bnc" id="L62" title="All 4 branches missed.">        if (credential == null || !passwordService.verifyPassword(request.password, credential.passwordHash)) {</span>
+<span class="nc" id="L63">            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);</span>
+<span class="nc" id="L64">            throw new NotAuthorizedException(&quot;Invalid credentials&quot;);</span>
+        }
+
+        // Record successful login
+<span class="nc" id="L68">        LoginAttempt.recordAttempt(request.identifier, ipAddress, true);</span>
+        
+        // Update last login
+<span class="nc" id="L71">        user.lastLogin = OffsetDateTime.now();</span>
+<span class="nc" id="L72">        user.persist();</span>
+
+        // Generate tokens
+<span class="nc" id="L75">        String accessToken = jwtService.generateAccessToken(user);</span>
+<span class="nc" id="L76">        String refreshTokenValue = jwtService.generateRefreshToken(user);</span>
+
+        // Store refresh token
+<span class="nc" id="L79">        RefreshToken refreshToken = new RefreshToken();</span>
+<span class="nc" id="L80">        refreshToken.user = user;</span>
+<span class="nc" id="L81">        refreshToken.token = refreshTokenValue;</span>
+<span class="nc" id="L82">        refreshToken.expiresAt = OffsetDateTime.now().plusDays(7); // TODO: Make configurable</span>
+<span class="nc" id="L83">        refreshToken.persist();</span>
+
+        // Create response
+<span class="nc" id="L86">        LoginResponse response = new LoginResponse();</span>
+<span class="nc" id="L87">        response.accessToken = accessToken;</span>
+<span class="nc" id="L88">        response.refreshToken = refreshTokenValue;</span>
+<span class="nc" id="L89">        response.expiresIn = jwtService.getAccessTokenExpirationSeconds();</span>
+<span class="nc" id="L90">        response.user = mapToUserResponse(user);</span>
+
+        // Log audit event
+<span class="nc" id="L93">        AuditLog.log(user, &quot;LOGIN_SUCCESS&quot;, </span>
+<span class="nc" id="L94">            Map.of(&quot;method&quot;, &quot;password&quot;, &quot;ipAddress&quot;, ipAddress), </span>
+            ipAddress, userAgent);
+
+        // Publish login event
+        try {
+<span class="nc" id="L99">            UserLoggedInEvent loginEvent = new UserLoggedInEvent(</span>
+                user.id,
+                user.email,
+                user.username,
+<span class="nc" id="L103">                user.roles.stream().map(role -&gt; role.name).collect(Collectors.toSet()),</span>
+                &quot;password&quot;,
+                user.lastLogin,
+                refreshTokenValue, // Using refresh token as session ID
+                ipAddress,
+                userAgent
+            );
+<span class="nc" id="L110">            eventPublisher.publishEvent(loginEvent);</span>
+<span class="nc" id="L111">        } catch (Exception e) {</span>
+            // Don't fail login if event publishing fails
+<span class="nc" id="L113">            LOGGER.warn(&quot;Failed to publish login event for user: {}&quot;, user.email, e);</span>
+<span class="nc" id="L114">        }</span>
+
+<span class="nc" id="L116">        return response;</span>
+    }
+
+    @Transactional
+    public LoginResponse register(RegisterRequest request, String ipAddress, String userAgent) {
+        // Validate passwords match
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (!request.password.equals(request.confirmPassword)) {</span>
+<span class="nc" id="L123">            throw new BadRequestException(&quot;Passwords do not match&quot;);</span>
+        }
+
+        // Validate password policy
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (!passwordService.isValidPassword(request.password)) {</span>
+<span class="nc" id="L128">            throw new BadRequestException(&quot;Password does not meet requirements: &quot; + </span>
+<span class="nc" id="L129">                passwordService.getPasswordRequirements());</span>
+        }
+
+        // Check if user already exists
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (User.findByEmail(request.email) != null) {</span>
+<span class="nc" id="L134">            throw new BadRequestException(&quot;Email already registered&quot;);</span>
+        }
+
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (User.findByUsername(request.username) != null) {</span>
+<span class="nc" id="L138">            throw new BadRequestException(&quot;Username already taken&quot;);</span>
+        }
+
+        // Create user
+<span class="nc" id="L142">        User user = new User();</span>
+<span class="nc" id="L143">        user.email = request.email;</span>
+<span class="nc" id="L144">        user.username = request.username;</span>
+<span class="nc" id="L145">        user.isActive = true;</span>
+<span class="nc" id="L146">        user.isVerified = false; // Require email verification</span>
+<span class="nc" id="L147">        user.persist();</span>
+
+        // Create credential
+<span class="nc" id="L150">        Credential credential = new Credential();</span>
+<span class="nc" id="L151">        credential.user = user;</span>
+<span class="nc" id="L152">        credential.passwordHash = passwordService.hashPassword(request.password);</span>
+<span class="nc" id="L153">        credential.persist();</span>
+
+        // Assign default USER role
+<span class="nc" id="L156">        Role userRole = Role.findUserRole();</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        if (userRole != null) {</span>
+<span class="nc" id="L158">            user.roles = Set.of(userRole);</span>
+        } else {
+            // Initialize empty roles set if no default role found
+<span class="nc" id="L161">            user.roles = Set.of();</span>
+        }
+        
+        // Persist user with roles
+<span class="nc" id="L165">        user.persist();</span>
+
+        // Log audit event
+<span class="nc" id="L168">        AuditLog.log(user, &quot;USER_CREATED&quot;, </span>
+<span class="nc" id="L169">            Map.of(&quot;method&quot;, &quot;registration&quot;, &quot;ipAddress&quot;, ipAddress), </span>
+            ipAddress, userAgent);
+
+        // Publish user created event
+        try {
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            Set&lt;String&gt; roleNames = user.roles != null ? </span>
+<span class="nc" id="L175">                user.roles.stream().map(role -&gt; role.name).collect(Collectors.toSet()) : </span>
+<span class="nc" id="L176">                Set.of();</span>
+<span class="nc" id="L177">            UserCreatedEvent userCreatedEvent = new UserCreatedEvent(</span>
+                user.id,
+                user.email,
+                user.username,
+                roleNames,
+                user.isVerified,
+                &quot;registration&quot;,
+                ipAddress,
+                userAgent
+            );
+<span class="nc" id="L187">            eventPublisher.publishEvent(userCreatedEvent);</span>
+<span class="nc" id="L188">        } catch (Exception e) {</span>
+<span class="nc" id="L189">            LOGGER.warn(&quot;Failed to publish user created event for user: {}&quot;, user.email, e);</span>
+<span class="nc" id="L190">        }</span>
+
+        // For now, auto-verify user (in production, send verification email)
+<span class="nc" id="L193">        user.isVerified = true;</span>
+<span class="nc" id="L194">        user.persist();</span>
+
+        // Generate tokens
+<span class="nc" id="L197">        String accessToken = jwtService.generateAccessToken(user);</span>
+<span class="nc" id="L198">        String refreshTokenValue = jwtService.generateRefreshToken(user);</span>
+
+        // Store refresh token
+<span class="nc" id="L201">        RefreshToken refreshToken = new RefreshToken();</span>
+<span class="nc" id="L202">        refreshToken.user = user;</span>
+<span class="nc" id="L203">        refreshToken.token = refreshTokenValue;</span>
+<span class="nc" id="L204">        refreshToken.expiresAt = OffsetDateTime.now().plusDays(7);</span>
+<span class="nc" id="L205">        refreshToken.persist();</span>
+
+        // Create response
+<span class="nc" id="L208">        LoginResponse response = new LoginResponse();</span>
+<span class="nc" id="L209">        response.accessToken = accessToken;</span>
+<span class="nc" id="L210">        response.refreshToken = refreshTokenValue;</span>
+<span class="nc" id="L211">        response.expiresIn = jwtService.getAccessTokenExpirationSeconds();</span>
+<span class="nc" id="L212">        response.user = mapToUserResponse(user);</span>
+
+<span class="nc" id="L214">        return response;</span>
+    }
+
+    @Transactional
+    public LoginResponse refreshToken(RefreshTokenRequest request) {
+<span class="nc" id="L219">        RefreshToken refreshToken = RefreshToken.findValidToken(request.refreshToken);</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        if (refreshToken == null) {</span>
+<span class="nc" id="L221">            throw new NotAuthorizedException(&quot;Invalid or expired refresh token&quot;);</span>
+        }
+
+<span class="nc" id="L224">        User user = refreshToken.user;</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        if (!user.isActiveAndVerified()) {</span>
+<span class="nc" id="L226">            throw new NotAuthorizedException(&quot;User account is not active&quot;);</span>
+        }
+
+        // Generate new access token
+<span class="nc" id="L230">        String accessToken = jwtService.generateAccessToken(user);</span>
+
+        // Create response
+<span class="nc" id="L233">        LoginResponse response = new LoginResponse();</span>
+<span class="nc" id="L234">        response.accessToken = accessToken;</span>
+<span class="nc" id="L235">        response.refreshToken = request.refreshToken; // Keep same refresh token</span>
+<span class="nc" id="L236">        response.expiresIn = jwtService.getAccessTokenExpirationSeconds();</span>
+<span class="nc" id="L237">        response.user = mapToUserResponse(user);</span>
+
+<span class="nc" id="L239">        return response;</span>
+    }
+
+    @Transactional
+    public void logout(String refreshTokenValue, String ipAddress, String userAgent) {
+<span class="nc" id="L244">        RefreshToken refreshToken = RefreshToken.findByToken(refreshTokenValue);</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">        if (refreshToken != null) {</span>
+<span class="nc" id="L246">            User user = refreshToken.user;</span>
+<span class="nc" id="L247">            refreshToken.revoke();</span>
+            
+            // Log audit event
+<span class="nc" id="L250">            AuditLog.log(user, &quot;LOGOUT&quot;, </span>
+<span class="nc" id="L251">                Map.of(&quot;ipAddress&quot;, ipAddress), </span>
+                ipAddress, userAgent);
+
+            // Publish logout event
+            try {
+<span class="nc" id="L256">                UserLoggedOutEvent logoutEvent = new UserLoggedOutEvent(</span>
+                    user.id,
+                    user.email,
+                    user.username,
+                    refreshTokenValue,
+                    &quot;user_initiated&quot;,
+                    ipAddress,
+                    userAgent
+                );
+<span class="nc" id="L265">                eventPublisher.publishEvent(logoutEvent);</span>
+<span class="nc" id="L266">            } catch (Exception e) {</span>
+<span class="nc" id="L267">                LOGGER.warn(&quot;Failed to publish logout event for user: {}&quot;, user.email, e);</span>
+<span class="nc" id="L268">            }</span>
+        }
+<span class="nc" id="L270">    }</span>
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request, String ipAddress, String userAgent) {
+<span class="nc" id="L274">        User user = User.findByEmail(request.email);</span>
+<span class="nc bnc" id="L275" title="All 4 branches missed.">        if (user == null || !user.isActive) {</span>
+            // Don't reveal if email exists
+<span class="nc" id="L277">            return;</span>
+        }
+
+        // Expire existing tokens
+<span class="nc" id="L281">        PasswordResetToken.expireAllUserTokens(user.id);</span>
+
+        // Create new reset token
+<span class="nc" id="L284">        PasswordResetToken resetToken = new PasswordResetToken();</span>
+<span class="nc" id="L285">        resetToken.user = user;</span>
+<span class="nc" id="L286">        resetToken.token = passwordService.generateSecureToken(32);</span>
+<span class="nc" id="L287">        resetToken.expiresAt = OffsetDateTime.now().plusHours(1);</span>
+<span class="nc" id="L288">        resetToken.persist();</span>
+
+        // Log audit event
+<span class="nc" id="L291">        AuditLog.log(user, &quot;PASSWORD_RESET_REQUESTED&quot;, </span>
+<span class="nc" id="L292">            Map.of(&quot;ipAddress&quot;, ipAddress), </span>
+            ipAddress, userAgent);
+
+        // Publish password reset requested event
+        try {
+<span class="nc" id="L297">            PasswordResetRequestedEvent resetRequestedEvent = new PasswordResetRequestedEvent(</span>
+                user.id,
+                user.email,
+                user.username,
+                resetToken.id,
+                resetToken.expiresAt,
+                &quot;email&quot;,
+                ipAddress,
+                userAgent
+            );
+<span class="nc" id="L307">            eventPublisher.publishEvent(resetRequestedEvent);</span>
+<span class="nc" id="L308">        } catch (Exception e) {</span>
+<span class="nc" id="L309">            LOGGER.warn(&quot;Failed to publish password reset requested event for user: {}&quot;, user.email, e);</span>
+<span class="nc" id="L310">        }</span>
+
+        // TODO: Send email with reset link
+        // emailService.sendPasswordResetEmail(user.email, resetToken.token);
+<span class="nc" id="L314">    }</span>
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request, String ipAddress, String userAgent) {
+        // Validate passwords match
+<span class="nc bnc" id="L319" title="All 2 branches missed.">        if (!request.password.equals(request.confirmPassword)) {</span>
+<span class="nc" id="L320">            throw new BadRequestException(&quot;Passwords do not match&quot;);</span>
+        }
+
+        // Validate password policy
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        if (!passwordService.isValidPassword(request.password)) {</span>
+<span class="nc" id="L325">            throw new BadRequestException(&quot;Password does not meet requirements: &quot; + </span>
+<span class="nc" id="L326">                passwordService.getPasswordRequirements());</span>
+        }
+
+        // Find valid token
+<span class="nc" id="L330">        PasswordResetToken resetToken = PasswordResetToken.findValidToken(request.token);</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        if (resetToken == null) {</span>
+<span class="nc" id="L332">            throw new BadRequestException(&quot;Invalid or expired reset token&quot;);</span>
+        }
+
+<span class="nc" id="L335">        User user = resetToken.user;</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        if (!user.isActive) {</span>
+<span class="nc" id="L337">            throw new BadRequestException(&quot;User account is not active&quot;);</span>
+        }
+
+        // Update password
+<span class="nc" id="L341">        Credential credential = Credential.findByUserId(user.id);</span>
+<span class="nc" id="L342">        credential.passwordHash = passwordService.hashPassword(request.password);</span>
+<span class="nc" id="L343">        credential.persist();</span>
+
+        // Mark token as used
+<span class="nc" id="L346">        resetToken.markAsUsed();</span>
+
+        // Revoke all refresh tokens
+<span class="nc" id="L349">        RefreshToken.revokeAllUserTokens(user.id);</span>
+
+        // Log audit event
+<span class="nc" id="L352">        AuditLog.log(user, &quot;PASSWORD_RESET&quot;, </span>
+<span class="nc" id="L353">            Map.of(&quot;ipAddress&quot;, ipAddress), </span>
+            ipAddress, userAgent);
+
+        // Publish password changed event
+        try {
+<span class="nc" id="L358">            PasswordChangedEvent passwordChangedEvent = new PasswordChangedEvent(</span>
+                user.id,
+                user.email,
+                user.username,
+                &quot;password_reset&quot;,
+                &quot;reset_token&quot;,
+                ipAddress,
+                userAgent
+            );
+<span class="nc" id="L367">            eventPublisher.publishEvent(passwordChangedEvent);</span>
+<span class="nc" id="L368">        } catch (Exception e) {</span>
+<span class="nc" id="L369">            LOGGER.warn(&quot;Failed to publish password changed event for user: {}&quot;, user.email, e);</span>
+<span class="nc" id="L370">        }</span>
+<span class="nc" id="L371">    }</span>
+
+    public ValidateTokenResponse validateToken(ValidateTokenRequest request) {
+        try {
+            // Parse JWT without verifying signature first to get claims
+<span class="nc" id="L376">            String[] tokenParts = request.getToken().split(&quot;\\.&quot;);</span>
+<span class="nc bnc" id="L377" title="All 2 branches missed.">            if (tokenParts.length != 3) {</span>
+<span class="nc" id="L378">                return new ValidateTokenResponse(false, null, null, null, null);</span>
+            }
+
+            // Decode payload
+<span class="nc" id="L382">            String payload = new String(java.util.Base64.getUrlDecoder().decode(tokenParts[1]));</span>
+            
+            // Parse JSON claims manually (simple approach)
+<span class="nc" id="L385">            Map&lt;String, Object&gt; claims = parseJsonClaims(payload);</span>
+            
+<span class="nc" id="L387">            String subject = (String) claims.get(&quot;sub&quot;);</span>
+<span class="nc" id="L388">            String email = (String) claims.get(&quot;email&quot;);</span>
+<span class="nc" id="L389">            String username = (String) claims.get(&quot;username&quot;);</span>
+            
+<span class="nc bnc" id="L391" title="All 4 branches missed.">            if (subject == null || email == null) {</span>
+<span class="nc" id="L392">                return new ValidateTokenResponse(false, null, null, null, null);</span>
+            }
+
+            // Check if user exists and is active
+<span class="nc" id="L396">            User user = User.findById(UUID.fromString(subject));</span>
+<span class="nc bnc" id="L397" title="All 4 branches missed.">            if (user == null || !user.isActive) {</span>
+<span class="nc" id="L398">                return new ValidateTokenResponse(false, null, null, null, null);</span>
+            }
+
+            // Get user roles
+<span class="nc bnc" id="L402" title="All 2 branches missed.">            java.util.List&lt;String&gt; roles = user.roles != null ? </span>
+<span class="nc" id="L403">                user.roles.stream().map(role -&gt; role.name).collect(java.util.stream.Collectors.toList()) :</span>
+<span class="nc" id="L404">                java.util.List.of();</span>
+
+<span class="nc" id="L406">            return new ValidateTokenResponse(true, username, email, roles, subject);</span>
+            
+<span class="nc" id="L408">        } catch (Exception e) {</span>
+<span class="nc" id="L409">            LOGGER.debug(&quot;Token validation failed: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L410">            return new ValidateTokenResponse(false, null, null, null, null);</span>
+        }
+    }
+
+    private Map&lt;String, Object&gt; parseJsonClaims(String json) {
+        // Simple JSON parsing for JWT claims
+<span class="nc" id="L416">        Map&lt;String, Object&gt; claims = new java.util.HashMap&lt;&gt;();</span>
+        
+        // Remove braces and split by comma
+<span class="nc" id="L419">        json = json.trim().substring(1, json.length() - 1);</span>
+<span class="nc" id="L420">        String[] pairs = json.split(&quot;,&quot;);</span>
+        
+<span class="nc bnc" id="L422" title="All 2 branches missed.">        for (String pair : pairs) {</span>
+<span class="nc" id="L423">            String[] keyValue = pair.split(&quot;:&quot;, 2);</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">            if (keyValue.length == 2) {</span>
+<span class="nc" id="L425">                String key = keyValue[0].trim().replace(&quot;\&quot;&quot;, &quot;&quot;);</span>
+<span class="nc" id="L426">                String value = keyValue[1].trim().replace(&quot;\&quot;&quot;, &quot;&quot;);</span>
+<span class="nc" id="L427">                claims.put(key, value);</span>
+            }
+        }
+        
+<span class="nc" id="L431">        return claims;</span>
+    }
+
+    private LoginResponse.UserResponse mapToUserResponse(User user) {
+<span class="nc" id="L435">        LoginResponse.UserResponse userResponse = new LoginResponse.UserResponse();</span>
+<span class="nc" id="L436">        userResponse.id = user.id.toString();</span>
+<span class="nc" id="L437">        userResponse.email = user.email;</span>
+<span class="nc" id="L438">        userResponse.username = user.username;</span>
+<span class="nc" id="L439">        userResponse.roles = user.roles.stream()</span>
+<span class="nc" id="L440">            .map(role -&gt; role.name)</span>
+<span class="nc" id="L441">            .collect(Collectors.toSet());</span>
+<span class="nc" id="L442">        userResponse.lastLogin = user.lastLogin;</span>
+<span class="nc" id="L443">        userResponse.isActive = user.isActive;</span>
+<span class="nc" id="L444">        userResponse.isVerified = user.isVerified;</span>
+<span class="nc" id="L445">        return userResponse;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

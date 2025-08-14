@@ -95,6 +95,66 @@ Utiliza Jakarta Bean Validation para testar DTOs:
 </dependency>
 ```
 
+### Plugin JaCoCo para Cobertura de Código
+```xml
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.11</version>
+    <executions>
+        <execution>
+            <id>default-prepare-agent</id>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>default-report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>default-check</id>
+            <goals>
+                <goal>check</goal>
+            </goals>
+            <configuration>
+                <rules>
+                    <rule>
+                        <element>BUNDLE</element>
+                        <limits>
+                            <limit>
+                                <counter>LINE</counter>
+                                <value>COVEREDRATIO</value>
+                                <minimum>0.60</minimum>
+                            </limit>
+                            <limit>
+                                <counter>BRANCH</counter>
+                                <value>COVEREDRATIO</value>
+                                <minimum>0.50</minimum>
+                            </limit>
+                        </limits>
+                    </rule>
+                </rules>
+            </configuration>
+        </execution>
+    </executions>
+    <configuration>
+        <excludes>
+            <!-- Excluir classes de aplicação principal -->
+            <exclude>**/VortexAuthorizationApplication.class</exclude>
+            <!-- Excluir DTOs (classes de dados simples) -->
+            <exclude>**/dto/**/*Request.class</exclude>
+            <exclude>**/dto/**/*Response.class</exclude>
+            <!-- Excluir utilitários de teste -->
+            <exclude>**/util/TestDataBuilder.class</exclude>
+        </excludes>
+    </configuration>
+</plugin>
+```
+
 ### Configuração de Teste (src/test/resources/application.properties)
 ```properties
 # Database de teste H2
@@ -135,8 +195,8 @@ scripts/run-auth-registration-tests.sh
 - `--watch`: Modo contínuo (re-executa ao detectar mudanças)
 
 #### Relatórios
-- `--coverage`: Gera relatório de cobertura com JaCoCo
-- `--report`: Gera relatório HTML detalhado
+- `--coverage`: Gera relatório de cobertura com JaCoCo (HTML, XML, CSV)
+- `--report`: Gera relatório HTML detalhado de execução de testes
 - `--ci`: Modo CI otimizado (coverage + report + formato simplificado)
 
 #### Filtros
@@ -256,28 +316,20 @@ export QUARKUS_DATASOURCE_DB_KIND=h2
 ```
 
 ### Problema: Coverage report não é gerado
-**Solução**: Adicione plugin JaCoCo ao pom.xml
-```xml
-<plugin>
-    <groupId>org.jacoco</groupId>
-    <artifactId>jacoco-maven-plugin</artifactId>
-    <version>0.8.10</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>prepare-agent</goal>
-            </goals>
-        </execution>
-        <execution>
-            <id>report</id>
-            <phase>test</phase>
-            <goals>
-                <goal>report</goal>
-            </goals>
-        </execution>
-    </executions>
-</plugin>
+**Solução**: Plugin JaCoCo já está configurado! Verifique os diretórios de saída:
+```bash
+# Relatórios JaCoCo são gerados automaticamente em:
+ls target/site/jacoco/           # Relatórios Maven padrão
+ls coverage-reports/auth-registration/  # Copiados pelo script
+
+# Para executar manualmente:
+mvn test jacoco:report
 ```
+
+**Localização dos Relatórios:**
+- **HTML**: `coverage-reports/auth-registration/index.html`
+- **XML**: `coverage-reports/auth-registration/jacoco.xml` 
+- **CSV**: `coverage-reports/auth-registration/jacoco.csv`
 
 ## Integração Contínua
 
@@ -316,6 +368,8 @@ jobs:
 - ✅ **TestDataBuilder** para facilitar criação de cenários
 - ✅ **Cobertura abrangente** de validação, criptografia e estruturas
 - ✅ **Ambiente isolado** sem dependências do contexto Quarkus completo
+- ✅ **Relatórios JaCoCo** com HTML, XML e CSV automáticos
+- ✅ **Quality Gates** com cobertura mínima de 60% (linhas) e 50% (branches)
 
 ### Benefícios Obtidos
 1. **Qualidade**: Detecção precoce de bugs e regressões
@@ -323,6 +377,8 @@ jobs:
 3. **Documentação**: Testes servem como documentação viva do comportamento esperado
 4. **Manutenibilidade**: Facilita refatoração segura do código
 5. **Produtividade**: Script automatizado economiza tempo de execução manual
+6. **Visibilidade**: Relatórios HTML navegáveis para análise de cobertura
+7. **CI/CD Ready**: Formato XML para integração contínua e métricas de qualidade
 
 ## Evolução Futura
 
@@ -332,6 +388,8 @@ jobs:
 3. **Testes de Segurança**: Integração com OWASP ZAP
 4. **Mutation Testing**: Implementar com PIT para validar qualidade dos testes
 5. **Testes E2E**: Integração completa com frontend usando Playwright
+6. **Métricas Avançadas**: Integração de cobertura com SonarQube
+7. **Testes de Regressão**: Automação de testes de regressão visual
 
 ### Novos Cenários a Implementar
 - Verificação de email com token
@@ -351,11 +409,17 @@ cd backend/vortex-authorization-service && mvn test
 # Executar apenas testes de criação de conta
 mvn test -Dtest="*AuthService*,*Register*"
 
-# Executar com cobertura
+# Executar com cobertura JaCoCo
 mvn test jacoco:report
 
-# Executar script completo
+# Executar script completo com cobertura
 ./scripts/run-auth-registration-tests.sh --all --coverage --report
+
+# Executar modo CI (cobertura + relatórios)
+./scripts/run-auth-registration-tests.sh --ci
+
+# Visualizar relatório de cobertura
+open coverage-reports/auth-registration/index.html
 
 # Modo desenvolvimento (watch)
 ./scripts/run-auth-registration-tests.sh --watch
