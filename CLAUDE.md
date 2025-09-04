@@ -254,7 +254,7 @@ npm run test:coverage         # Coverage report
   - REST Assured for Quarkus service
   - Jakarta Bean Validation tests for DTO validation
 - **E2E Tests**: Playwright covering complete user workflows
-- **API Testing**: Dedicated script `test-queue-endpoint.sh`
+- **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
   - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.11)
   - Quality gates: 60% line coverage, 50% branch coverage
