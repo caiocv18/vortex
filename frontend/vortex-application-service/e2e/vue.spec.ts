@@ -35,37 +35,43 @@ test.describe('Home Page', () => {
   });
 
   test('displays all navigation cards with correct links', async ({ page }) => {
+    // Card identificado pelo título exato: ':has-text' não diferencia maiúsculas, então
+    // "Produtos" também casava com "tipos de produtos" e o card da API com "tipos de produto"
+    const cardByTitle = (title: string) =>
+      page.locator('.v-card').filter({ has: page.getByText(title, { exact: true }) });
+
     // Verifica card de Tipos de Produto
-    const productTypesCard = page.locator('.v-card:has-text("Tipos de Produto")');
+    const productTypesCard = cardByTitle('Tipos de Produto');
     await expect(productTypesCard).toBeVisible();
     await expect(productTypesCard.locator('text=Gerencie os tipos de produtos do seu estoque.')).toBeVisible();
     await expect(productTypesCard.locator('a[href="/product-types"]')).toBeVisible();
 
     // Verifica card de Produtos
-    const productsCard = page.locator('.v-card:has-text("Produtos")');
+    const productsCard = cardByTitle('Produtos');
     await expect(productsCard).toBeVisible();
     await expect(productsCard.locator('text=Cadastre e gerencie todos os produtos.')).toBeVisible();
     await expect(productsCard.locator('a[href="/products"]')).toBeVisible();
 
     // Verifica card de Movimentação
-    const movementsCard = page.locator('.v-card:has-text("Movimentação")');
+    const movementsCard = cardByTitle('Movimentação');
     await expect(movementsCard).toBeVisible();
     await expect(movementsCard.locator('text=Registre movimentações de estoque.')).toBeVisible();
     await expect(movementsCard.locator('a[href="/movements"]')).toBeVisible();
 
     // Verifica card de Relatórios
-    const reportsCard = page.locator('.v-card:has-text("Relatórios")');
+    const reportsCard = cardByTitle('Relatórios');
     await expect(reportsCard).toBeVisible();
     await expect(reportsCard.locator('text=Visualize relatórios detalhados.')).toBeVisible();
     await expect(reportsCard.locator('a[href="/reports"]')).toBeVisible();
   });
 
   test('navigation cards have correct icons', async ({ page }) => {
-    // Verifica ícones dos cards
-    await expect(page.locator('.mdi-shape')).toBeVisible(); // Tipos de Produto
-    await expect(page.locator('.mdi-package-variant')).toBeVisible(); // Produtos  
-    await expect(page.locator('.mdi-swap-horizontal')).toBeVisible(); // Movimentação
-    await expect(page.locator('.mdi-chart-box')).toBeVisible(); // Relatórios
+    // Verifica ícones dos cards (no conteúdo principal: o menu lateral usa os mesmos ícones)
+    const main = page.getByRole('main');
+    await expect(main.locator('.mdi-shape')).toBeVisible(); // Tipos de Produto
+    await expect(main.locator('.mdi-package-variant')).toBeVisible(); // Produtos
+    await expect(main.locator('.mdi-swap-horizontal')).toBeVisible(); // Movimentação
+    await expect(main.locator('.mdi-chart-box')).toBeVisible(); // Relatórios
   });
 
   test('can navigate to product types from home card', async ({ page }) => {

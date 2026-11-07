@@ -57,9 +57,20 @@ Este diretório contém todos os testes end-to-end (E2E) para a aplicação Sist
 
 ### Pré-requisitos
 
-1. Certifique-se de que o backend está rodando na porta 8080
+1. Certifique-se de que o backend está rodando na porta 8080 e o serviço de autorização na 8081
+   (por exemplo `./start-vortex.sh --modo leve -e dev -m none`, que também serve os dois
+   frontends compilados nas portas 5173 e 3001)
 2. Instale as dependências do frontend: `npm install`
 3. Instale os browsers do Playwright: `npx playwright install`
+
+### Autenticação
+
+Todas as rotas exigem login. O projeto `setup` (`auth.setup.ts`) roda antes dos projetos de
+browser: cadastra um usuário novo em `POST /api/auth/register`, faz login em `/api/auth/login` e
+grava `playwright/.auth/user.json` (fora do git) com as chaves de localStorage que o app lê:
+`accessToken`, `refreshToken` e `vortex_user`. O `auth.spec.ts` roda sem sessão e prova que a
+visita é redirecionada para o app de login. URLs: `PLAYWRIGHT_AUTH_API_URL` (padrão
+`http://localhost:8081`) e `PLAYWRIGHT_AUTH_APP_URL` (padrão `http://localhost:3001`).
 
 ### Comandos de Execução
 

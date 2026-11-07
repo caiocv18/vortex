@@ -11,7 +11,7 @@ test.describe('Movements Page', () => {
     await expect(page.locator('h1:has-text("Movimentação de Estoque")')).toBeVisible()
     
     // Verifica elementos principais da página
-    await expect(page.locator('input[placeholder="Pesquisar por produto"], input[label="Pesquisar por produto"]')).toBeVisible()
+    await expect(page.getByLabel('Pesquisar por produto')).toBeVisible()
     await expect(page.locator('button:has-text("Nova Movimentação")')).toBeVisible()
     await expect(page.locator('.v-data-table')).toBeVisible()
   })
@@ -71,7 +71,7 @@ test.describe('Movements Page', () => {
     await page.waitForSelector('.v-data-table', { timeout: 10000 })
     
     // Preenche o campo de pesquisa
-    const searchInput = page.locator('input[placeholder="Pesquisar por produto"], input[label="Pesquisar por produto"]').first()
+    const searchInput = page.getByLabel('Pesquisar por produto')
     await searchInput.fill('produto')
     
     // Aguarda a filtragem
@@ -87,9 +87,11 @@ test.describe('Movements Page', () => {
     
     // Verifica se o diálogo foi aberto
     await expect(page.locator('.v-dialog .v-card')).toBeVisible()
-    await expect(page.locator('text=Nova Movimentação')).toBeVisible()
-    await expect(page.locator('.v-select')).toBeVisible() // Produto select
-    await expect(page.locator('input[label="Quantidade"]')).toBeVisible()
+    // Busca restrita ao diálogo: o botão tem o mesmo texto e o rodapé da tabela tem outro select
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('Nova Movimentação')).toBeVisible()
+    await expect(dialog.getByRole('combobox', { name: 'Produto' })).toBeVisible()
+    await expect(dialog.getByLabel('Quantidade')).toBeVisible()
     await expect(page.locator('button:has-text("Cancelar")')).toBeVisible()
     await expect(page.locator('button:has-text("Criar")')).toBeVisible()
   })
@@ -109,24 +111,29 @@ test.describe('Movements Page', () => {
   test('form validation works in new movement dialog', async ({ page }) => {
     // Abre o diálogo
     await page.click('button:has-text("Nova Movimentação")')
-    
+
+    // O tipo já vem preenchido: o diálogo abre com ENTRADA marcada (comportamento intencional)
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('radio', { name: 'Entrada', exact: true })).toBeChecked()
+    await expect(dialog.getByRole('radio', { name: 'Saída', exact: true })).not.toBeChecked()
+
     // Tenta criar sem preencher os campos obrigatórios
     await page.click('button:has-text("Criar")')
-    
-    // Verifica se as mensagens de erro aparecem
+
+    // Verifica se as mensagens de erro aparecem (o tipo, pré-selecionado, não gera erro)
     await expect(page.locator('text=Produto é obrigatório')).toBeVisible()
-    await expect(page.locator('text=Tipo de movimentação é obrigatório')).toBeVisible()
     await expect(page.locator('text=Quantidade é obrigatória')).toBeVisible()
+    await expect(dialog.getByText('Tipo de movimentação é obrigatório')).toHaveCount(0)
     
     // Preenche com quantidade negativa
-    await page.fill('input[label="Quantidade"]', '-5')
+    await page.getByLabel('Quantidade').fill('-5')
     await page.click('button:has-text("Criar")')
     
     // Verifica se a mensagem de erro para quantidade negativa aparece
     await expect(page.locator('text=Quantidade deve ser positiva')).toBeVisible()
     
     // Preenche com quantidade decimal
-    await page.fill('input[label="Quantidade"]', '5.5')
+    await page.getByLabel('Quantidade').fill('5.5')
     await page.click('button:has-text("Criar")')
     
     // Verifica se a mensagem de erro para número inteiro aparece
@@ -140,8 +147,11 @@ test.describe('Movements Page', () => {
     // Verifica se os radio buttons estão presentes
     await expect(page.locator('input[type="radio"][value="ENTRADA"]')).toBeVisible()
     await expect(page.locator('input[type="radio"][value="SAIDA"]')).toBeVisible()
-    await expect(page.locator('text=Entrada')).toBeVisible()
-    await expect(page.locator('text=Saída')).toBeVisible()
+    // Rótulos dos radios, no diálogo e com texto exato (o filtro "Entradas" e os chips da
+    // tabela também contêm "Entrada")
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('Entrada', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Saída', { exact: true })).toBeVisible()
     
     // Clica em Entrada
     await page.click('input[type="radio"][value="ENTRADA"]')
@@ -156,22 +166,25 @@ test.describe('Movements Page', () => {
     // Abre o diálogo
     await page.click('button:has-text("Nova Movimentação")')
     
-    // Seleciona um produto (se houver opções disponíveis)
-    const productSelect = page.locator('.v-select').first()
-    await productSelect.click()
-    
-    // Aguarda as opções aparecerem e seleciona a primeira (se houver)
-    await page.waitForTimeout(1000)
-    const firstProduct = page.locator('.v-list-item').first()
-    if (await firstProduct.isVisible()) {
-      await firstProduct.click()
-    }
-    
+    // Seleciona um produto: o primeiro item do menu do select do diálogo. O antigo
+    // '.v-select' first() pegava o select "Items per page" do rodapé da tabela (atrás do
+    // scrim do diálogo) e o '.v-list-item' first() pegava o cabeçalho do menu lateral.
+    // O clique vai no campo (combobox externo do v-select), como o usuário faz: o input
+    // interno tem size=1 e fica coberto pelo próprio campo.
+    await page
+      .getByRole('dialog')
+      .getByRole('combobox')
+      .filter({ has: page.getByRole('combobox', { name: 'Produto' }) })
+      .click()
+    const firstProduct = page.getByRole('listbox').getByRole('option').first()
+    await expect(firstProduct).toBeVisible()
+    await firstProduct.click()
+
     // Seleciona tipo de movimentação
     await page.click('input[type="radio"][value="ENTRADA"]')
-    
+
     // Preenche a quantidade
-    await page.fill('input[label="Quantidade"]', '10')
+    await page.getByLabel('Quantidade').fill('10')
     
     // Clica em Criar
     await page.click('button:has-text("Criar")')
@@ -225,9 +238,9 @@ test.describe('Movements Page', () => {
       // Verifica se pelo menos uma célula contém formato de moeda brasileira
       await expect(currencyCells.first()).toBeVisible()
       
-      // Verifica se o formato está correto (R$ X,XX)
+      // Verifica se o formato está correto (R$ X,XX, com ponto de milhar: R$ 1.500,00)
       const cellText = await currencyCells.first().textContent()
-      expect(cellText).toMatch(/R\$\s*\d+,\d{2}/)
+      expect(cellText).toMatch(/R\$\s*\d{1,3}(\.\d{3})*,\d{2}/)
     }
   })
 
@@ -266,7 +279,7 @@ test.describe('Movements Page', () => {
       await expect(page.locator('button:has-text("Salvar")')).toBeVisible()
       
       // Os campos devem estar preenchidos com os valores existentes
-      const quantityInput = page.locator('input[label="Quantidade"]')
+      const quantityInput = page.getByLabel('Quantidade')
       await expect(quantityInput).not.toHaveValue('')
     }
   })

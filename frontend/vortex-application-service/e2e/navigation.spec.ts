@@ -13,9 +13,11 @@ test.describe('Navigation', () => {
     // Verifica se o sidebar está visível
     await expect(page.locator('.v-navigation-drawer')).toBeVisible()
     
-    // Verifica o título do sistema no sidebar
-    await expect(page.locator('text=Sistema de Estoque')).toBeVisible()
-    await expect(page.locator('text=Vortex')).toBeVisible()
+    // Verifica o título do sistema no sidebar (o mesmo texto também está no app bar e no card
+    // de boas-vindas, então a busca fica restrita ao drawer e ao texto exato)
+    const drawer = page.getByRole('navigation')
+    await expect(drawer.getByText('Sistema de Estoque', { exact: true })).toBeVisible()
+    await expect(drawer.getByText('Vortex', { exact: true })).toBeVisible()
     
     // Verifica todos os itens do menu
     await expect(page.locator('.v-list-item:has-text("Home")')).toBeVisible()

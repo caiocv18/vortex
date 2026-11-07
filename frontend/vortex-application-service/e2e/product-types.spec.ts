@@ -11,7 +11,7 @@ test.describe('Product Types Page', () => {
     await expect(page.locator('h1:has-text("Tipos de Produto")')).toBeVisible()
     
     // Verifica elementos principais da página
-    await expect(page.locator('input[label="Pesquisar"]')).toBeVisible()
+    await expect(page.getByLabel('Pesquisar')).toBeVisible()
     await expect(page.locator('button:has-text("Novo Tipo de Produto")')).toBeVisible()
     await expect(page.locator('.v-data-table')).toBeVisible()
   })
@@ -31,13 +31,13 @@ test.describe('Product Types Page', () => {
     await page.waitForSelector('.v-data-table', { timeout: 10000 })
     
     // Preenche o campo de pesquisa
-    await page.fill('input[label="Pesquisar"]', 'test')
+    await page.getByLabel('Pesquisar').fill('test')
     
     // Aguarda a filtragem
     await page.waitForTimeout(1000)
     
     // Verifica se o campo de pesquisa foi preenchido
-    await expect(page.locator('input[label="Pesquisar"]')).toHaveValue('test')
+    await expect(page.getByLabel('Pesquisar')).toHaveValue('test')
   })
 
   test('can open new product type dialog', async ({ page }) => {
@@ -46,8 +46,9 @@ test.describe('Product Types Page', () => {
     
     // Verifica se o diálogo foi aberto
     await expect(page.locator('.v-dialog .v-card')).toBeVisible()
-    await expect(page.locator('text=Novo Tipo de Produto')).toBeVisible()
-    await expect(page.locator('input[label="Nome do Tipo de Produto"]')).toBeVisible()
+    // Título dentro do diálogo (o botão que abre o diálogo tem o mesmo texto)
+    await expect(page.getByRole('dialog').getByText('Novo Tipo de Produto')).toBeVisible()
+    await expect(page.getByLabel('Nome do Tipo de Produto')).toBeVisible()
     await expect(page.locator('button:has-text("Cancelar")')).toBeVisible()
     await expect(page.locator('button:has-text("Criar")')).toBeVisible()
   })
@@ -75,7 +76,7 @@ test.describe('Product Types Page', () => {
     await expect(page.locator('text=Nome é obrigatório')).toBeVisible()
     
     // Preenche com um nome muito curto
-    await page.fill('input[label="Nome do Tipo de Produto"]', 'ab')
+    await page.getByLabel('Nome do Tipo de Produto').fill('ab')
     await page.click('button:has-text("Criar")')
     
     // Verifica se a mensagem de erro para nome curto aparece
@@ -88,7 +89,7 @@ test.describe('Product Types Page', () => {
     
     // Preenche um nome válido
     const productTypeName = `Tipo Teste ${Date.now()}`
-    await page.fill('input[label="Nome do Tipo de Produto"]', productTypeName)
+    await page.getByLabel('Nome do Tipo de Produto').fill(productTypeName)
     
     // Clica em Criar
     await page.click('button:has-text("Criar")')
@@ -135,7 +136,7 @@ test.describe('Product Types Page', () => {
       await expect(page.locator('button:has-text("Salvar")')).toBeVisible()
       
       // O campo deve estar preenchido com o valor existente
-      const nameInput = page.locator('input[label="Nome do Tipo de Produto"]')
+      const nameInput = page.getByLabel('Nome do Tipo de Produto')
       await expect(nameInput).not.toHaveValue('')
     }
   })

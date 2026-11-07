@@ -1,4 +1,5 @@
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
 
 /**
@@ -7,6 +8,13 @@ import { defineConfig, devices } from '@playwright/test'
  */
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
 const port = new URL(baseURL).port || '80'
+
+/**
+ * Sessão autenticada gravada pelo projeto "setup" (e2e/auth.setup.ts, mesmo caminho de
+ * e2e/support/auth.ts). Todas as rotas exigem login, então os projetos de browser partem dela.
+ * Fica fora do git (.gitignore).
+ */
+const authStateFile = fileURLToPath(new URL('./playwright/.auth/user.json', import.meta.url))
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -47,23 +55,34 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /* Cadastra e autentica um usuário pela API do auth e grava o storageState. */
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts$/,
+    },
     {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        storageState: authStateFile,
       },
+      dependencies: ['setup'],
     },
     {
       name: 'firefox',
       use: {
         ...devices['Desktop Firefox'],
+        storageState: authStateFile,
       },
+      dependencies: ['setup'],
     },
     {
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
+        storageState: authStateFile,
       },
+      dependencies: ['setup'],
     },
 
     /* Test against mobile viewports. */
