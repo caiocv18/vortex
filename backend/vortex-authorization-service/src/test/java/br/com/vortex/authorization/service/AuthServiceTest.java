@@ -8,9 +8,9 @@ import br.com.vortex.authorization.security.PasswordService;
 import br.com.vortex.authorization.util.TestDataBuilder;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.InjectMock;
+import io.quarkus.test.TestTransaction;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
 import org.junit.jupiter.api.*;
@@ -52,15 +52,21 @@ class AuthServiceTest {
     private static final String TEST_ACCESS_TOKEN = "test.access.token";
     private static final String TEST_REFRESH_TOKEN = "test.refresh.token";
     
+    // Os testes usam @TestTransaction (rollback ao fim de cada um): com @Transactional os dados
+    // ficavam commitados e o mesmo refresh token "test.refresh.token" violava a unique constraint
+    // no teste seguinte.
     @BeforeEach
     void setUp() {
         Mockito.reset(jwtService, passwordService, rateLimitService, eventPublisher);
+        // Mock de boolean devolve false: sem este stub o login e o forgot-password eram barrados
+        // pelo rate limit. O teste de bloqueio sobrescreve com os argumentos dele.
+        when(rateLimitService.isAllowed(anyString(), anyString())).thenReturn(true);
     }
     
     @Test
     @Order(1)
     @DisplayName("Should successfully register a new user with valid data")
-    @Transactional
+    @TestTransaction
     void testRegisterSuccess() {
         // Arrange
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
@@ -148,7 +154,7 @@ class AuthServiceTest {
     @Test
     @Order(4)
     @DisplayName("Should fail registration when email already exists")
-    @Transactional
+    @TestTransaction
     void testRegisterDuplicateEmail() {
         // Arrange
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
@@ -175,7 +181,7 @@ class AuthServiceTest {
     @Test
     @Order(5)
     @DisplayName("Should fail registration when username already exists")
-    @Transactional
+    @TestTransaction
     void testRegisterDuplicateUsername() {
         // Arrange
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
@@ -203,7 +209,7 @@ class AuthServiceTest {
     @Test
     @Order(6)
     @DisplayName("Should successfully login with valid credentials")
-    @Transactional
+    @TestTransaction
     void testLoginSuccess() {
         // Arrange
         String password = "Test@Password123";
@@ -250,7 +256,7 @@ class AuthServiceTest {
     @Test
     @Order(7)
     @DisplayName("Should fail login with invalid password")
-    @Transactional
+    @TestTransaction
     void testLoginInvalidPassword() {
         // Arrange
         String password = "Test@Password123";
@@ -304,7 +310,7 @@ class AuthServiceTest {
     @Test
     @Order(9)
     @DisplayName("Should fail login when user is inactive")
-    @Transactional
+    @TestTransaction
     void testLoginInactiveUser() {
         // Arrange
         User user = TestDataBuilder.createInactiveUser();
@@ -350,7 +356,7 @@ class AuthServiceTest {
     @Test
     @Order(11)
     @DisplayName("Should successfully refresh token with valid refresh token")
-    @Transactional
+    @TestTransaction
     void testRefreshTokenSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -395,7 +401,7 @@ class AuthServiceTest {
     @Test
     @Order(13)
     @DisplayName("Should successfully logout and revoke refresh token")
-    @Transactional
+    @TestTransaction
     void testLogoutSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -425,7 +431,7 @@ class AuthServiceTest {
     @Test
     @Order(14)
     @DisplayName("Should handle forgot password request successfully")
-    @Transactional
+    @TestTransaction
     void testForgotPasswordSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -465,7 +471,7 @@ class AuthServiceTest {
     @Test
     @Order(16)
     @DisplayName("Should successfully reset password with valid token")
-    @Transactional
+    @TestTransaction
     void testResetPasswordSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -529,24 +535,30 @@ class AuthServiceTest {
     @Test
     @Order(18)
     @DisplayName("Should validate token and return user information")
+    @TestTransaction
     void testValidateTokenSuccess() {
         // Arrange
-        String userId = UUID.randomUUID().toString();
         String email = "user@test.com";
         String username = "testuser";
-        String tokenString = createMockJwtToken(userId, email, username);
-        
+
+        // O id é @GeneratedValue: persiste primeiro e monta o token com o id gerado
+        // (atribuir um UUID antes do persist faz o Hibernate tratar a entidade como detached).
         User user = TestDataBuilder.createTestUser();
-        user.id = UUID.fromString(userId);
         user.email = email;
         user.username = username;
-        user.persist();
-        
-        Role userRole = TestDataBuilder.createUserRole();
-        userRole.persist();
+
+        // roles.name é único e o papel USER já vem do import.sql (ou de outro teste)
+        Role userRole = Role.findUserRole();
+        if (userRole == null) {
+            userRole = TestDataBuilder.createUserRole();
+            userRole.persist();
+        }
         user.roles = Set.of(userRole);
         user.persist();
-        
+
+        String userId = user.id.toString();
+        String tokenString = createMockJwtToken(userId, email, username);
+
         ValidateTokenRequest request = TestDataBuilder.createValidateTokenRequest(tokenString);
         
         // Act

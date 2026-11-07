@@ -3,6 +3,7 @@ package br.com.vortex.authorization.resource;
 import br.com.vortex.authorization.dto.*;
 import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.util.TestDataBuilder;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
@@ -102,6 +103,12 @@ class AuthResourceIntegrationTest {
         assertNotNull(refreshToken);
     }
     
+    // A requisição HTTP roda em outra thread e outra transação: o usuário pré-existente precisa
+    // estar commitado antes dela, senão o register não o enxerga (e trava no índice único).
+    private static void persistCommitted(User user) {
+        QuarkusTransaction.requiringNew().run(user::persist);
+    }
+
     @Test
     @Order(2)
     @DisplayName("POST /register - Should fail with duplicate email")
@@ -109,7 +116,7 @@ class AuthResourceIntegrationTest {
     void testRegisterDuplicateEmail() {
         // Create existing user
         User existingUser = TestDataBuilder.createTestUser();
-        existingUser.persist();
+        persistCommitted(existingUser);
         
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
         request.email = existingUser.email;
@@ -134,7 +141,7 @@ class AuthResourceIntegrationTest {
     void testRegisterDuplicateUsername() {
         // Create existing user
         User existingUser = TestDataBuilder.createTestUser();
-        existingUser.persist();
+        persistCommitted(existingUser);
         
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
         request.username = existingUser.username;
@@ -571,7 +578,9 @@ class AuthResourceIntegrationTest {
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
-            .body("isValid", is(true))
+            // ValidateTokenResponse.isValid() serializa como "valid": é o campo que o
+            // AuthServiceClient do application-service lê e o que o README documenta
+            .body("valid", is(true))
             .body("username", is(registerRequest.username))
             .body("email", is(registerRequest.email))
             .body("roles", hasItem("USER"));
@@ -592,7 +601,7 @@ class AuthResourceIntegrationTest {
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
-            .body("isValid", is(false))
+            .body("valid", is(false))
             .body("username", nullValue())
             .body("email", nullValue())
             .body("roles", nullValue());

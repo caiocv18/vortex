@@ -19,6 +19,8 @@
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.40.1.1</quarkus.platform.version>
         <jacoco.version>0.8.16</jacoco.version>
+        <!-- Arquivo padrão do quarkus-jacoco; o agente do plugin acrescenta nele (append) -->
+        <jacoco.data.file>${project.build.directory}/jacoco-quarkus.exec</jacoco.data.file>
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <surefire-plugin.version>3.6.1</surefire-plugin.version>
         <!-- Teto de memória do fork de teste; @{argLine} mantém o agente do JaCoCo -->
@@ -161,6 +163,14 @@
             <artifactId>quarkus-jdbc-h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Cobertura dos @QuarkusTest: o agente comum do JaCoCo vê as classes já transformadas
+             pelo Quarkus (Panache, ArC), que não batem com target/classes, e a cobertura saía
+             quase toda descartada ("Execution data ... does not match") -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jacoco</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -228,10 +238,17 @@
                 <version>${jacoco.version}</version>
                 <executions>
                     <execution>
+                        <!-- O agente só cobre os testes sem @QuarkusTest; as classes do
+                             QuarkusClassLoader ficam com o quarkus-jacoco, no mesmo arquivo -->
                         <id>default-prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <exclClassLoaders>*QuarkusClassLoader</exclClassLoaders>
+                            <destFile>${jacoco.data.file}</destFile>
+                            <append>true</append>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>default-report</id>
@@ -240,6 +257,7 @@
                             <goal>report</goal>
                         </goals>
                         <configuration>
+                            <dataFile>${jacoco.data.file}</dataFile>
                             <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
                         </configuration>
                     </execution>
@@ -249,6 +267,7 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <dataFile>${jacoco.data.file}</dataFile>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
