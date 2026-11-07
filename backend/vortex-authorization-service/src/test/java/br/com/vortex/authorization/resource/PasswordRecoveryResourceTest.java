@@ -6,7 +6,7 @@ import br.com.vortex.authorization.service.EventPublisher;
 import br.com.vortex.authorization.security.PasswordService;
 import br.com.vortex.authorization.util.TestDataBuilder;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.InjectMock;
 import io.restassured.http.ContentType;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.*;

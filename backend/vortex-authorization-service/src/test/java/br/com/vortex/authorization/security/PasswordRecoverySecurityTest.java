@@ -6,7 +6,7 @@ import br.com.vortex.authorization.service.AuthService;
 import br.com.vortex.authorization.service.RateLimitService;
 import br.com.vortex.authorization.util.TestDataBuilder;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.InjectMock;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;

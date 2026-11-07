@@ -14,3 +14,6 @@
 
 # Cache do Vite
 .vite/
+
+# Estado local do Quarkus CLI
+.quarkus/

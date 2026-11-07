@@ -79,7 +79,7 @@ public class PasswordRecoveryTestProfile implements QuarkusTestProfile {
         config.put("auth.security.audit-enabled", "true");
         
         // CORS configuration for testing
-        config.put("quarkus.http.cors", "true");
+        config.put("quarkus.http.cors.enabled", "true");
         config.put("quarkus.http.cors.origins", "http://localhost:3001,http://localhost:5173");
         config.put("quarkus.http.cors.methods", "GET,PUT,POST,DELETE,OPTIONS");
         config.put("quarkus.http.cors.headers", "accept,authorization,content-type,x-requested-with");
