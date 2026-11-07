@@ -5,3 +5,12 @@
 /frontend/vortex-application-service/.env
 
 *.pid
+
+# Saídas locais de execução e de teste
+/logs/
+/test-reports/
+/erros/
+/node_modules/
+
+# Cache do Vite
+.vite/
