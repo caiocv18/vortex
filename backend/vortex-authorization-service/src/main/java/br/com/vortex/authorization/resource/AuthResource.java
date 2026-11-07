@@ -4,6 +4,7 @@ import br.com.vortex.authorization.dto.*;
 import br.com.vortex.authorization.service.AuthService;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -21,6 +22,9 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Tag(name = "Authentication", description = "Authentication and authorization endpoints")
 public class AuthResource {
 
+    // Nos endpoints abaixo, corpo vazio chega como null e o @Valid sozinho não rejeita null:
+    // sem o @NotNull a requisição caía em NullPointerException (500) em vez de responder 400.
+
     @Inject
     AuthService authService;
 
@@ -33,7 +37,7 @@ public class AuthResource {
     @POST
     @Path("/login")
     @Operation(summary = "User login", description = "Authenticate user and return JWT tokens")
-    public Response login(@Valid LoginRequest request) {
+    public Response login(@Valid @NotNull LoginRequest request) {
         String ipAddress = getClientIpAddress();
         String userAgent = getUserAgent();
         
@@ -50,7 +54,7 @@ public class AuthResource {
     @POST
     @Path("/register")
     @Operation(summary = "User registration", description = "Register a new user account")
-    public Response register(@Valid RegisterRequest request) {
+    public Response register(@Valid @NotNull RegisterRequest request) {
         String ipAddress = getClientIpAddress();
         String userAgent = getUserAgent();
         
@@ -69,7 +73,7 @@ public class AuthResource {
     @POST
     @Path("/refresh")
     @Operation(summary = "Refresh access token", description = "Generate new access token using refresh token")
-    public Response refreshToken(@Valid RefreshTokenRequest request) {
+    public Response refreshToken(@Valid @NotNull RefreshTokenRequest request) {
         try {
             LoginResponse response = authService.refreshToken(request);
             return Response.ok(ApiResponse.success("Token refreshed successfully", response)).build();
@@ -83,7 +87,7 @@ public class AuthResource {
     @POST
     @Path("/logout")
     @Operation(summary = "User logout", description = "Invalidate refresh token and logout user")
-    public Response logout(@Valid RefreshTokenRequest request) {
+    public Response logout(@Valid @NotNull RefreshTokenRequest request) {
         String ipAddress = getClientIpAddress();
         String userAgent = getUserAgent();
         
@@ -94,7 +98,7 @@ public class AuthResource {
     @POST
     @Path("/forgot-password")
     @Operation(summary = "Forgot password", description = "Request password reset email")
-    public Response forgotPassword(@Valid ForgotPasswordRequest request) {
+    public Response forgotPassword(@Valid @NotNull ForgotPasswordRequest request) {
         String ipAddress = getClientIpAddress();
         String userAgent = getUserAgent();
         
@@ -111,7 +115,7 @@ public class AuthResource {
     @POST
     @Path("/reset-password")
     @Operation(summary = "Reset password", description = "Reset password using reset token")
-    public Response resetPassword(@Valid ResetPasswordRequest request) {
+    public Response resetPassword(@Valid @NotNull ResetPasswordRequest request) {
         String ipAddress = getClientIpAddress();
         String userAgent = getUserAgent();
         
@@ -128,7 +132,7 @@ public class AuthResource {
     @POST
     @Path("/validate-token")
     @Operation(summary = "Validate JWT token", description = "Validate JWT token and return user information")
-    public Response validateToken(@Valid ValidateTokenRequest request) {
+    public Response validateToken(@Valid @NotNull ValidateTokenRequest request) {
         try {
             ValidateTokenResponse response = authService.validateToken(request);
             return Response.ok(response).build();

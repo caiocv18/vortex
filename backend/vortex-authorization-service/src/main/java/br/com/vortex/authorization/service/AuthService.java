@@ -57,14 +57,14 @@ public class AuthService {
         User user = User.findByEmailOrUsername(request.identifier);
         if (user == null || !user.isActiveAndVerified()) {
             LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
-            throw new NotAuthorizedException("Invalid credentials");
+            throw unauthorized("Invalid credentials");
         }
 
         // Verify password
         Credential credential = Credential.findByUserId(user.id);
         if (credential == null || !passwordService.verifyPassword(request.password, credential.passwordHash)) {
             LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
-            throw new NotAuthorizedException("Invalid credentials");
+            throw unauthorized("Invalid credentials");
         }
 
         // Record successful login
@@ -103,7 +103,7 @@ public class AuthService {
                 user.id,
                 user.email,
                 user.username,
-                user.roles.stream().map(role -> role.name).collect(Collectors.toSet()),
+                roleNames(user),
                 "password",
                 user.lastLogin,
                 refreshTokenValue, // Using refresh token as session ID
@@ -174,14 +174,11 @@ public class AuthService {
 
         // Publish user created event
         try {
-            Set<String> roleNames = user.roles != null ? 
-                user.roles.stream().map(role -> role.name).collect(Collectors.toSet()) : 
-                Set.of();
             UserCreatedEvent userCreatedEvent = new UserCreatedEvent(
                 user.id,
                 user.email,
                 user.username,
-                roleNames,
+                roleNames(user),
                 user.isVerified,
                 "registration",
                 ipAddress,
@@ -221,12 +218,12 @@ public class AuthService {
     public LoginResponse refreshToken(RefreshTokenRequest request) {
         RefreshToken refreshToken = RefreshToken.findValidToken(request.refreshToken);
         if (refreshToken == null) {
-            throw new NotAuthorizedException("Invalid or expired refresh token");
+            throw unauthorized("Invalid or expired refresh token");
         }
 
         User user = refreshToken.user;
         if (!user.isActiveAndVerified()) {
-            throw new NotAuthorizedException("User account is not active");
+            throw unauthorized("User account is not active");
         }
 
         // Generate new access token
@@ -350,6 +347,12 @@ public class AuthService {
             throw new BadRequestException("User account is not active");
         }
 
+        // Consome o token numa única instrução condicional, antes de trocar a senha: com duas
+        // requisições concorrentes usando o mesmo token, só uma consegue marcá-lo como usado.
+        if (!PasswordResetToken.consume(resetToken.id)) {
+            throw new BadRequestException("Invalid or expired reset token");
+        }
+
         // Update password
         Credential credential = Credential.findByUserId(user.id);
         credential.passwordHash = passwordService.hashPassword(request.password);
@@ -445,14 +448,29 @@ public class AuthService {
         return claims;
     }
 
+    // NotAuthorizedException(Object, Object...) recebe o challenge do WWW-Authenticate, não a mensagem:
+    // com new NotAuthorizedException("Invalid credentials") o getMessage() virava "HTTP 401 Unauthorized"
+    // e era isso que chegava no corpo de erro da API.
+    private static NotAuthorizedException unauthorized(String message) {
+        return new NotAuthorizedException(message, "Bearer");
+    }
+
+    // Usuário sem papel atribuído tem roles == null enquanto a entidade não volta do banco.
+    private static Set<String> roleNames(User user) {
+        if (user.roles == null) {
+            return Set.of();
+        }
+        return user.roles.stream()
+            .map(role -> role.name)
+            .collect(Collectors.toSet());
+    }
+
     private LoginResponse.UserResponse mapToUserResponse(User user) {
         LoginResponse.UserResponse userResponse = new LoginResponse.UserResponse();
         userResponse.id = user.id.toString();
         userResponse.email = user.email;
         userResponse.username = user.username;
-        userResponse.roles = user.roles.stream()
-            .map(role -> role.name)
-            .collect(Collectors.toSet());
+        userResponse.roles = roleNames(user);
         userResponse.lastLogin = user.lastLogin;
         userResponse.isActive = user.isActive;
         userResponse.isVerified = user.isVerified;
