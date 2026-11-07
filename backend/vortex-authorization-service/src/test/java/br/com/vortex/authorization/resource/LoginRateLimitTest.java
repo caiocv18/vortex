@@ -28,18 +28,23 @@ import static org.junit.jupiter.api.Assertions.*;
  * Rate limit do login ponta a ponta, com o RateLimitService real. O limite (auth.rate-limit.login-attempts)
  * e a janela (auth.rate-limit.window-minutes) vêm do application.properties de teste, com os mesmos
  * valores do padrão de produção. A janela é provada com tentativas gravadas no passado, sem esperar.
+ *
+ * O cliente de teste conecta por loopback, que é proxy confiável no padrão
+ * (quarkus.http.proxy.trusted-proxies): por isso o X-Forwarded-For destes testes vale como IP do
+ * cliente. O caso de proxy NÃO confiável, com cabeçalho forjado, está no UntrustedProxyLoginTest.
  */
 @QuarkusTest
 @TestHTTPEndpoint(AuthResource.class)
 class LoginRateLimitTest {
 
-    private static final String TOO_MANY = "Too many failed login attempts. Please try again later.";
-    private static final String WRONG_PASSWORD = "Wrong@Password123";
+    static final String TOO_MANY = "Too many failed login attempts. Please try again later.";
+    static final String WRONG_PASSWORD = "Wrong@Password123";
 
-    // Faixa de documentação (RFC 5737), enviada por X-Forwarded-For só por este teste
+    // Faixa de documentação (RFC 5737), enviada por X-Forwarded-For só por estes testes
     private static final String IP_A = "198.51.100.10";
     private static final String IP_B = "198.51.100.20";
     private static final String IP_C = "198.51.100.30";
+    private static final String IP_D = "198.51.100.40";
 
     @Inject
     @ConfigProperty(name = "auth.rate-limit.login-attempts")
@@ -53,12 +58,12 @@ class LoginRateLimitTest {
     // não herdar tentativas de outras classes nem deixar IPs e contas bloqueados para elas
     @BeforeEach
     void clearAttemptsBefore() {
-        QuarkusTransaction.requiringNew().run(() -> LoginAttempt.deleteAll());
+        clearAttempts();
     }
 
     @AfterEach
     void clearAttemptsAfter() {
-        QuarkusTransaction.requiringNew().run(() -> LoginAttempt.deleteAll());
+        clearAttempts();
     }
 
     @Test
@@ -107,8 +112,7 @@ class LoginRateLimitTest {
 
         login(user.email, WRONG_PASSWORD, null).statusCode(401).body("message", is("Invalid credentials"));
 
-        List<LoginAttempt> attempts = QuarkusTransaction.requiringNew()
-            .call(() -> LoginAttempt.<LoginAttempt>list("email", user.email));
+        List<LoginAttempt> attempts = recordedAttempts(user.email);
         assertEquals(1, attempts.size(), "a falha precisa ficar gravada mesmo com o 401");
         LoginAttempt attempt = attempts.get(0);
         assertFalse(attempt.success);
@@ -117,7 +121,34 @@ class LoginRateLimitTest {
             "esperado o endereço do socket (loopback no teste), veio " + attempt.ipAddress);
     }
 
-    private RegisterRequest registerUser() {
+    @Test
+    @DisplayName("X-Forwarded-For sent by a trusted proxy (loopback, by default) is the recorded client IP")
+    void forwardedClientIpFromATrustedProxyIsRecorded() {
+        RegisterRequest user = registerUser();
+
+        login(user.email, WRONG_PASSWORD, IP_D).statusCode(401).body("message", is("Invalid credentials"));
+
+        List<LoginAttempt> attempts = recordedAttempts(user.email);
+        assertEquals(1, attempts.size());
+        assertEquals(IP_D, attempts.get(0).ipAddress);
+    }
+
+    @Test
+    @DisplayName("X-Real-IP alone is ignored: only Quarkus' X-Forwarded-For handling sets the client IP")
+    void xRealIpAloneIsIgnored() throws Exception {
+        RegisterRequest user = registerUser();
+
+        loginWithHeader(user.email, WRONG_PASSWORD, "X-Real-IP", IP_D).statusCode(401);
+
+        List<LoginAttempt> attempts = recordedAttempts(user.email);
+        assertEquals(1, attempts.size());
+        assertTrue(InetAddress.getByName(attempts.get(0).ipAddress).isLoopbackAddress(),
+            "esperado o endereço do socket, veio " + attempts.get(0).ipAddress);
+    }
+
+    // Auxiliares estáticos: o UntrustedProxyLoginTest (outro perfil, outra classe) usa os mesmos
+
+    static RegisterRequest registerUser() {
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
         given()
             .contentType(ContentType.JSON)
@@ -129,20 +160,32 @@ class LoginRateLimitTest {
         return request;
     }
 
-    private ValidatableResponse login(String identifier, String password, String forwardedFor) {
+    static ValidatableResponse login(String identifier, String password, String forwardedFor) {
+        return loginWithHeader(identifier, password, "X-Forwarded-For", forwardedFor);
+    }
+
+    static ValidatableResponse loginWithHeader(String identifier, String password, String header, String value) {
         RequestSpecification request = given()
             .contentType(ContentType.JSON)
             .body(TestDataBuilder.createLoginRequest(identifier, password));
-        if (forwardedFor != null) {
-            request = request.header("X-Forwarded-For", forwardedFor);
+        if (value != null) {
+            request = request.header(header, value);
         }
         return request.when().post("/login").then();
     }
 
-    private void failLogins(String identifier, String ip, int times) {
+    static void failLogins(String identifier, String ip, int times) {
         for (int i = 0; i < times; i++) {
             login(identifier, WRONG_PASSWORD, ip).statusCode(401).body("message", is("Invalid credentials"));
         }
+    }
+
+    static List<LoginAttempt> recordedAttempts(String email) {
+        return QuarkusTransaction.requiringNew().call(() -> LoginAttempt.<LoginAttempt>list("email", email));
+    }
+
+    static void clearAttempts() {
+        QuarkusTransaction.requiringNew().run(() -> LoginAttempt.deleteAll());
     }
 
     private static void recordFailures(String email, String ip, int times, OffsetDateTime attemptedAt) {

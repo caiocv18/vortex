@@ -148,19 +148,9 @@ public class AuthResource {
     }
 
     private String getClientIpAddress() {
-        // Try to get real IP from various headers
-        String xForwardedFor = httpHeaders.getRequestHeaders().getFirst("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        
-        String xRealIp = httpHeaders.getRequestHeaders().getFirst("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-
-        // Fallback to the socket remote address (may be a proxy). Antes caía no literal "unknown":
-        // todo cliente sem cabeçalho de proxy dividia o mesmo balde do rate limit.
+        // Só o endereço remoto da requisição. Com quarkus.http.proxy.* o Quarkus já o troca pelo
+        // cliente do X-Forwarded-For quando a conexão vem de um proxy confiável (trusted-proxies).
+        // Ler os cabeçalhos aqui deixava qualquer cliente escolher o próprio IP e fugir do rate limit.
         SocketAddress remoteAddress = httpServerRequest.remoteAddress();
         if (remoteAddress != null) {
             String host = remoteAddress.hostAddress() != null ? remoteAddress.hostAddress() : remoteAddress.host();
