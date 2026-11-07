@@ -6,7 +6,6 @@ import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -39,7 +38,6 @@ public class RabbitMQProducerService implements MessageBrokerService {
     @Value("${rabbitmq.fallback.enabled:true}")
     private boolean fallbackEnabled;
 
-    @Autowired
     public RabbitMQProducerService(RabbitTemplate rabbitTemplate) {
         this.rabbitTemplate = rabbitTemplate;
     }

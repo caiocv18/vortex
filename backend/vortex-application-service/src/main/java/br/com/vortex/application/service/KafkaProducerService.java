@@ -5,7 +5,6 @@ import br.com.vortex.application.model.MovimentoEstoque;
 import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -56,7 +55,6 @@ public class KafkaProducerService implements MessageBrokerService {
     @Value("${kafka.connection.timeout:5000}")
     private int connectionTimeout;
 
-    @Autowired
     public KafkaProducerService(KafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }

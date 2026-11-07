@@ -5,7 +5,6 @@ import br.com.vortex.application.exception.ResourceNotFoundException;
 import br.com.vortex.application.model.TipoProduto;
 import br.com.vortex.application.repository.ProdutoRepository;
 import br.com.vortex.application.repository.TipoProdutoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -15,7 +14,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Serviço para operações relacionadas a TipoProduto.
@@ -26,7 +27,6 @@ public class TipoProdutoService {
     private final TipoProdutoRepository tipoProdutoRepository;
     private final ProdutoRepository produtoRepository;
 
-    @Autowired
     public TipoProdutoService(TipoProdutoRepository tipoProdutoRepository, ProdutoRepository produtoRepository) {
         this.tipoProdutoRepository = tipoProdutoRepository;
         this.produtoRepository = produtoRepository;
@@ -70,10 +70,13 @@ public class TipoProdutoService {
     @Cacheable(value = "produto-types")
     public List<TipoProdutoDTO> buscarTodos() {
         List<TipoProduto> tiposProduto = tipoProdutoRepository.findAll(Sort.by("nome"));
-        
+
+        // ArrayList, não Stream.toList(): o resultado vai para o cache Redis, e o serializer JSON do
+        // Spring Data Redis não grava o tipo de classes finais do JDK (como a lista de toList()),
+        // então ela era gravada mas não podia ser lida de volta.
         return tiposProduto.stream()
                 .map(this::mapToDTO)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**

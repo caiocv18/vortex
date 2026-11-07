@@ -8,12 +8,10 @@ import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import br.com.vortex.application.repository.MovimentoEstoqueRepository;
 import br.com.vortex.application.repository.ProdutoRepository;
+import io.awspring.cloud.sqs.annotation.SqsListener;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.aws.messaging.listener.annotation.SqsListener;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -23,16 +21,15 @@ import java.time.LocalDateTime;
 /**
  * Serviço responsável por consumir mensagens das filas Amazon SQS.
  * Processa operações assíncronas relacionadas ao controle de estoque.
+ * Registrado por {@code SqsConfig}, só com {@code sqs.enabled=true}.
  */
 @Slf4j
-@Service
 public class SqsConsumerService {
 
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
     private final SqsProducerService sqsProducerService;
 
-    @Autowired
     public SqsConsumerService(MovimentoEstoqueRepository movimentoEstoqueRepository,
                              ProdutoRepository produtoRepository,
                              SqsProducerService sqsProducerService) {
@@ -177,7 +174,7 @@ public class SqsConsumerService {
      */
     @SqsListener("${sqs.queue.notificacao-estoque}")
     public void processarNotificacaoEstoque(@Payload String payload,
-                                          @Header("produtoId") Long produtoId,
+                                          @Header(name = "produtoId", required = false) Long produtoId,
                                           @Header("tipo") String tipo) {
         log.info("Processando notificação de estoque. Tipo: {}, Produto: {}, Mensagem: {}", 
                 tipo, produtoId, payload);
@@ -221,8 +218,8 @@ public class SqsConsumerService {
     public void processarAuditoria(@Payload String payload,
                                  @Header("operacao") String operacao,
                                  @Header("entidade") String entidade,
-                                 @Header("entidadeId") Long entidadeId,
-                                 @Header("usuarioId") String usuarioId) {
+                                 @Header(name = "entidadeId", required = false) Long entidadeId,
+                                 @Header(name = "usuarioId", required = false) String usuarioId) {
         log.info("Processando auditoria. Operação: {}, Entidade: {}, ID: {}, Usuário: {}", 
                 operacao, entidade, entidadeId, usuarioId);
 

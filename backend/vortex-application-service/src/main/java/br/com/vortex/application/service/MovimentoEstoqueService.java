@@ -9,7 +9,7 @@ import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import br.com.vortex.application.repository.MovimentoEstoqueRepository;
 import br.com.vortex.application.repository.ProdutoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,21 +31,25 @@ public class MovimentoEstoqueService {
 
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
+    // Nulo quando o SQS está desligado (sqs.enabled=false)
     private final SqsProducerService sqsProducerService;
     private final MessageBrokerService messageBrokerService;
+    private final boolean processamentoAssincronoEnabled;
 
-    @Value("${sqs.processamento.assincrono.enabled:false}")
-    private boolean processamentoAssincronoEnabled;
-
-    @Autowired
     public MovimentoEstoqueService(MovimentoEstoqueRepository movimentoEstoqueRepository,
                                   ProdutoRepository produtoRepository,
-                                  SqsProducerService sqsProducerService,
-                                  MessageBrokerService messageBrokerService) {
+                                  ObjectProvider<SqsProducerService> sqsProducerService,
+                                  MessageBrokerService messageBrokerService,
+                                  @Value("${sqs.processamento.assincrono.enabled:false}") boolean processamentoAssincronoEnabled) {
         this.movimentoEstoqueRepository = movimentoEstoqueRepository;
         this.produtoRepository = produtoRepository;
-        this.sqsProducerService = sqsProducerService;
+        this.sqsProducerService = sqsProducerService.getIfAvailable();
         this.messageBrokerService = messageBrokerService;
+        this.processamentoAssincronoEnabled = processamentoAssincronoEnabled;
+        if (processamentoAssincronoEnabled && this.sqsProducerService == null) {
+            throw new IllegalStateException(
+                    "sqs.processamento.assincrono.enabled=true exige o SQS ligado (sqs.enabled=true, perfil sqs)");
+        }
     }
 
     /**

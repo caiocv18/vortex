@@ -1,5 +1,5 @@
-# 1) Build: JDK 24 + Maven
-FROM eclipse-temurin:24-jdk AS build
+# 1) Build: JDK 27 + Maven
+FROM eclipse-temurin:27-jdk AS build
 
 # instala o Maven
 RUN apt-get update && \
@@ -16,8 +16,8 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# 2) Runtime: JDK 24 Alpine, só com o jar
-FROM amazoncorretto:24-alpine3.21-jdk AS runtime
+# 2) Runtime: JDK 27 Alpine, só com o jar
+FROM amazoncorretto:27-alpine3.22-jdk AS runtime
 
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar

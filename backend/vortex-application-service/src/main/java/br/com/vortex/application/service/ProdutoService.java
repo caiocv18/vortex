@@ -8,7 +8,6 @@ import br.com.vortex.application.repository.MovimentoEstoqueRepository;
 import br.com.vortex.application.repository.ProdutoRepository;
 import br.com.vortex.application.repository.TipoProdutoRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,7 +31,6 @@ public class ProdutoService {
     private final TipoProdutoRepository tipoProdutoRepository;
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
 
-    @Autowired
     public ProdutoService(ProdutoRepository produtoRepository, 
                          TipoProdutoRepository tipoProdutoRepository,
                          MovimentoEstoqueRepository movimentoEstoqueRepository) {
