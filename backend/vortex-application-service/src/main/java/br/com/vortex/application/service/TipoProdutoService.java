@@ -6,7 +6,12 @@ import br.com.vortex.application.model.TipoProduto;
 import br.com.vortex.application.repository.ProdutoRepository;
 import br.com.vortex.application.repository.TipoProdutoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,13 +49,27 @@ public class TipoProdutoService {
     }
 
     /**
-     * Busca todos os tipos de produto.
+     * Busca todos os tipos de produto com paginação.
+     *
+     * @param pageable Configurações de paginação
+     * @return Página de DTOs dos tipos de produto
+     */
+    @Transactional(readOnly = true)
+    public Page<TipoProdutoDTO> buscarTodos(Pageable pageable) {
+        Page<TipoProduto> tiposProduto = tipoProdutoRepository.findAll(pageable);
+        
+        return tiposProduto.map(this::mapToDTO);
+    }
+
+    /**
+     * Busca todos os tipos de produto (cached para dados estáticos).
      *
      * @return Lista de DTOs dos tipos de produto
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "produto-types")
     public List<TipoProdutoDTO> buscarTodos() {
-        List<TipoProduto> tiposProduto = tipoProdutoRepository.findAll();
+        List<TipoProduto> tiposProduto = tipoProdutoRepository.findAll(Sort.by("nome"));
         
         return tiposProduto.stream()
                 .map(this::mapToDTO)
@@ -65,6 +84,7 @@ public class TipoProdutoService {
      * @throws ResourceNotFoundException se o tipo de produto não for encontrado
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "produto-types", key = "#id")
     public TipoProdutoDTO buscarPorId(Long id) {
         TipoProduto tipoProduto = tipoProdutoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TipoProduto", "id", id));

@@ -41,7 +41,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 logger.debug("Validating JWT token for request: " + request.getRequestURI());
                 
                 // Validate JWT with authorization service
-                Map<String, Object> validationResponse = authServiceClient.validateToken(jwt);
+                Map<String, Object> validationResponse = authServiceClient
+                        .validateToken(jwt)
+                        .join();
                 logger.debug("Validation response: " + validationResponse);
                 
                 if (validationResponse != null && Boolean.TRUE.equals(validationResponse.get("valid"))) {

@@ -1,6 +1,8 @@
 package br.com.vortex.application.exception;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -12,12 +14,17 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Handler global para exceções da aplicação.
  */
 @ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
+
+    @Value("${spring.profiles.active:}")
+    private String activeProfiles;
 
     /**
      * Manipula exceções de recurso não encontrado.
@@ -82,11 +89,37 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorDetails> handleGlobalException(
             Exception exception, WebRequest webRequest) {
         
+        // Generate a unique error ID for tracking
+        String errorId = UUID.randomUUID().toString();
+        
+        // Log the full exception details for debugging
+        log.error("Unhandled exception [ID: {}] - URI: {}", 
+                errorId, webRequest.getDescription(false), exception);
+        
+        // Determine if we're in production mode
+        boolean isProduction = activeProfiles.contains("prd") || 
+                              activeProfiles.contains("prod") || 
+                              activeProfiles.contains("production");
+        
+        String userMessage;
+        String technicalDetails = null;
+        
+        if (isProduction) {
+            // In production, show generic message to avoid information disclosure
+            userMessage = "Ocorreu um erro interno no servidor. ID do erro: " + errorId;
+        } else {
+            // In development, show more details
+            userMessage = "Erro interno: " + exception.getMessage();
+            technicalDetails = exception.getClass().getSimpleName() + ": " + exception.getMessage();
+        }
+        
         ErrorDetails errorDetails = new ErrorDetails(
                 LocalDateTime.now(),
-                exception.getMessage(),
+                userMessage,
                 webRequest.getDescription(false),
-                "INTERNAL_SERVER_ERROR");
+                "INTERNAL_SERVER_ERROR",
+                errorId,
+                technicalDetails);
         
         return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -100,14 +133,22 @@ public class GlobalExceptionHandler {
         private final String message;
         private final String details;
         private final String errorCode;
+        private final String errorId;
+        private final String technicalDetails;
 
         public ErrorDetails(LocalDateTime timestamp, String message, String details, String errorCode) {
+            this(timestamp, message, details, errorCode, null, null);
+        }
+
+        public ErrorDetails(LocalDateTime timestamp, String message, String details, String errorCode, 
+                           String errorId, String technicalDetails) {
             this.timestamp = timestamp;
             this.message = message;
             this.details = details;
             this.errorCode = errorCode;
+            this.errorId = errorId;
+            this.technicalDetails = technicalDetails;
         }
-
     }
 
     /**

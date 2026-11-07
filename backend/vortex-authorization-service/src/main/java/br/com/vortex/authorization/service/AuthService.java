@@ -40,6 +40,9 @@ public class AuthService {
     EventPublisher eventPublisher;
 
     @Inject
+    EmailService emailService;
+
+    @Inject
     EntityManager entityManager;
 
     @Transactional
@@ -79,7 +82,7 @@ public class AuthService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.user = user;
         refreshToken.token = refreshTokenValue;
-        refreshToken.expiresAt = OffsetDateTime.now().plusDays(7); // TODO: Make configurable
+        refreshToken.expiresAt = OffsetDateTime.now().plus(jwtService.getRefreshTokenExpiration());
         refreshToken.persist();
 
         // Create response
@@ -314,8 +317,13 @@ public class AuthService {
             LOGGER.warn("Failed to publish password reset requested event for user: {}", user.email, e);
         }
 
-        // TODO: Send email with reset link
-        // emailService.sendPasswordResetEmail(user.email, resetToken.token);
+        // Send password reset email asynchronously
+        emailService.sendPasswordResetEmail(user.email, resetToken.token)
+                .subscribe()
+                .with(
+                    unused -> LOGGER.info("Password reset email sent successfully to: {}", user.email),
+                    throwable -> LOGGER.error("Failed to send password reset email to: {}", user.email, throwable)
+                );
     }
 
     @Transactional

@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from 'axios'
 import { apiClient } from '@/api/config'
+import { createLogger } from '@/utils/logger'
 
 export interface User {
   id: string
@@ -22,6 +23,8 @@ export interface LoginResponse {
 }
 
 export const useAuthStore = defineStore('auth', () => {
+  const logger = createLogger('AuthStore')
+  
   const token = ref<string | null>(localStorage.getItem('accessToken'))
   const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
   const user = ref<User | null>(null)
@@ -36,7 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       user.value = JSON.parse(storedUser)
     } catch (e) {
-      console.error('Error parsing stored user:', e)
+      logger.error('Error parsing stored user data', e)
     }
   }
 
@@ -44,11 +47,11 @@ export const useAuthStore = defineStore('auth', () => {
   // No need to duplicate them here
 
   function redirectToAuth(action: 'login' | 'register' = 'login'): void {
-    console.log('[Auth Store] Redirecting to auth service:', action)
+    logger.userAction(`Redirecting to auth service: ${action}`)
     // Save current URL to return after authentication
     const returnUrl = window.location.href
     sessionStorage.setItem('vortex_return_url', returnUrl)
-    console.log('[Auth Store] Saved return URL:', returnUrl)
+    logger.debug('Return URL saved for post-auth redirect', { returnUrl })
     
     // Redirect to React auth frontend
     window.location.href = `http://localhost:3001/${action}`
@@ -56,17 +59,19 @@ export const useAuthStore = defineStore('auth', () => {
 
 
   async function logout(): Promise<void> {
-    console.log('[Auth Store] Logging out...')
+    logger.userAction('User logout initiated')
     
     try {
       // Call logout endpoint if refresh token exists
       if (refreshToken.value) {
+        logger.apiCall('POST', '/api/auth/logout')
         await axios.post('http://localhost:8081/api/auth/logout', {
           refreshToken: refreshToken.value
         })
+        logger.info('Server logout successful')
       }
     } catch (error) {
-      console.error('Error during logout:', error)
+      logger.warn('Server logout failed, proceeding with local logout', error)
     } finally {
       // Clear all local data
       token.value = null
@@ -81,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.removeItem('vortex_user')
       sessionStorage.removeItem('vortex_return_url')
       
-      console.log('[Auth Store] All auth data cleared')
+      logger.debug('All authentication data cleared from storage')
       
       // Redirect to React auth login
       redirectToAuth('login')
@@ -96,12 +101,15 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // Check if token is expired
       if (isTokenExpired(token.value)) {
-        console.log('[Auth Store] Token expired, attempting refresh...')
-        console.log('[Auth Store] Token expiration time:', new Date(JSON.parse(atob(token.value.split('.')[1])).exp * 1000))
-        console.log('[Auth Store] Current time:', new Date())
+        logger.info('Access token expired, attempting refresh')
+        const tokenPayload = JSON.parse(atob(token.value.split('.')[1]))
+        logger.debug('Token expiration details', { 
+          expirationTime: new Date(tokenPayload.exp * 1000),
+          currentTime: new Date()
+        })
         const refreshed = await attemptTokenRefresh()
         if (!refreshed) {
-          console.log('[Auth Store] Token refresh failed, logging out')
+          logger.warn('Token refresh failed, initiating logout')
           logout()
           return false
         }
@@ -114,7 +122,7 @@ export const useAuthStore = defineStore('auth', () => {
       
       return false
     } catch (err: any) {
-      console.error('[Auth Store] Error checking auth:', err.message)
+      logger.error('Authentication validation failed', err)
       return false
     }
   }
@@ -135,7 +143,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      console.log('[Auth Store] Refreshing token...')
+      logger.debug('Initiating token refresh')
       const response = await axios.post('http://localhost:8081/api/auth/refresh', {
         refreshToken: refreshToken.value
       })
@@ -150,10 +158,10 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('vortex_user', JSON.stringify(userData))
       
-      console.log('[Auth Store] Token refreshed successfully')
+      logger.info('Token refresh completed successfully')
       return true
     } catch (error: any) {
-      console.error('[Auth Store] Token refresh failed:', error)
+      logger.error('Token refresh failed', error)
       
       // Clear invalid tokens
       token.value = null
@@ -168,24 +176,27 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function initializeAuth(): Promise<boolean> {
-    console.log('[Auth Store] Initializing auth...')
+    logger.debug('Initializing authentication store')
     // Try to load auth data from localStorage
     const accessToken = localStorage.getItem('accessToken')
     const refreshTokenValue = localStorage.getItem('refreshToken')
     const storedUser = localStorage.getItem('vortex_user')
     
-    console.log('[Auth Store] Access token found:', !!accessToken)
-    console.log('[Auth Store] Access token preview:', accessToken ? `${accessToken.substring(0, 20)}...` : 'No token')
-    console.log('[Auth Store] Refresh token found:', !!refreshTokenValue)
-    console.log('[Auth Store] User found:', !!storedUser)
+    logger.debug('Stored auth data check', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshTokenValue,
+      hasUserData: !!storedUser
+    })
     
     if (accessToken) {
-      console.log('[Auth Store] Token length:', accessToken.length)
-      console.log('[Auth Store] Token parts:', accessToken.split('.').length)
+      logger.debug('Token validation details', {
+        tokenLength: accessToken.length,
+        tokenParts: accessToken.split('.').length
+      })
     }
     
     if (!accessToken || !refreshTokenValue || !storedUser) {
-      console.log('[Auth Store] Missing auth data')
+      logger.debug('Authentication data incomplete, user not logged in')
       return false
     }
     
@@ -193,11 +204,11 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = accessToken
       refreshToken.value = refreshTokenValue
       user.value = JSON.parse(storedUser)
-      console.log('[Auth Store] Auth data loaded:', user.value?.email)
+      logger.info('Authentication data loaded', { userEmail: user.value?.email })
       
       // Validate token
       const isValid = await checkAuth()
-      console.log('[Auth Store] Token validation result:', isValid)
+      logger.debug('Token validation completed', { isValid })
       
       if (!isValid) {
         // Clear invalid data
@@ -209,7 +220,7 @@ export const useAuthStore = defineStore('auth', () => {
       
       return true
     } catch (e) {
-      console.error('[Auth Store] Error initializing auth:', e)
+      logger.error('Authentication initialization failed', e)
       return false
     }
   }
