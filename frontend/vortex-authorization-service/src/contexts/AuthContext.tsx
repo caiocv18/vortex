@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { 
-  User, 
-  LoginRequest, 
-  RegisterRequest, 
-  ForgotPasswordRequest, 
+import { createContext, useCallback, useContext, useReducer, useEffect, ReactNode } from 'react';
+import {
+  User,
+  LoginRequest,
+  RegisterRequest,
+  ForgotPasswordRequest,
   ResetPasswordRequest,
-  AuthContextType 
+  AuthContextType
 } from '@/types/auth';
 import { apiService } from '@/services/api';
+import { buildAuthRedirectUrl, getReturnUrl } from '@/utils/authRedirect';
 import toast from 'react-hot-toast';
 
 interface AuthState {
@@ -63,12 +64,44 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Erro do axios com o envelope da API { success, message, data } (ex.: 401 "Invalid credentials")
+type ApiErrorLike = { response?: { data?: { message?: string } } } | null | undefined;
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  return (error as ApiErrorLike)?.response?.data?.message || fallback;
+}
+
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
+
+  // Declarado antes do efeito que o usa; useCallback deixa a identidade estável (dispatch é estável)
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        dispatch({ type: 'AUTH_FAILURE' });
+        return false;
+      }
+
+      const response = await apiService.refreshToken({ refreshToken });
+      const { accessToken, user } = response.data.data!;
+
+      localStorage.setItem('accessToken', accessToken);
+      dispatch({ type: 'AUTH_SUCCESS', payload: user });
+
+      return true;
+    } catch (error) {
+      console.error('Refresh token failed:', error);
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      dispatch({ type: 'AUTH_FAILURE' });
+      return false;
+    }
+  }, []);
 
   // Check for existing token on app start
   useEffect(() => {
@@ -97,14 +130,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
     
     checkInitialAuth();
-  }, []);
+  }, [refreshToken]);
 
   const login = async (request: LoginRequest): Promise<void> => {
     try {
       dispatch({ type: 'AUTH_START' });
       
       const response = await apiService.login(request);
-      const { accessToken, refreshToken: refToken, user } = response.data?.data!;
+      const { accessToken, refreshToken: refToken, user } = response.data.data!;
 
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refToken);
@@ -112,21 +145,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'AUTH_SUCCESS', payload: user });
       
       toast.success('Login successful!');
-      
-      // Redirect to main application with auth data
-      const returnUrl = sessionStorage.getItem('vortex_return_url') || 'http://localhost:5173';
-      const authData = encodeURIComponent(JSON.stringify({
+
+      // Redirect to main application with auth data (formato em src/utils/authRedirect.ts)
+      window.location.href = buildAuthRedirectUrl(getReturnUrl(), {
         accessToken,
         refreshToken: refToken,
         user
-      }));
-      
-      window.location.href = `${returnUrl}?authData=${authData}`;
-    } catch (error: any) {
+      });
+    } catch (error) {
       console.error('[AuthContext] Login failed:', error);
       dispatch({ type: 'AUTH_FAILURE' });
-      
-      const message = error.response?.data?.message || 'Login failed. Please try again.';
+
+      const message = getApiErrorMessage(error, 'Login failed. Please try again.');
       toast.error(message);
       
       throw error;
@@ -138,7 +168,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'AUTH_START' });
       
       const response = await apiService.register(request);
-      const { accessToken, refreshToken: refToken, user } = response.data?.data!;
+      const { accessToken, refreshToken: refToken, user } = response.data.data!;
 
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refToken);
@@ -146,21 +176,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'AUTH_SUCCESS', payload: user });
       
       toast.success('Registration successful!');
-      
-      // Redirect to main application with auth data
-      const returnUrl = sessionStorage.getItem('vortex_return_url') || 'http://localhost:5173';
-      const authData = encodeURIComponent(JSON.stringify({
+
+      // Redirect to main application with auth data (formato em src/utils/authRedirect.ts)
+      window.location.href = buildAuthRedirectUrl(getReturnUrl(), {
         accessToken,
         refreshToken: refToken,
         user
-      }));
-      
-      window.location.href = `${returnUrl}?authData=${authData}`;
-    } catch (error: any) {
+      });
+    } catch (error) {
       console.error('[AuthContext] Registration failed:', error);
       dispatch({ type: 'AUTH_FAILURE' });
-      
-      const message = error.response?.data?.message || 'Registration failed. Please try again.';
+
+      const message = getApiErrorMessage(error, 'Registration failed. Please try again.');
       toast.error(message);
       
       throw error;
@@ -187,51 +214,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await apiService.forgotPassword(request);
       toast.success('Password reset instructions have been sent to your email');
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to send reset email';
+    } catch (error) {
+      const message = getApiErrorMessage(error, 'Failed to send reset email');
       toast.error(message);
       throw error;
     }
   };
 
-  const forceReset = (): void => {
+  // Identidade estável: o LoginForm o lista nas dependências do useEffect
+  const forceReset = useCallback((): void => {
     console.log('[AuthContext] Force reset called');
     apiService.removeAuthToken();
     dispatch({ type: 'AUTH_FAILURE' });
-  };
+  }, []);
 
   const resetPassword = async (request: ResetPasswordRequest): Promise<void> => {
     try {
       await apiService.resetPassword(request);
       toast.success('Password reset successful! You can now login with your new password.');
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Password reset failed';
+    } catch (error) {
+      const message = getApiErrorMessage(error, 'Password reset failed');
       toast.error(message);
       throw error;
-    }
-  };
-
-  const refreshToken = async (): Promise<boolean> => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        dispatch({ type: 'AUTH_FAILURE' });
-        return false;
-      }
-
-      const response = await apiService.refreshToken({ refreshToken });
-      const { accessToken, user } = response.data?.data!;
-
-      localStorage.setItem('accessToken', accessToken);
-      dispatch({ type: 'AUTH_SUCCESS', payload: user });
-      
-      return true;
-    } catch (error) {
-      console.error('Refresh token failed:', error);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      dispatch({ type: 'AUTH_FAILURE' });
-      return false;
     }
   };
 
@@ -248,9 +252,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     forceReset,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // React 19: o próprio contexto serve de provider
+  return <AuthContext value={value}>{children}</AuthContext>;
 }
 
+// O hook mora junto do provider de propósito (4 consumidores importam daqui); o custo é só o
+// Fast Refresh recarregar a página inteira ao editar este arquivo
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {

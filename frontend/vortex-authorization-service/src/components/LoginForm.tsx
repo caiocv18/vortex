@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, Loader2 } from 'lucide-react';
+import { Link } from 'react-router';
+import { Eye, EyeOff, Lock, Mail, LoaderCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginRequest } from '@/types/auth';
 
@@ -46,7 +46,7 @@ export function LoginForm() {
     }, 2000);
     
     return () => clearTimeout(timeoutId);
-  }, [isLoading]);
+  }, [isLoading, forceReset]);
 
   const {
     register,
@@ -100,8 +100,8 @@ export function LoginForm() {
                 autoComplete="username"
                 {...register('identifier')}
                 className={`
-                  block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  block w-full pl-10 pr-3 py-3 border rounded-lg shadow-xs 
+                  placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                   focus:border-primary-500 transition-colors
                   ${errors.identifier ? 'border-red-300' : 'border-gray-300'}
                 `}
@@ -128,8 +128,8 @@ export function LoginForm() {
                 autoComplete="current-password"
                 {...register('password')}
                 className={`
-                  block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  block w-full pl-10 pr-10 py-3 border rounded-lg shadow-xs 
+                  placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                   focus:border-primary-500 transition-colors
                   ${errors.password ? 'border-red-300' : 'border-gray-300'}
                 `}
@@ -160,7 +160,7 @@ export function LoginForm() {
                 id="rememberMe"
                 type="checkbox"
                 {...register('rememberMe')}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded-sm"
                 disabled={loading}
               />
               <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
@@ -181,8 +181,8 @@ export function LoginForm() {
             disabled={loading}
             className="
               w-full flex justify-center py-3 px-4 border border-transparent 
-              rounded-lg shadow-sm text-sm font-medium text-white 
-              bg-primary-600 hover:bg-primary-700 focus:outline-none 
+              rounded-lg shadow-xs text-sm font-medium text-white 
+              bg-primary-600 hover:bg-primary-700 focus:outline-hidden 
               focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors
@@ -190,7 +190,7 @@ export function LoginForm() {
           >
             {loading ? (
               <>
-                <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                <LoaderCircle className="animate-spin -ml-1 mr-3 h-5 w-5" />
                 Signing in...
               </>
             ) : (

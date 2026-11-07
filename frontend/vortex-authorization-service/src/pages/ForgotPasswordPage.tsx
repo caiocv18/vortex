@@ -1,9 +1,8 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, Loader2, KeyRound } from 'lucide-react';
+import { Link } from 'react-router';
+import { Mail, ArrowLeft, LoaderCircle, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ForgotPasswordRequest } from '@/types/auth';
 import { useTheme } from '@/hooks/useTheme';
@@ -34,7 +33,7 @@ export function ForgotPasswordPage() {
   const onSubmit = async (data: FormData) => {
     try {
       await forgotPassword(data as ForgotPasswordRequest);
-    } catch (error) {
+    } catch {
       // Error handling is done in the AuthContext
     }
   };
@@ -43,7 +42,7 @@ export function ForgotPasswordPage() {
 
   if (isSubmitSuccessful) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           <div className="bg-white shadow-lg rounded-lg p-8 text-center">
             <div className="mx-auto w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-6">
@@ -71,7 +70,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="text-center mb-8">
@@ -99,8 +98,8 @@ export function ForgotPasswordPage() {
                   autoComplete="email"
                   {...register('email')}
                   className={`
-                    block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm 
-                    placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                    block w-full pl-10 pr-3 py-3 border rounded-lg shadow-xs 
+                    placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                     focus:border-primary-500 transition-colors
                     ${errors.email ? 'border-red-300' : 'border-gray-300'}
                   `}
@@ -118,8 +117,8 @@ export function ForgotPasswordPage() {
               disabled={loading}
               className="
                 w-full flex justify-center py-3 px-4 border border-transparent 
-                rounded-lg shadow-sm text-sm font-medium text-white 
-                bg-primary-600 hover:bg-primary-700 focus:outline-none 
+                rounded-lg shadow-xs text-sm font-medium text-white 
+                bg-primary-600 hover:bg-primary-700 focus:outline-hidden 
                 focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-colors
@@ -127,7 +126,7 @@ export function ForgotPasswordPage() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                  <LoaderCircle className="animate-spin -ml-1 mr-3 h-5 w-5" />
                   Sending email...
                 </>
               ) : (
