@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import { apiClient } from '@/api/config'
+import { AUTH_FRONTEND_URL, AUTH_LOGOUT_URL, AUTH_REFRESH_URL } from '@/api/authService'
 import { createLogger } from '@/utils/logger'
 
 export interface User {
@@ -22,6 +22,13 @@ export interface LoginResponse {
   user: User
 }
 
+// Envelope das respostas do serviço de autorização: { success, message, data }
+interface AuthServiceResponse<T> {
+  success: boolean
+  message?: string
+  data?: T
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const logger = createLogger('AuthStore')
   
@@ -32,6 +39,9 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
+
+  // Renovação em andamento (single-flight): chamadas concorrentes recebem a mesma promise
+  let refreshInFlight: Promise<boolean> | null = null
 
   // Initialize user from localStorage
   const storedUser = localStorage.getItem('vortex_user')
@@ -54,7 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
     logger.debug('Return URL saved for post-auth redirect', { returnUrl })
     
     // Redirect to React auth frontend
-    window.location.href = `http://localhost:3001/${action}`
+    window.location.href = `${AUTH_FRONTEND_URL}/${action}`
   }
 
 
@@ -65,7 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Call logout endpoint if refresh token exists
       if (refreshToken.value) {
         logger.apiCall('POST', '/api/auth/logout')
-        await axios.post('http://localhost:8081/api/auth/logout', {
+        await axios.post(AUTH_LOGOUT_URL, {
           refreshToken: refreshToken.value
         })
         logger.info('Server logout successful')
@@ -121,7 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
       
       return false
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Authentication validation failed', err)
       return false
     }
@@ -137,30 +147,53 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function attemptTokenRefresh(): Promise<boolean> {
-    if (!refreshToken.value) {
+  // Single-flight: guard de rota, checkAuth e o interceptor 401 de api/config.ts
+  // compartilham a mesma chamada a POST /api/auth/refresh enquanto ela estiver em andamento.
+  function attemptTokenRefresh(): Promise<boolean> {
+    if (!refreshInFlight) {
+      refreshInFlight = refreshTokens().finally(() => {
+        refreshInFlight = null
+      })
+    }
+    return refreshInFlight
+  }
+
+  async function refreshTokens(): Promise<boolean> {
+    // localStorage é a fonte de verdade dos tokens (o interceptor de api/config.ts lê de lá)
+    const storedRefreshToken = localStorage.getItem('refreshToken') || refreshToken.value
+    if (!storedRefreshToken) {
       return false
     }
 
     try {
       logger.debug('Initiating token refresh')
-      const response = await axios.post('http://localhost:8081/api/auth/refresh', {
-        refreshToken: refreshToken.value
+      const response = await axios.post<AuthServiceResponse<LoginResponse>>(AUTH_REFRESH_URL, {
+        refreshToken: storedRefreshToken
       })
 
-      const { accessToken, user: userData } = response.data.data
-      
+      const payload = response.data?.data
+      if (response.data?.success === false || !payload?.accessToken) {
+        throw new Error(response.data?.message || 'Invalid refresh response')
+      }
+
       // Update tokens and user
-      token.value = accessToken
-      user.value = userData
-      
-      // Update localStorage
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('vortex_user', JSON.stringify(userData))
-      
+      token.value = payload.accessToken
+      localStorage.setItem('accessToken', payload.accessToken)
+
+      // Guardar o refresh token devolvido (hoje o serviço repete o mesmo; se passar a rotacionar, segue funcionando)
+      if (payload.refreshToken) {
+        refreshToken.value = payload.refreshToken
+        localStorage.setItem('refreshToken', payload.refreshToken)
+      }
+
+      if (payload.user) {
+        user.value = payload.user
+        localStorage.setItem('vortex_user', JSON.stringify(payload.user))
+      }
+
       logger.info('Token refresh completed successfully')
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Token refresh failed', error)
       
       // Clear invalid tokens

@@ -175,7 +175,8 @@ test.describe('Reports Page', () => {
     await page.waitForTimeout(5000)
     
     // Verifica se os cards não mostram valores padrão/zero
-    const statisticsCards = page.locator('.v-card .text-h5')
+    // Vuetify 4 (tipografia MD3): text-h5 virou text-headline-small
+    const statisticsCards = page.locator('.v-card .text-headline-small')
     
     if (await statisticsCards.count() > 0) {
       for (let i = 0; i < await statisticsCards.count(); i++) {
@@ -252,7 +253,7 @@ test.describe('Reports Page', () => {
     await page.waitForTimeout(5000)
     
     // Pega o valor inicial de um dos cards
-    const profitCard = page.locator('.v-card:has-text("Lucro Total") .text-h5')
+    const profitCard = page.locator('.v-card:has-text("Lucro Total") .text-headline-small')
     let initialValue = ''
     
     if (await profitCard.isVisible()) {

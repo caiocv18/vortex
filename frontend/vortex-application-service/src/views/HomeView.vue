@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { tiposProdutoApi } from '@/api'
+import axios from 'axios'
+import { tiposProdutoApi, type TipoProdutoDTO } from '@/api'
+
+interface ApiTestError {
+  message: string
+  response?: unknown
+  code?: string
+}
 
 // Teste de API
-const apiTestResult = ref<any>(null)
-const apiTestError = ref<any>(null)
+const apiTestResult = ref<TipoProdutoDTO[] | null>(null)
+const apiTestError = ref<ApiTestError | null>(null)
 const loading = ref(false)
 
 const testApi = async () => {
@@ -16,13 +23,14 @@ const testApi = async () => {
     console.log('Testando API com token...')
     const response = await tiposProdutoApi.findAllTiposProduto()
     console.log('Resposta do teste:', response)
-    apiTestResult.value = response.data
-  } catch (error: any) {
+    // O spec OpenAPI tipa a lista como objeto único; normaliza como as stores fazem
+    apiTestResult.value = Array.isArray(response.data) ? response.data : [response.data]
+  } catch (error: unknown) {
     console.error('Erro no teste:', error)
     apiTestError.value = {
-      message: error.message,
-      response: error.response,
-      code: error.code
+      message: error instanceof Error ? error.message : String(error),
+      response: axios.isAxiosError(error) ? error.response : undefined,
+      code: axios.isAxiosError(error) ? error.code : undefined
     }
   } finally {
     loading.value = false
@@ -39,7 +47,7 @@ onMounted(() => {
     <v-row>
       <v-col cols="12">
         <v-card class="mb-6">
-          <v-card-title class="text-h4">
+          <v-card-title class="text-headline-large">
             Bem-vindo ao Sistema de Estoque
           </v-card-title>
           <v-card-subtitle>
@@ -116,8 +124,8 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             <v-icon size="40" color="primary" class="mr-3">mdi-shape</v-icon>
             <div>
-              <div class="text-h6">Tipos de Produto</div>
-              <div class="text-caption">Categorias disponíveis</div>
+              <div class="text-title-large">Tipos de Produto</div>
+              <div class="text-body-small">Categorias disponíveis</div>
             </div>
           </v-card-title>
           <v-card-text>
@@ -137,8 +145,8 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             <v-icon size="40" color="primary" class="mr-3">mdi-package-variant</v-icon>
             <div>
-              <div class="text-h6">Produtos</div>
-              <div class="text-caption">Itens em estoque</div>
+              <div class="text-title-large">Produtos</div>
+              <div class="text-body-small">Itens em estoque</div>
             </div>
           </v-card-title>
           <v-card-text>
@@ -158,8 +166,8 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             <v-icon size="40" color="primary" class="mr-3">mdi-swap-horizontal</v-icon>
             <div>
-              <div class="text-h6">Movimentação</div>
-              <div class="text-caption">Entradas e saídas</div>
+              <div class="text-title-large">Movimentação</div>
+              <div class="text-body-small">Entradas e saídas</div>
             </div>
           </v-card-title>
           <v-card-text>
@@ -179,8 +187,8 @@ onMounted(() => {
           <v-card-title class="d-flex align-center">
             <v-icon size="40" color="primary" class="mr-3">mdi-chart-box</v-icon>
             <div>
-              <div class="text-h6">Relatórios</div>
-              <div class="text-caption">Análises e métricas</div>
+              <div class="text-title-large">Relatórios</div>
+              <div class="text-body-small">Análises e métricas</div>
             </div>
           </v-card-title>
           <v-card-text>

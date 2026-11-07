@@ -39,7 +39,9 @@ const router = createRouter({
 })
 
 // Route guard for authentication
-router.beforeEach(async (to, from, next) => {
+// Guard por valor de retorno (false cancela, true segue), sem o callback next(),
+// que misturado com return false gerava o aviso "next() was never called".
+router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()
   
   console.log('[Router] Navigation to:', to.path)
@@ -84,8 +86,8 @@ router.beforeEach(async (to, from, next) => {
       return false
     }
   }
-  
-  next()
+
+  return true
 })
 
 export default router

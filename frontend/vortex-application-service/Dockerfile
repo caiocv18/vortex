@@ -1,7 +1,8 @@
 # Dockerfile para Frontend Vue.js/Vite
 
 # 1) Build stage: Node.js para build da aplicação
-FROM node:20-alpine AS build
+# Node 26: vitest 5, jsdom 31, npm-run-all2 9 e vite 8 não aceitam mais o Node 20 (EOL)
+FROM node:26-alpine AS build
 
 WORKDIR /app
 

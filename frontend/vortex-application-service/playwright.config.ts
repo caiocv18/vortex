@@ -2,10 +2,11 @@ import process from 'node:process'
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * URL da aplicação sob teste. Padrão: dev server do Vite.
+ * Ex.: PLAYWRIGHT_BASE_URL=http://localhost:3000 para testar o container.
  */
-// require('dotenv').config();
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
+const port = new URL(baseURL).port || '80'
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -28,19 +29,20 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  /* open: 'never': no WSL o relatório não abre browser nem segura o terminal */
+  reporter: [['html', { open: 'never' }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
     actionTimeout: 0,
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173',
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
 
-    /* Only on CI systems run the tests headless */
-    headless: !!process.env.CI,
+    /* Headless por padrão (com janela, o WSL abre o WSLg). PLAYWRIGHT_HEADED=true para ver o browser. */
+    headless: process.env.PLAYWRIGHT_HEADED !== 'true',
   },
 
   /* Configure projects for major browsers */
@@ -101,10 +103,13 @@ export default defineConfig({
     /**
      * Use the dev server by default for faster feedback loop.
      * Use the preview server on CI for more realistic testing.
+     * Os dois sobem na porta da baseURL, então definir CI não muda mais a porta.
      * Playwright will re-use the local server if there is already a dev-server running.
      */
-    command: process.env.CI ? 'npm run preview' : 'npm run dev',
-    port: process.env.CI ? 4173 : 5173,
+    command: process.env.CI
+      ? `npm run preview -- --port ${port} --strictPort`
+      : `npm run dev -- --port ${port} --strictPort`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
   },
 })

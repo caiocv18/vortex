@@ -61,7 +61,7 @@ test.describe('Product Types Page', () => {
     await page.click('button:has-text("Cancelar")')
     
     // Verifica se o diálogo foi fechado
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('form validation works in new product type dialog', async ({ page }) => {
@@ -94,7 +94,7 @@ test.describe('Product Types Page', () => {
     await page.click('button:has-text("Criar")')
     
     // Aguarda o diálogo fechar
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
     
     // Verifica se o novo tipo foi adicionado (pode aparecer na tabela)
     // Nota: Este teste assume que a API está funcionando
@@ -164,9 +164,9 @@ test.describe('Product Types Page', () => {
     await page.reload()
     
     // Verifica se o indicador de carregamento aparece (mesmo que brevemente)
-    // Nota: Pode ser difícil de capturar se a API for muito rápida
-    const loadingIndicator = page.locator('.v-data-table .v-progress-linear, .v-data-table .v-skeleton-loader')
-    
+    // Nota: Pode ser difícil de capturar se a API for muito rápida, por isso não há
+    // asserção sobre '.v-progress-linear' / '.v-skeleton-loader'
+
     // Aguarda a tabela carregar completamente
     await page.waitForSelector('.v-data-table', { timeout: 10000 })
   })

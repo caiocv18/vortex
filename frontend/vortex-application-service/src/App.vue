@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useTheme } from 'vuetify'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthStore } from '@/stores/auth'
-import { RouterView, useRoute } from 'vue-router'
+import { RouterView } from 'vue-router'
 
 const drawer = ref(true)
 const rail = ref(false)
-const theme = useTheme()
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
-const route = useRoute()
 
 const menuItems = [
   { title: 'Home', value: 'home', icon: 'mdi-home', to: '/' },
@@ -39,7 +36,6 @@ const userAvatar = computed(() => {
 })
 
 onMounted(async () => {
-  themeStore.setThemeInstance(theme)
   themeStore.initTheme()
   
   // Initialize auth store if user data exists in localStorage
@@ -129,7 +125,6 @@ onMounted(async () => {
       <!-- User menu -->
       <v-menu
         v-if="authStore.isAuthenticated"
-        offset-y
         :close-on-content-click="false"
       >
         <template v-slot:activator="{ props }">
@@ -139,7 +134,7 @@ onMounted(async () => {
             class="mx-2"
           >
             <v-avatar color="secondary" size="36">
-              <span class="white--text text-h6">{{ userAvatar }}</span>
+              <span class="text-white text-title-large">{{ userAvatar }}</span>
             </v-avatar>
           </v-btn>
         </template>
@@ -147,11 +142,11 @@ onMounted(async () => {
           <v-card-text>
             <div class="text-center mb-2">
               <v-avatar color="secondary" size="64">
-                <span class="white--text text-h4">{{ userAvatar }}</span>
+                <span class="text-white text-headline-large">{{ userAvatar }}</span>
               </v-avatar>
             </div>
-            <p class="text-h6 text-center mb-1">{{ authStore.user?.username }}</p>
-            <p class="text-body-2 text-center text-grey">{{ authStore.user?.email }}</p>
+            <p class="text-title-large text-center mb-1">{{ authStore.user?.username }}</p>
+            <p class="text-body-medium text-center text-grey">{{ authStore.user?.email }}</p>
           </v-card-text>
           <v-divider></v-divider>
           <v-card-actions>
@@ -161,7 +156,7 @@ onMounted(async () => {
               color="error"
               @click="handleLogout"
             >
-              <v-icon left>mdi-logout</v-icon>
+              <v-icon start>mdi-logout</v-icon>
               Sair
             </v-btn>
           </v-card-actions>

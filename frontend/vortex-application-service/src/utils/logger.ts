@@ -11,7 +11,7 @@ interface LogEntry {
   timestamp: string
   source: string
   message: string
-  data?: any
+  data?: unknown
 }
 
 class Logger {
@@ -43,7 +43,7 @@ class Logger {
     return level >= this.level
   }
 
-  private createLogEntry(level: LogLevel, message: string, data?: any): LogEntry {
+  private createLogEntry(level: LogLevel, message: string, data?: unknown): LogEntry {
     return {
       level,
       timestamp: new Date().toISOString(),
@@ -97,21 +97,21 @@ class Logger {
     }
   }
 
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     if (!this.shouldLog(LogLevel.DEBUG)) return
     
     const entry = this.createLogEntry(LogLevel.DEBUG, message, data)
     this.logToConsole(entry)
   }
 
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     if (!this.shouldLog(LogLevel.INFO)) return
     
     const entry = this.createLogEntry(LogLevel.INFO, message, data)
     this.logToConsole(entry)
   }
 
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     if (!this.shouldLog(LogLevel.WARN)) return
     
     const entry = this.createLogEntry(LogLevel.WARN, message, data)
@@ -119,7 +119,7 @@ class Logger {
     this.logToRemote(entry)
   }
 
-  error(message: string, data?: any): void {
+  error(message: string, data?: unknown): void {
     if (!this.shouldLog(LogLevel.ERROR)) return
     
     const entry = this.createLogEntry(LogLevel.ERROR, message, data)
@@ -132,7 +132,7 @@ class Logger {
     this.debug(`API ${method} ${url}${status ? ` - ${status}` : ''}`)
   }
 
-  userAction(action: string, details?: any): void {
+  userAction(action: string, details?: unknown): void {
     this.info(`User action: ${action}`, details)
   }
 

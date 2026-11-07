@@ -1,5 +1,12 @@
 // Test script to verify API authentication
+import axios from 'axios'
 import { tiposProdutoApi } from './api'
+
+declare global {
+  interface Window {
+    testApiAuth?: typeof testApiAuth
+  }
+}
 
 export async function testApiAuth() {
   console.log('🧪 Testing API Authentication...')
@@ -18,17 +25,18 @@ export async function testApiAuth() {
     const response = await tiposProdutoApi.findAllTiposProduto()
     console.log('✅ Success! Data received:', response.data)
     return { success: true, data: response.data }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const axiosError = axios.isAxiosError(error) ? error : undefined
     console.error('❌ API call failed:', {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      headers: error.config?.headers
+      message: error instanceof Error ? error.message : String(error),
+      status: axiosError?.response?.status,
+      statusText: axiosError?.response?.statusText,
+      data: axiosError?.response?.data,
+      headers: axiosError?.config?.headers
     })
     return { success: false, error }
   }
 }
 
 // Make function available globally for testing
-(window as any).testApiAuth = testApiAuth
+window.testApiAuth = testApiAuth

@@ -66,7 +66,7 @@ test.describe('Products Page', () => {
     await page.click('button:has-text("Cancelar")')
     
     // Verifica se o diálogo foi fechado
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('form validation works in new product dialog', async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe('Products Page', () => {
     await page.click('button:has-text("Criar")')
     
     // Aguarda o diálogo fechar
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('displays stock levels with appropriate colors', async ({ page }) => {
@@ -236,10 +236,9 @@ test.describe('Products Page', () => {
       // Verifica se pelo menos uma célula de tipo está visível
       await expect(typeColumns.first()).toBeVisible()
       
-      // Verifica se não há "N/A" ou IDs numéricos na coluna tipo
-      const cellText = await typeColumns.first().textContent()
-      expect(cellText).not.toBe('N/A')
-      expect(cellText).not.toMatch(/^\d+$/)
+      // Verifica se não há "N/A" ou IDs numéricos na coluna tipo (asserções web-first)
+      await expect(typeColumns.first()).not.toHaveText('N/A')
+      await expect(typeColumns.first()).not.toHaveText(/^\d+$/)
     }
   })
 
@@ -276,8 +275,8 @@ test.describe('Products Page', () => {
         await page.waitForTimeout(500)
         
         // Verifica se a ordenação foi aplicada (ícone de ordenação deve aparecer)
-        const sortIcon = page.locator('th:has-text("ID") .mdi-arrow-up, th:has-text("ID") .mdi-arrow-down')
-        // Nota: O ícone pode não estar visível dependendo da implementação do Vuetify
+        // Nota: O ícone pode não estar visível dependendo da implementação do Vuetify,
+        // por isso não há asserção sobre '.mdi-arrow-up' / '.mdi-arrow-down' aqui
       }
     }
   })

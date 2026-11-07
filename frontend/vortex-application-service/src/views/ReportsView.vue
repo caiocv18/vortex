@@ -159,7 +159,7 @@ const profitMargin = computed(() => {
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-6">Relatórios</h1>
+        <h1 class="text-headline-large mb-6">Relatórios</h1>
       </v-col>
     </v-row>
 
@@ -168,32 +168,32 @@ const profitMargin = computed(() => {
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Receita Total</div>
-            <div class="text-h5 font-weight-bold">{{ formatCurrency(totalRevenue) }}</div>
+            <div class="text-label-medium">Receita Total</div>
+            <div class="text-headline-small font-weight-bold">{{ formatCurrency(totalRevenue) }}</div>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Custo Total</div>
-            <div class="text-h5 font-weight-bold">{{ formatCurrency(totalCost) }}</div>
+            <div class="text-label-medium">Custo Total</div>
+            <div class="text-headline-small font-weight-bold">{{ formatCurrency(totalCost) }}</div>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Lucro Total</div>
-            <div class="text-h5 font-weight-bold text-success">{{ formatCurrency(reportStore.totalProfit) }}</div>
+            <div class="text-label-medium">Lucro Total</div>
+            <div class="text-headline-small font-weight-bold text-success">{{ formatCurrency(reportStore.totalProfit) }}</div>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Margem de Lucro</div>
-            <div class="text-h5 font-weight-bold">{{ profitMargin.toFixed(1) }}%</div>
+            <div class="text-label-medium">Margem de Lucro</div>
+            <div class="text-headline-small font-weight-bold">{{ profitMargin.toFixed(1) }}%</div>
           </v-card-text>
         </v-card>
       </v-col>

@@ -67,7 +67,7 @@ test.describe('Navigation', () => {
 
   test('theme toggle works correctly', async ({ page }) => {
     // Pega o ícone inicial do tema
-    const initialThemeIcon = await page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
+    const initialThemeIcon = page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
     const initialIconClass = await initialThemeIcon.getAttribute('class')
     
     // Clica no botão de tema no app bar
@@ -77,10 +77,9 @@ test.describe('Navigation', () => {
     await page.waitForTimeout(500)
     
     // Verifica se o ícone mudou
-    const newThemeIcon = await page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
-    const newIconClass = await newThemeIcon.getAttribute('class')
-    
-    expect(initialIconClass).not.toBe(newIconClass)
+    const newThemeIcon = page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
+    // Asserção web-first (com retry): o ícone atual não tem mais a classe do ícone inicial
+    await expect(newThemeIcon).not.toHaveAttribute('class', initialIconClass ?? '')
     
     // Verifica se o tema foi salvo no localStorage
     const theme = await page.evaluate(() => localStorage.getItem('theme'))

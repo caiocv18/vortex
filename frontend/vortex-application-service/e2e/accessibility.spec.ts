@@ -30,6 +30,8 @@ test.describe("Accessibility Tests", () => {
     for (const path of pages) {
       const startTime = Date.now()
       await page.goto(path)
+      // O teste mede o tempo até a rede ficar ociosa (inclui as chamadas de API), por isso networkidle
+      // eslint-disable-next-line playwright/no-networkidle -- espera intencional, ver comentário acima
       await page.waitForLoadState("networkidle")
       const loadTime = Date.now() - startTime
       expect(loadTime).toBeLessThan(10000)

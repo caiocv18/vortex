@@ -1,5 +1,10 @@
-import axios from 'axios'
+import axios, { AxiosHeaders, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { Configuration } from './generated'
+import { redirectToLoginPage } from './authService'
+import { useAuthStore } from '@/stores/auth'
+
+// URLs do serviço de autorização: fonte única em ./authService
+export { AUTH_BACKEND_URL, AUTH_FRONTEND_URL, AUTH_REFRESH_URL } from './authService'
 
 // Configuração base do axios
 // Detectar automaticamente o ambiente
@@ -8,13 +13,13 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL
   }
-  
+
   // Se estivermos rodando no Docker (porta 3000) ou em produção, usar URL relativa
-  if (window.location.port === '3000' || 
+  if (window.location.port === '3000' ||
       (import.meta.env.PROD && !window.location.hostname.includes('localhost'))) {
     return window.location.origin
   }
-  
+
   // Padrão para desenvolvimento local
   return 'http://localhost:8080'
 }
@@ -34,6 +39,9 @@ export const apiClient = axios.create({
   withCredentials: false
 })
 
+// Requisição que já passou por uma tentativa de renovação de sessão
+type SessionRetryConfig = InternalAxiosRequestConfig & { _sessionRetried?: boolean }
+
 // Interceptor para adicionar token
 apiClient.interceptors.request.use(
   (config) => {
@@ -44,15 +52,15 @@ apiClient.interceptors.request.use(
       tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token',
       tokenLength: token ? token.length : 0
     })
-    
+
     if (token) {
       // Garantir que headers existe
       if (!config.headers) {
-        config.headers = {} as any
+        config.headers = new AxiosHeaders()
       }
       config.headers.Authorization = `Bearer ${token}`
     }
-    
+
     // Log das requisições para debug
     console.log('🚀 [API Request] Details:', {
       method: config.method,
@@ -71,6 +79,14 @@ apiClient.interceptors.request.use(
   }
 )
 
+// Sessão perdida de vez: limpa os tokens e manda para o login (comportamento anterior ao refresh)
+function endSessionAndRedirect(): void {
+  console.log('🔐 [API Error] Unauthorized access, redirecting to login...')
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  redirectToLoginPage()
+}
+
 // Interceptor para tratamento de erros
 apiClient.interceptors.response.use(
   (response) => {
@@ -82,7 +98,7 @@ apiClient.interceptors.response.use(
     })
     return response
   },
-  (error) => {
+  async (error: AxiosError) => {
     if (error.response) {
       // Erro de resposta do servidor
       console.error('❌ [API Error] Server response:', {
@@ -91,17 +107,24 @@ apiClient.interceptors.response.use(
         data: error.response.data,
         headers: error.config?.headers
       })
-      
-      // Se for erro 401 (não autorizado), redirecionar para login
+
+      // 401: o access token expirou (15 min). Renova a sessão UMA vez e repete a requisição.
       if (error.response.status === 401) {
-        console.log('🔐 [API Error] Unauthorized access, redirecting to login...')
-        // Limpar token inválido
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        // Redirecionar para login
-        const loginUrl = 'http://localhost:3001/login'
-        const returnUrl = encodeURIComponent(window.location.href)
-        window.location.href = `${loginUrl}?returnUrl=${returnUrl}`
+        const original = error.config as SessionRetryConfig | undefined
+
+        if (original && !original._sessionRetried) {
+          original._sessionRetried = true
+          // attemptTokenRefresh é single-flight: 401 simultâneos esperam a mesma renovação
+          const refreshed = await useAuthStore().attemptTokenRefresh()
+          if (refreshed) {
+            console.log('🔄 [API Error] Session refreshed, retrying request:', original.url)
+            // O interceptor de requisição coloca o access token novo no header
+            return apiClient.request(original)
+          }
+        }
+
+        // Refresh falhou, ou a requisição repetida voltou 401: nunca tenta de novo
+        endSessionAndRedirect()
       }
     } else if (error.request) {
       // Sem resposta do servidor
@@ -143,4 +166,4 @@ export const apiConfig = new Configuration({
       return getAuthHeaders()
     }
   }
-}) 
+})

@@ -158,7 +158,7 @@ const formatDate = (date: string | undefined) => {
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-6">Movimentação de Estoque</h1>
+        <h1 class="text-headline-large mb-6">Movimentação de Estoque</h1>
       </v-col>
     </v-row>
 
@@ -166,7 +166,7 @@ const formatDate = (date: string | undefined) => {
       <v-col cols="12">
         <v-card>
           <v-card-title>
-            <v-row align="center">
+            <v-row class="align-center">
               <v-col cols="12" md="4">
                 <v-text-field
                   v-model="search"
@@ -259,7 +259,7 @@ const formatDate = (date: string | undefined) => {
     <v-dialog v-model="dialog" max-width="600px">
       <v-card>
         <v-card-title>
-          <span class="text-h5">{{ editMode ? 'Editar' : 'Nova' }} Movimentação</span>
+          <span class="text-headline-small">{{ editMode ? 'Editar' : 'Nova' }} Movimentação</span>
         </v-card-title>
         <v-card-text>
           <v-form @submit.prevent="onSubmit">
@@ -274,7 +274,7 @@ const formatDate = (date: string | undefined) => {
               required
             >
               <template v-slot:item="{ props, item }">
-                <v-list-item v-bind="props" :subtitle="`Estoque: ${item.raw.quantidadeEmEstoque || 0}`">
+                <v-list-item v-bind="props" :subtitle="`Estoque: ${item.quantidadeEmEstoque || 0}`">
                 </v-list-item>
               </template>
             </v-select>
@@ -330,7 +330,7 @@ const formatDate = (date: string | undefined) => {
     <!-- Dialog de confirmação de exclusão -->
     <v-dialog v-model="deleteDialog" max-width="400px">
       <v-card>
-        <v-card-title class="text-h5">Confirmar Exclusão</v-card-title>
+        <v-card-title class="text-headline-small">Confirmar Exclusão</v-card-title>
         <v-card-text>
           Tem certeza que deseja excluir esta movimentação?
           <v-alert type="warning" variant="tonal" class="mt-3">

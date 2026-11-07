@@ -103,7 +103,7 @@ test.describe('Movements Page', () => {
     await page.click('button:has-text("Cancelar")')
     
     // Verifica se o diálogo foi fechado
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('form validation works in new movement dialog', async ({ page }) => {
@@ -177,7 +177,7 @@ test.describe('Movements Page', () => {
     await page.click('button:has-text("Criar")')
     
     // Aguarda o diálogo fechar
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('displays movement types with appropriate colors', async ({ page }) => {
@@ -301,10 +301,9 @@ test.describe('Movements Page', () => {
       // Verifica se pelo menos uma célula de produto está visível
       await expect(productColumns.first()).toBeVisible()
       
-      // Verifica se não há "N/A" ou IDs numéricos na coluna produto
-      const cellText = await productColumns.first().textContent()
-      expect(cellText).not.toBe('N/A')
-      expect(cellText).not.toMatch(/^\d+$/)
+      // Verifica se não há "N/A" ou IDs numéricos na coluna produto (asserções web-first)
+      await expect(productColumns.first()).not.toHaveText('N/A')
+      await expect(productColumns.first()).not.toHaveText(/^\d+$/)
     }
   })
 

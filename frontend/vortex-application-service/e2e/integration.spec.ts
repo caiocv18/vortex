@@ -57,7 +57,7 @@ test.describe('Application Integration Tests', () => {
       { path: '/reports', name: 'Relatórios' }
     ]
 
-    for (const { path, name } of pages) {
+    for (const { path } of pages) {
       await page.goto(path)
       
       // Pega o tema inicial
@@ -120,7 +120,7 @@ test.describe('Application Integration Tests', () => {
       { path: '/reports', name: 'Relatórios' }
     ]
 
-    for (const { path, name } of pages) {
+    for (const { path } of pages) {
       await page.goto(path)
       
       // Verifica se o sidebar está visível
@@ -212,7 +212,7 @@ test.describe('Application Integration Tests', () => {
         await page.click('button:has-text("Cancelar")')
         
         // Verifica se o diálogo foi fechado
-        await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+        await expect(page.locator('.v-dialog .v-card')).toBeHidden()
       }
     }
   })
@@ -264,9 +264,8 @@ test.describe('Application Integration Tests', () => {
         // Verifica se o elemento principal está visível
         await expect(page.locator(key)).toBeVisible()
         
-        // Verifica se o sidebar está presente (pode estar oculto em mobile)
-        const sidebar = page.locator('.v-navigation-drawer')
-        // Em mobile, o sidebar pode estar oculto, então não falhamos se não estiver visível
+        // Sidebar ('.v-navigation-drawer'): em mobile pode estar oculto, então não falhamos
+        // se não estiver visível (sem asserção aqui)
       }
     }
   })
