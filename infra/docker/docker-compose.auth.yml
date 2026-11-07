@@ -3,18 +3,31 @@ version: '3.8'
 services:
   # PostgreSQL Database for Auth Service
   auth-db:
-    image: postgres:17
+    image: postgres:18.6-alpine
     container_name: vortex-auth-db
+    # Enxuto para dev: buffers pequenos, poucas conexões e I/O síncrono
+    # (o padrão do PG 18 sobe 3 workers de I/O).
+    command: >
+      postgres
+      -c shared_buffers=32MB
+      -c max_connections=30
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c io_method=sync
     environment:
       POSTGRES_DB: vortex_auth
       POSTGRES_USER: vortex_auth
       POSTGRES_PASSWORD: vortex_auth_password
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      # A imagem alpine não traz o locale en_US.UTF-8; o provedor builtin do PG 17+ dispensa.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8"
     ports:
       - "5432:5432"
     volumes:
-      - auth-db-data:/var/lib/postgresql/data
+      # A partir do PG 18 a imagem oficial monta em /var/lib/postgresql (PGDATA por versão).
+      - auth-db-data:/var/lib/postgresql
       - ./init-auth-db.sql:/docker-entrypoint-initdb.d/init-auth-db.sql:ro
+    mem_limit: 256m
+    restart: "no"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vortex_auth -d vortex_auth"]
       interval: 10s
