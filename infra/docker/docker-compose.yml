@@ -1,26 +1,40 @@
+# Ambiente prd do start-vortex.sh: backend principal (Spring Boot, perfil prd) + Oracle Database Free.
+# O docker-compose.override.yml desta pasta é aplicado junto quando nenhum -f é passado.
+#   Oracle: localhost:1521, serviço FREEPDB1, usuário da aplicação vortex_user
+# Os perfis e o Kafka vêm do launcher (SPRING_PROFILES_ACTIVE, KAFKA_ENABLED); o Kafka, quando
+# usado, é o do docker-compose.kafka-simple.yml, alcançado pela rede vortex-simple.
+name: vortex-prd
+
 services:
   db:
-    image: container-registry.oracle.com/database/enterprise:latest
+    # Oracle Database Free 23ai (gvenzl): sem login no registry da Oracle, banco já criado na
+    # imagem (faststart) e teto próprio de 2 GB de RAM
+    image: gvenzl/oracle-free:23.26.3-slim-faststart
     container_name: vortex-db
     environment:
-      ORACLE_SID: ORCLCDB
-      ORACLE_PDB: ORCLPDB1
-      ORACLE_PWD: Oracle_1234
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle_1234}
+      # Criado no PDB FREEPDB1 na primeira subida
+      APP_USER: vortex_user
+      APP_USER_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
     ports:
       - "1521:1521"
-      - "5500:5500"
     volumes:
       - oracle-data:/opt/oracle/oradata
-      - ../oracle/init:/opt/oracle/scripts/startup
+      # Rodam só na primeira inicialização do banco, como SYS (ver infra/oracle/init)
+      - ../oracle/init:/container-entrypoint-initdb.d:ro
+    mem_limit: 2g
+    restart: "no"
     healthcheck:
-      test: ["CMD", "lsnrctl", "status"]
-      interval: 30s
-      retries: 10
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - vortex-net
 
   vortex:
-    build: 
+    build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
     container_name: vortex-app
@@ -28,28 +42,34 @@ services:
       db:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: "prd,kafka"
-      DB_HOST: db
-      DB_PORT: 1521
-      DB_SID: ORCLCDB
-      DB_SERVICE: ORCLPDB1
-      DB_USER: system
-      DB_PASSWORD: Oracle_1234
-      # Configurações Kafka para Docker
-      KAFKA_ENABLED: "true"
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
-      SPRING_KAFKA_CONSUMER_GROUP_ID: "vortex-inventory-group"
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd}
+      ORACLE_DB_URL: jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1
+      ORACLE_DB_USERNAME: vortex_user
+      ORACLE_DB_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
+      KAFKA_ENABLED: ${KAFKA_ENABLED:-false}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:19092}
+      # O serviço de autorização roda no host (start-vortex.sh), não neste projeto
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://host.docker.internal:8081}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:8080"
+    mem_limit: 768m
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - vortex-net
       - vortex-simple
-    external_links:
-      - vortex-kafka-simple:kafka
-      - vortex-zookeeper-simple:zookeeper
 
 volumes:
   oracle-data:
+    # Nome fixo: o mesmo banco serve as stacks prd (docker-compose.yml, full, full-kafka, full-rabbitmq)
+    name: vortex-oracle-data
 
 networks:
   vortex-net:

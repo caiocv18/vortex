@@ -1,6 +1,6 @@
 -- Script de inserção de dados para Oracle
--- Conectar ao PDB (Pluggable Database)
-ALTER SESSION SET CONTAINER = ORCLPDB1;
+-- Conectar ao PDB (Pluggable Database) padrão do Oracle Free
+ALTER SESSION SET CONTAINER = FREEPDB1;
 
 -- Inserir tipos de produto
 INSERT INTO tipo_produto (id, nome) VALUES (1, 'Eletrônicos');

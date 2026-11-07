@@ -1,26 +1,28 @@
-# 1) Build: JDK 27 + Maven
+# 1) Build: JDK 27 + o Maven Wrapper do módulo (Maven 3.10.0)
 FROM eclipse-temurin:27-jdk AS build
-
-# instala o Maven
-RUN apt-get update && \
-    apt-get install -y maven && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# só pom.xml para cache de dependências
+# Só o wrapper e o pom.xml primeiro, para cachear as dependências
+COPY mvnw ./
+COPY .mvn ./.mvn
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
 
 # código-fonte e empacota
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN ./mvnw -B -q clean package -DskipTests
 
-# 2) Runtime: JDK 27 Alpine, só com o jar
-FROM amazoncorretto:27-alpine3.22-jdk AS runtime
+# 2) Runtime: só a JRE 27 (Alpine), com o jar
+FROM eclipse-temurin:27-jre-alpine AS runtime
 
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
+# Flags do modo leve como padrão (sobrescreva JAVA_OPTS para mudar):
+# SerialGC explícito porque o JDK 27 escolhe G1 mesmo com pouca RAM
+ENV MALLOC_ARENA_MAX=2 \
+    JAVA_OPTS="-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m -Xmx320m"
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/bin/sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar \"$@\"", "--"]

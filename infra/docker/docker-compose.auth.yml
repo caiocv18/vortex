@@ -1,4 +1,7 @@
-version: '3.8'
+# Serviço de autorização: PostgreSQL (usado em todos os modos do start-vortex.sh, que sobe só o
+# auth-db), mais backend Quarkus e frontend React em container para quem quiser tudo no Docker.
+# Sem "name:" de propósito: o projeto continua "docker" (nome da pasta) e o volume dos dados
+# continua docker_auth-db-data.
 
 services:
   # PostgreSQL Database for Auth Service
@@ -46,46 +49,51 @@ services:
       auth-db:
         condition: service_healthy
     environment:
-      # Database Configuration
-      DB_URL: jdbc:postgresql://auth-db:5432/vortex_auth
-      DB_USER: vortex_auth
-      DB_PASSWORD: vortex_auth_password
-      
+      # Database Configuration (nomes lidos pelo application.properties)
+      POSTGRES_DB_URL: jdbc:postgresql://auth-db:5432/vortex_auth
+      POSTGRES_DB_USERNAME: vortex_auth
+      POSTGRES_DB_PASSWORD: vortex_auth_password
+
       # JWT Configuration
       JWT_SECRET: ${JWT_SECRET:-vortex-super-secret-jwt-key-change-in-production}
-      AUTH_JWT_ISSUER: vortex-auth-service
-      AUTH_JWT_ACCESS_TOKEN_EXPIRATION: 15m
-      AUTH_JWT_REFRESH_TOKEN_EXPIRATION: 7d
-      
-      # CORS Configuration
-      QUARKUS_HTTP_CORS_ORIGINS: "http://localhost:3001,http://localhost:5173,http://localhost:4173"
-      
+      JWT_ISSUER: vortex-auth-service
+      JWT_ACCESS_TOKEN_EXPIRATION: 15m
+      JWT_REFRESH_TOKEN_EXPIRATION: 7d
+
+      # CORS e proxies confiáveis (X-Forwarded-For só vale vindo deles)
+      CORS_ALLOWED_ORIGINS: "http://localhost:3001,http://localhost:5173,http://localhost:4173"
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,[::1],172.16.0.0/12}
+
       # Application Configuration
       QUARKUS_HTTP_PORT: 8081
       QUARKUS_LOG_LEVEL: INFO
-      
+
       # Email Configuration (for password reset)
       AUTH_EMAIL_FROM: noreply@vortex.com
-      
+
       # Rate Limiting
       AUTH_RATE_LIMIT_LOGIN_ATTEMPTS: 5
       AUTH_RATE_LIMIT_WINDOW_MINUTES: 15
       AUTH_RATE_LIMIT_LOCKOUT_MINUTES: 30
-      
-      # Kafka Configuration (optional)
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}
-      
+
+      # Kafka (perfil kafka): o broker do kafka-simple é "kafka" na rede vortex-simple
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:19092}
+
       # RabbitMQ Configuration (optional)
       RABBITMQ_HOST: ${RABBITMQ_HOST:-localhost}
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-vortex}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-vortex123}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-vortex-vhost}
     ports:
       - "8081:8081"
     volumes:
       - ../../logs:/opt/app/logs
+    mem_limit: 512m
+    restart: "no"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/q/health"]
+      # A imagem (eclipse-temurin alpine) não tem curl; o wget do busybox serve
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/q/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -93,11 +101,8 @@ services:
     networks:
       - vortex-auth-network
       - vortex-simple
-    external_links:
-      - vortex-kafka-simple:kafka
-      - vortex-zookeeper-simple:zookeeper
 
-  # React Auth Frontend
+  # React Auth Frontend (VITE_API_URL é de build: vem do .env* do módulo, não daqui)
   auth-frontend:
     build:
       context: ../../frontend/vortex-authorization-service
@@ -105,10 +110,10 @@ services:
     container_name: vortex-auth-frontend
     depends_on:
       - auth-backend
-    environment:
-      VITE_API_URL: http://localhost:8081
     ports:
       - "3001:80"
+    mem_limit: 32m
+    restart: "no"
     networks:
       - vortex-auth-network
 

@@ -1,37 +1,30 @@
 # Docker Compose override para desenvolvimento local
-# Este arquivo permite personalizar configurações sem modificar o docker-compose.yml principal
+# Aplicado automaticamente junto com o docker-compose.yml desta pasta quando nenhum -f é passado.
+# Permite personalizar configurações sem modificar o docker-compose.yml principal.
 services:
   vortex:
     environment:
-      # Descomente para usar profile de desenvolvimento com H2
-      # SPRING_PROFILES_ACTIVE: dev
-      
-      # Profile de produção com Oracle (padrão)
-      SPRING_PROFILES_ACTIVE: prd
-      
+      # Perfil vem do launcher (SPRING_PROFILES_ACTIVE); o padrão é prd (Oracle).
+      # Para H2 em vez de Oracle: SPRING_PROFILES_ACTIVE=dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd}
+
       # Configurações de logging
       LOGGING_LEVEL_ROOT: INFO
       LOGGING_LEVEL_BR_COM_VORTEX: DEBUG
-      
+
       # Configurações JPA para debug (opcional)
       # SPRING_JPA_SHOW_SQL: true
       # SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: true
-    
+
     # Descomente para mapear portas diferentes
     # ports:
-    #   - "8081:8080"
-    
-    # Volumes para desenvolvimento (hot reload)
-    # volumes:
-    #   - ./target/classes:/app/classes
+    #   - "8082:8080"
 
   db:
-    # Configurações adicionais do Oracle para desenvolvimento
-    environment:
-      # Configurações de memória (ajustar conforme necessário)
-      ORACLE_CHARACTERSET: AL32UTF8
-    
+    # O Oracle Free usa AL32UTF8 por padrão e se limita a 2 GB de RAM.
     # Descomente para mapear portas diferentes
     # ports:
     #   - "1522:1521"
-    #   - "5501:5500" 
+    environment:
+      # Senha de SYS e SYSTEM (só vale na primeira inicialização do volume)
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle_1234}

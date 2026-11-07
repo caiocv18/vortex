@@ -1,55 +1,51 @@
-version: '3.8'
+# RabbitMQ usado pelo start-vortex.sh (-m rabbitmq).
+#   AMQP:          localhost:5672 (vhost vortex-vhost, usuário vortex / vortex123)
+#   Management UI: http://localhost:15672
+# Container de ferramentas só com o profile tools:
+#   docker compose -f infra/docker/docker-compose.rabbitmq.yml --profile tools up -d rabbitmq-tools
+name: vortex-rabbitmq
 
 services:
-  # ================================
-  # RABBITMQ SETUP
-  # ================================
-  
   rabbitmq:
-    image: rabbitmq:3.12-management
+    image: rabbitmq:4.4.0-management-alpine
     hostname: rabbitmq
     container_name: vortex-rabbitmq
     ports:
-      - "5672:5672"     # AMQP port
-      - "15672:15672"   # Management UI port
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI
     environment:
       RABBITMQ_DEFAULT_USER: vortex
       RABBITMQ_DEFAULT_PASS: vortex123
       RABBITMQ_DEFAULT_VHOST: vortex-vhost
-      # Configurações para desenvolvimento
-      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit log_levels [{connection,error},{default,info}] disk_free_limit 2147483648"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
       - rabbitmq-logs:/var/log/rabbitmq
+      # Teto de memória, disk_free_limit e nível de log (ver o arquivo)
+      - ../rabbitmq/20-vortex.conf:/etc/rabbitmq/conf.d/20-vortex.conf:ro
+    mem_limit: 256m
+    restart: "no"
     networks:
       - vortex-rabbitmq-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "status"]
-      interval: 30s
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
       timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
+      retries: 12
+      start_period: 20s
 
-  # ================================
-  # RABBITMQ TOOLS CONTAINER
-  # ================================
-  
   rabbitmq-tools:
-    image: rabbitmq:3.12-management
+    image: rabbitmq:4.4.0-management-alpine
     container_name: vortex-rabbitmq-tools
+    profiles: ["tools"]
     depends_on:
       rabbitmq:
         condition: service_healthy
-    command: sleep infinity
+    # Imagem alpine (busybox): tail no lugar de "sleep infinity" para ficar de pé
+    command: ["tail", "-f", "/dev/null"]
+    mem_limit: 128m
+    restart: "no"
     networks:
       - vortex-rabbitmq-network
-    profiles:
-      - tools
-
-# ================================
-# VOLUMES
-# ================================
 
 volumes:
   rabbitmq-data:
@@ -57,11 +53,9 @@ volumes:
   rabbitmq-logs:
     driver: local
 
-# ================================
-# NETWORKS
-# ================================
-
 networks:
+  # Criada pelo start-vortex.sh (ensure_docker_networks) ou por infra/scripts/start-rabbitmq.sh.
+  # Precisa ser external: uma rede com esse nome criada fora do Compose faz o "up" falhar com
+  # "network ... was found but has incorrect label".
   vortex-rabbitmq-network:
-    driver: bridge
-    name: vortex-rabbitmq-network 
+    external: true

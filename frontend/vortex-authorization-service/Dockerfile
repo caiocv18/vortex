@@ -1,6 +1,6 @@
 # Build stage
 # Node 26: react-router 8 (Node >= 22.22), vite 8, vitest 5 e jsdom 31 não aceitam mais o Node 18
-FROM node:26-alpine AS build
+FROM node:26.13.0-alpine AS build
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:1.30.6-alpine
 
 # Copy built application
 COPY --from=build /app/dist /usr/share/nginx/html
