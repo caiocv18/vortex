@@ -56,15 +56,15 @@ graph TB
     end
     
     subgraph "Backend Layer"
-        AB[Auth Backend<br/>Quarkus + Java 17<br/>Port 8081]
-        MB[Main Backend<br/>Spring Boot + Java 24<br/>Port 8080]
+        AB[Auth Backend<br/>Quarkus 3.40 + Java 27<br/>Port 8081]
+        MB[Main Backend<br/>Spring Boot 4.1 + Java 27<br/>Port 8080]
         
         AB --> |JWT Validation| MB
         MB --> |User Info| AB
     end
     
     subgraph "Database Layer"
-        PG[(PostgreSQL<br/>Auth Data<br/>Port 5433)]
+        PG[(PostgreSQL 18<br/>Auth Data<br/>Port 5432)]
         OR[(Oracle<br/>Business Data<br/>Port 1521)]
         H2[(H2<br/>Dev Database<br/>In-Memory)]
         
@@ -74,8 +74,8 @@ graph TB
     end
     
     subgraph "Messaging Layer"
-        KF[Kafka<br/>Port 9092]
-        KUI[Kafka UI<br/>Port 8090]
+        KF[Kafka 4.4 KRaft<br/>Port 9092]
+        KUI[Kafka UI<br/>Port 8090, profile ui]
         RMQ[RabbitMQ<br/>Port 5672/15672]
         
         MB --> KF
@@ -84,7 +84,7 @@ graph TB
     end
     
     subgraph "Infrastructure"
-        NG[Nginx<br/>Reverse Proxy]
+        NG[Nginx<br/>vortex-static no modo leve]
         DC[Docker Compose<br/>Orchestration]
         
         AF -.-> NG
@@ -148,62 +148,61 @@ sequenceDiagram
 ### Backend Services
 
 #### Main Application Service
-- **Java 24** - Linguagem de programação principal
-- **Spring Boot 3.5.3** - Framework para construção da API REST
+- **Java 27** - Linguagem de programação principal (Eclipse Temurin 27.0.1)
+- **Spring Boot 4.1.2** - Framework para construção da API REST
 - **Spring Data JPA** - Abstração para acesso a dados
 - **Hibernate** - ORM para mapeamento objeto-relacional
 - **Spring Security** - Segurança e autenticação JWT
-- **Oracle Database** - Banco de dados principal
-- **H2 Database** - Banco de dados em memória para testes
+- **Oracle Database Free 23ai** - Banco de dados principal (ambiente prd)
+- **H2 Database** - Banco de dados em memória para desenvolvimento e testes
 - **Lombok** - Redução de código boilerplate
 - **SpringDoc OpenAPI** - Documentação automática da API
-- **Maven** - Gerenciamento de dependências
+- **Maven 3.10** - Gerenciamento de dependências (via `./mvnw`)
 
 #### Authorization Service
-- **Java 17** - Linguagem de programação
-- **Quarkus 3.8.5** - Framework supersônico e subatômico
+- **Java 27** - Linguagem de programação
+- **Quarkus 3.40.1.1** - Framework supersônico e subatômico
 - **Hibernate ORM with Panache** - ORM simplificado
 - **SmallRye JWT** - Implementação JWT
-- **PostgreSQL** - Banco de dados de autenticação
+- **PostgreSQL 18** - Banco de dados de autenticação
 - **BCrypt** - Hash de senhas
 - **Flyway** - Migração de banco de dados
 - **SmallRye Health** - Health checks
-- **Maven** - Gerenciamento de dependências
+- **Maven 3.10** - Gerenciamento de dependências (via `./mvnw`)
 
 ### Frontend Applications
 
 #### Main Application
-- **Vue.js 3** - Framework JavaScript progressivo
+- **Vue.js 3.5** - Framework JavaScript progressivo
 - **TypeScript** - Superset tipado do JavaScript
-- **Vuetify 3** - Biblioteca de componentes Material Design
+- **Vuetify 4** - Biblioteca de componentes Material Design
 - **Vue Router** - Roteamento SPA com guards de autenticação
 - **Pinia** - Gerenciamento de estado
 - **Axios** - Cliente HTTP
 - **Chart.js** - Visualização de dados em gráficos
 - **VeeValidate + Yup** - Validação de formulários
-- **Vite** - Build tool e dev server
+- **Vite 8** - Build tool e dev server
 - **Playwright** - Testes E2E
 - **Vitest** - Testes unitários
 
 #### Authorization Frontend
-- **React 18** - Biblioteca JavaScript para interfaces
+- **React 19** - Biblioteca JavaScript para interfaces
 - **TypeScript** - Tipagem estática
-- **React Router DOM** - Roteamento
+- **React Router 8** - Roteamento
 - **React Hook Form** - Gerenciamento de formulários
 - **Yup** - Validação de esquemas
-- **TailwindCSS** - Framework CSS utilitário
+- **Tailwind CSS 4** - Framework CSS utilitário
 - **Axios** - Cliente HTTP
 - **React Hot Toast** - Notificações
-- **Vite** - Build tool e dev server
+- **Vite 8** - Build tool e dev server
 - **Vitest** - Testes unitários
 
 ### Infrastructure & DevOps
-- **Docker** - Containerização da aplicação
-- **Docker Compose** - Orquestração de containers
-- **Nginx** - Servidor web e reverse proxy
-- **Apache Kafka** - Mensageria distribuída
-- **RabbitMQ** - Message broker alternativo
-- **Kafka UI** - Interface web para Kafka
+- **Docker Engine + Docker Compose v2** (`docker compose`) - Containerização e orquestração
+- **Nginx 1.30** - Servidor estático dos frontends no modo leve (`vortex-static`) e nos containers de frontend
+- **Apache Kafka 4.4** - Mensageria distribuída (broker nativo GraalVM, KRaft, sem ZooKeeper)
+- **RabbitMQ 4.4** - Message broker alternativo
+- **Kafka UI (kafbat)** - Interface web para Kafka (profile `ui`)
 
 ---
 
@@ -318,10 +317,12 @@ erDiagram
 ## 🏃 Como Executar
 
 ### Pré-requisitos
-- **Obrigatórios**: Docker e Docker Compose
-- **Opcionais para desenvolvimento**: 
-  - Java 17+ e Maven 3.8+ (para desenvolvimento local)
-  - Node.js 18+ e npm (para desenvolvimento local)
+- **Docker Engine** com o plugin **Docker Compose v2** (`docker compose`)
+- **Java 27** pelo SDKMAN: `sdk install java 27.0.1-tem`
+- **Node.js 26** pelo nvm: `nvm install 26`
+- Maven não precisa estar instalado: cada backend traz o seu `./mvnw` (Maven 3.10.0)
+
+O launcher carrega o SDKMAN e o nvm por conta própria e avisa se faltar algum.
 
 ### 🚀 Execução Rápida (Recomendada)
 
@@ -333,11 +334,14 @@ cd vortex
 
 2. Execute todos os serviços com o launcher:
 ```bash
-# Inicia todos os serviços automaticamente
+# Modo interativo
 ./start-vortex.sh
 
-# Ou especifique o ambiente
-./start-vortex.sh -e dev -m kafka
+# O mais leve possível (modo leve, H2, sem mensageria, sem perguntas)
+./start-vortex.sh --modo leve -e dev -m none --no-interaction
+
+# Com hot reload (modo dev) e Kafka
+./start-vortex.sh -e dev -r dev -m kafka
 ```
 
 Isso iniciará:
@@ -345,7 +349,12 @@ Isso iniciará:
 - **Main Backend**: Spring Boot na porta 8080
 - **Auth Frontend**: React na porta 3001
 - **Main Frontend**: Vue.js na porta 5173
-- **Infraestrutura**: Bancos de dados e mensageria
+- **Infraestrutura**: PostgreSQL e, se escolhida, a mensageria
+
+No **modo leve** (padrão) os backends rodam como jar com JVM enxuta e cache AOT, e os dois frontends compilados são servidos por um nginx só (`vortex-static`): o sistema inteiro fica em cerca de 620 MB de RAM, e a segunda subida sem mudança de código não compila nada e leva uns 12 s. O **modo dev** mantém o hot reload (`spring-boot:run`, `quarkus:dev` e Vite) e gasta bem mais memória. Detalhes, orçamento de memória e o funcionamento do cache AOT em [README-LAUNCHER.md](README-LAUNCHER.md).
+
+> [!WARNING]
+> No WSL, a distro desliga quando o último terminal dela fecha, e leva junto JVMs e containers. Deixe um terminal da distro aberto enquanto usar o Vortex.
 
 3. Acesse a aplicação:
 - **Aplicação Principal**: http://localhost:5173
@@ -361,8 +370,10 @@ Isso iniciará:
 
 # Ou manualmente
 cd infra/docker
-docker-compose -f docker-compose.full-kafka.yml up -d
+docker compose -f docker-compose.full-kafka.yml up -d
 ```
+
+O Oracle é o Oracle Database Free 23ai (`gvenzl/oracle-free:23.26.3-slim-faststart`, serviço `FREEPDB1`), sem login no registry da Oracle. Veja [infra/docs/README-ORACLE.md](infra/docs/README-ORACLE.md).
 
 ### 🔧 Desenvolvimento Local Manual
 
@@ -370,7 +381,7 @@ docker-compose -f docker-compose.full-kafka.yml up -d
 ```bash
 # Backend de autenticação
 cd backend/vortex-authorization-service
-mvn quarkus:dev
+./mvnw quarkus:dev
 
 # Frontend de autenticação (nova janela de terminal)
 cd frontend/vortex-authorization-service
@@ -390,12 +401,11 @@ npm install && npm run dev
 
 ### 🛑 Parar Serviços
 ```bash
-# Para todos os serviços
+# Para todos os serviços (pid files com TERM antes do KILL; containers com "down" sem -v)
 ./start-vortex.sh --stop
 
-# Ou manualmente
-docker-compose down
-pkill -f "spring-boot\|quarkus\|vite"
+# Memória do que estiver de pé
+./scripts/medir-memoria.sh
 ```
 
 ---
@@ -410,8 +420,11 @@ Para uma experiência mais simples e automatizada, use o **Vortex Launcher** - u
 # Modo interativo (recomendado)
 ./start-vortex.sh
 
-# Ambiente de desenvolvimento (H2 + Hot Reload)
-./start-vortex.sh -e dev
+# Ambiente de desenvolvimento no modo leve (padrão)
+./start-vortex.sh -e dev --modo leve
+
+# Ambiente de desenvolvimento com hot reload
+./start-vortex.sh -e dev --modo dev
 
 # Ambiente de produção (Oracle + Docker)
 ./start-vortex.sh -e prd
@@ -425,26 +438,34 @@ Para uma experiência mais simples e automatizada, use o **Vortex Launcher** - u
 
 ### Características do Script
 
-- **🔍 Detecção Automática**: Verifica pré-requisitos e adapta a execução
+- **🔍 Detecção Automática**: Verifica pré-requisitos, espera o Docker subir e carrega Java 27 e Node.js 26
 - **🌍 Múltiplos Ambientes**: Desenvolvimento (H2) ou Produção (Oracle)
-- **🎨 Frontend Integrado**: Gerencia Vue.js automaticamente
-- **🐳 Docker Inteligente**: Fallback para Docker quando ferramentas locais não estão disponíveis
-- **📊 Monitoramento**: Status em tempo real dos serviços
+- **🪶 Dois Modos**: leve (padrão, cerca de 620 MB) ou dev (hot reload)
+- **🔨 Build Incremental**: no modo leve, só compila o que mudou
+- **🧠 Cache AOT**: os backends sobem cerca de 2x mais rápido a partir da segunda vez
+- **📊 Monitoramento**: Status e tabela de memória no fim da subida
 - **🛑 Gerenciamento Completo**: Start, stop e limpeza de ambiente
+
+### Modos de Execução
+
+| Modo | Backends | Frontends | Memória |
+|------|----------|-----------|---------|
+| `leve` (padrão) | jar com JVM enxuta e cache AOT | `dist/` no nginx `vortex-static` | cerca de 620 MB (medido) |
+| `dev` | `spring-boot:run` e `quarkus:dev` (hot reload) | Vite dev server | não medido (estimativa: 2 a 2,5 GB) |
 
 ### Ambientes Disponíveis
 
 #### 🔧 Desenvolvimento (dev)
-- Backend: Spring Boot local ou Docker
+- Backend: Spring Boot local (jar no modo leve, Maven no modo dev)
 - Database: H2 em memória
-- Frontend: Vite dev server (hot reload)
+- Frontend: nginx estático (modo leve) ou Vite dev server (modo dev)
 - URLs: API (8080), Frontend (5173), H2 Console
 
 #### 🚀 Produção (prd)
 - Backend: Docker + Spring Boot
-- Database: Oracle Enterprise (Docker)
-- Frontend: Build otimizado + Nginx
-- URLs: API (8080), Frontend (3000), Oracle (1521)
+- Database: Oracle Database Free 23ai (Docker)
+- Frontend: nginx estático na 5173 (modo leve) ou `vite preview` na 4173 (modo dev)
+- URLs: API (8080), Frontend (5173 ou 4173), Oracle (1521)
 
 Para documentação completa do script, consulte: [README-LAUNCHER.md](README-LAUNCHER.md)
 
@@ -507,13 +528,19 @@ vortex/
 │       └── package.json                  # Dependências npm
 │
 ├── infra/                               # Infraestrutura
-│   ├── docker/                          # Configurações Docker Compose
-│   │   ├── docker-compose.yml           # Stack básica
+│   ├── docker/                          # Configurações Docker Compose (v2)
+│   │   ├── docker-compose.yml           # Backend + Oracle Free (ambiente prd)
+│   │   ├── docker-compose.leve.yml      # nginx estático do modo leve (vortex-static)
+│   │   ├── docker-compose.auth.yml      # PostgreSQL + auth services
+│   │   ├── docker-compose.kafka-simple.yml # Kafka nativo KRaft (usado pelo launcher)
+│   │   ├── docker-compose.kafka.yml     # Kafka + Confluent 8.4 atrás de profiles
+│   │   ├── docker-compose.rabbitmq.yml  # RabbitMQ 4.4
 │   │   ├── docker-compose.full.yml      # Stack completa
-│   │   ├── docker-compose.auth.yml      # Apenas auth services
-│   │   └── docker-compose.full-kafka.yml # Com Kafka integrado
+│   │   ├── docker-compose.full-kafka.yml # Com Kafka integrado
+│   │   ├── docker-compose.full-rabbitmq.yml # Com RabbitMQ integrado
+│   │   └── nginx/static.conf            # Servidor estático dos dois frontends
 │   ├── kafka/                           # Configurações Kafka
-│   ├── rabbitmq/                        # Configurações RabbitMQ
+│   ├── rabbitmq/                        # Configurações RabbitMQ (20-vortex.conf)
 │   ├── oracle/                          # Scripts Oracle
 │   └── docs/                            # Documentação de infraestrutura
 │
@@ -525,6 +552,7 @@ vortex/
 │
 ├── scripts/                             # Scripts utilitários
 │   ├── check-ports.sh                   # Verificação de portas
+│   ├── medir-memoria.sh                 # RSS por processo e container, RAM da VM e do Windows
 │   └── test-queue-endpoint.sh           # Testes de messaging
 │
 ├── start-vortex.sh                      # Launcher principal
@@ -567,9 +595,9 @@ vortex/
 - **Execução Maven**:
   ```bash
   cd backend/vortex-authorization-service
-  mvn test
-  mvn test -Dtest="*PasswordRecovery*"  # Apenas password recovery
-  mvn test -Dtest=AuthResourceTest      # Teste específico
+  ./mvnw test
+  ./mvnw test -Dtest="*PasswordRecovery*"  # Apenas password recovery
+  ./mvnw test -Dtest=AuthResourceTest      # Teste específico
   ```
 
 ### Frontend Applications
@@ -598,7 +626,7 @@ vortex/
 ### Execução de Todos os Testes
 ```bash
 # Script para executar todos os testes
-find . -name "pom.xml" -execdir mvn test \;
+find backend -maxdepth 2 -name "pom.xml" -execdir ./mvnw test \;
 find . -name "package.json" -path "*/frontend/*" -execdir npm test \;
 ```
 

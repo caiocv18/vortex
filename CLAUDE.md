@@ -6,19 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development Setup
 ```bash
-# Quick start (recommended) - Starts all services
+# Quick start (recommended) - Starts all services (interactive)
 ./start-vortex.sh
+
+# Lightest run (light mode, H2, no messaging, no prompts): ~620 MB for the whole system
+./start-vortex.sh --modo leve -e dev -m none --no-interaction
+
+# Hot reload (dev mode)
+./start-vortex.sh -e dev -r dev -m none
 
 # Manual setup - Main application only
 cd backend/vortex-application-service && ./mvnw spring-boot:run
-cd frontend/vortex-application-service && npm install && npm run dev
+cd frontend/vortex-application-service && npm ci && npm run dev
 
 # Complete setup with authentication - All services
-cd backend/vortex-authorization-service && mvn quarkus:dev
-cd frontend/vortex-authorization-service && npm install && npm run dev
+cd backend/vortex-authorization-service && ./mvnw quarkus:dev
+cd frontend/vortex-authorization-service && npm ci && npm run dev
 cd backend/vortex-application-service && ./mvnw spring-boot:run
-cd frontend/vortex-application-service && npm install && npm run dev
+cd frontend/vortex-application-service && npm ci && npm run dev
 ```
+
+Toolchain: Java 27 via SDKMAN (`sdk use java 27.0.1-tem`), Node.js 26 via nvm (`nvm use 26`), Docker Engine with Compose v2 (`docker compose`, never the v1 `docker-compose`). Both backends ship `./mvnw` (Maven 3.10.0). The launcher loads SDKMAN and nvm itself, because `.bashrc` returns early in non-interactive shells.
 
 ### Build Commands
 ```bash
@@ -30,9 +38,9 @@ cd backend/vortex-application-service
 
 # Backend - Authorization Service (Quarkus)
 cd backend/vortex-authorization-service
-mvn clean install            # Build project
-mvn quarkus:dev               # Run development server
-mvn package                   # Package application
+./mvnw clean install          # Build project
+./mvnw quarkus:dev            # Run development server
+./mvnw package                # Package application (target/quarkus-app/quarkus-run.jar)
 
 # Frontend - Main Application (Vue.js)
 cd frontend/vortex-application-service
@@ -57,7 +65,7 @@ cd backend/vortex-application-service
 
 # Backend - Authorization Service tests
 cd backend/vortex-authorization-service
-mvn test                      # All tests
+./mvnw test                   # All tests
 
 # Backend - Authorization Registration Flow tests (Specialized)
 ./scripts/run-auth-registration-tests.sh --all      # All registration tests (42 tests)
@@ -97,18 +105,23 @@ npm run test:coverage         # Coverage report
 ```bash
 # Environment options
 ./start-vortex.sh -e dev      # Development (H2 database)
-./start-vortex.sh -e prd      # Production (Oracle database)
+./start-vortex.sh -e prd      # Production (Oracle Database Free, main backend in Docker)
+
+# Run modes (-r/--modo, default leve; asked right after the environment)
+./start-vortex.sh --modo leve # Jars + AOT cache, frontends built and served by one nginx
+./start-vortex.sh --modo dev  # Hot reload: spring-boot:run, quarkus:dev, Vite dev servers
 
 # Messaging systems
 ./start-vortex.sh -m kafka    # With Kafka messaging
 ./start-vortex.sh -m rabbitmq # With RabbitMQ messaging
 ./start-vortex.sh -m sqs      # With Amazon SQS
+./start-vortex.sh -m none     # No messaging (note: --no-interaction defaults to kafka)
 
-# Service control
+# Service control (the auth backend and auth frontend always start)
 ./start-vortex.sh --backend-only  # Backend only
 ./start-vortex.sh --frontend-only # Frontend only
-./start-vortex.sh --auth-only     # Authentication services only
-./start-vortex.sh --stop          # Stop all services
+./start-vortex.sh --stop          # Stop all services (pid files, TERM then KILL; compose down without -v)
+./scripts/medir-memoria.sh        # Memory table: RSS per process/container, WSL VM, Windows free RAM
 ```
 
 ## Architecture Overview
@@ -129,7 +142,7 @@ npm run test:coverage         # Coverage report
 
 ### Backend Architecture
 
-#### Main Application Service (Spring Boot - Java 24)
+#### Main Application Service (Spring Boot 4.1 - Java 27)
 - **Pattern**: Layered architecture (Controller → Service → Repository)
 - **Location**: `backend/vortex-application-service/`
 - **Key Packages**:
@@ -141,7 +154,7 @@ npm run test:coverage         # Coverage report
   - `config/`: Configuration classes (CORS, messaging, OpenAPI, Security)
   - `factory/`: Message broker factory pattern
 
-#### Authorization Service (Quarkus - Java 17)
+#### Authorization Service (Quarkus 3.40 - Java 27)
 - **Pattern**: RESTful microservice with reactive programming
 - **Location**: `backend/vortex-authorization-service/`
 - **Key Packages**:
@@ -157,7 +170,7 @@ npm run test:coverage         # Coverage report
 
 ### Frontend Architecture
 
-#### Main Application (Vue.js 3 + TypeScript)
+#### Main Application (Vue.js 3.5 + Vuetify 4 + Vite 8 + TypeScript)
 - **Pattern**: Component-based with centralized state management
 - **Location**: `frontend/vortex-application-service/`
 - **Key Directories**:
@@ -168,7 +181,7 @@ npm run test:coverage         # Coverage report
   - `router/`: Vue Router with authentication guards
   - `utils/`: Authentication callback handling
 
-#### Authorization Frontend (React 18 + TypeScript)
+#### Authorization Frontend (React 19 + Tailwind 4 + Vite 8 + TypeScript)
 - **Pattern**: SPA with context-based state management
 - **Location**: `frontend/vortex-authorization-service/`
 - **Key Directories**:
@@ -232,15 +245,15 @@ npm run test:coverage         # Coverage report
 
 ### Local Development
 1. **Main Backend**: Spring Boot on port 8080 with H2 database
-2. **Auth Backend**: Quarkus on port 8081 with PostgreSQL (or H2 for dev)
-3. **Main Frontend**: Vue.js on port 5173 with hot reload
-4. **Auth Frontend**: React on port 3001 with hot reload
+2. **Auth Backend**: Quarkus on port 8081 with PostgreSQL 18 (`vortex-auth-db`, port 5432)
+3. **Main Frontend**: Vue.js on port 5173 (Vite dev server in dev mode, nginx `vortex-static` in light mode)
+4. **Auth Frontend**: React on port 3001 (same split)
 5. **Database Console**: `http://localhost:8080/h2-console` (dev environment)
 
 ### Production Deployment
 1. **Backend Services**: Dockerized with Oracle (main) and PostgreSQL (auth)
 2. **Frontend Applications**: Optimized builds served via Nginx
-3. **Databases**: Oracle Enterprise Edition on port 1521, PostgreSQL on port 5433
+3. **Databases**: Oracle Database Free 23ai on port 1521 (service `FREEPDB1`, image `gvenzl/oracle-free`), PostgreSQL on port 5432
 4. **Load Balancing**: Nginx reverse proxy for all services
 
 ### Testing Strategy
@@ -256,7 +269,7 @@ npm run test:coverage         # Coverage report
 - **E2E Tests**: Playwright covering complete user workflows
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
-  - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.11)
+  - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16)
   - Quality gates: 60% line coverage, 50% branch coverage
   - Reports in HTML, XML, and CSV formats
   - Located in `coverage-reports/auth-registration/`
@@ -283,22 +296,25 @@ npm run test:coverage         # Coverage report
 
 ### Type Safety
 - **Backend**: 
-  - Strong typing with Java 24 (main service) and Java 17 (auth service)
+  - Strong typing with Java 27 (both services)
   - Bean validation annotations
   - OpenAPI 3.0 specification
 - **Frontend**: 
   - TypeScript with auto-generated API clients
   - Vue.js 3 with Composition API
-  - React 18 with hooks and strict typing
+  - React 19 with hooks and strict typing
 - **API Contract**: OpenAPI specification ensures consistency across services
 
 ### Launcher Script Features
-- **Environment Detection**: Automatically detects available tools
-- **Service Management**: Unified start/stop for all components (auth + main)
-- **Logging**: Centralized logs in `/logs/` directory
-- **Health Checks**: Validates service startup and readiness
-- **Authentication Integration**: Handles auth service dependencies
-- **Port Management**: Prevents conflicts between services
+- **Run modes**: `--modo leve` (default) runs both backends as jars (Spring Boot extracted to `target/leve/`, Quarkus `quarkus-run.jar`) with one JVM flag set defined at the top of `start-vortex.sh` (`-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m`, `-Xmx320m` app, `-Xmx224m` auth, `MALLOC_ARENA_MAX=2`) and serves both `dist/` folders from one nginx (`infra/docker/docker-compose.leve.yml`, container `vortex-static`, ports 5173 and 3001, no `/api/` proxy). Measured: about 620 MB for the whole system. `--modo dev` keeps hot reload with capped child JVMs.
+- **Incremental builds (light mode)**: content stamps in `target/.vortex-build` and `dist/.vortex-build`; one build at a time, before any JVM starts. `.env.local` (theme) is rewritten only when its content changes.
+- **AOT cache (light mode, JDK 27)**: trained once per build/flags/profiles (`target/leve/app.aot`, `target/quarkus-app/app.aot`), validated once with `-XX:AOTMode=on`, then used in auto mode. Startup: Spring 11.6 s to 5.8 s, Quarkus 4.7 s to 2.8 s. Never train both services at once (the training JVM forks a second JVM to assemble the cache, ~1.4 GB together for the Spring one).
+- **Process control**: pid files in `logs/` for every process the launcher starts (JVMs, Maven wrappers, Vite servers, AOT training runs); stop sends TERM, waits up to 15 s, then KILL. Compose stacks go down without `-v`. No broad `pkill` patterns.
+- **Ports**: `scripts/check-ports.sh --auto-kill` at startup checks 3001, 5173, 8080, 8081, 9092 and 5432, only listeners, skips container-published ports, TERM before KILL.
+- **Logging**: Centralized logs in `/logs/` directory (`backend.log`, `auth-backend.log`, `build-*.log`, `aot-train-*.log`, `startup-times.log`)
+- **Health Checks**: Validates service startup and readiness (`/health` and `/q/health`; there is no Actuator in the main backend)
+- **Docker**: waits up to 60 s for the engine (it starts with the WSL distro boot); Compose v2 everywhere. All containers are named `vortex-*`.
+- **WSL caveat**: the distro (and every JVM and container in it) shuts down when its last terminal closes.
 
 ### Authentication Flow
 1. **User Access**: User visits main application (`http://localhost:5173`)
@@ -312,7 +328,7 @@ npm run test:coverage         # Coverage report
 ### Code Coverage & Quality Assurance
 
 #### JaCoCo Integration
-- **Plugin Version**: jacoco-maven-plugin 0.8.11
+- **Plugin Version**: jacoco-maven-plugin 0.8.16
 - **Quality Gates**: Minimum 60% line coverage, 50% branch coverage
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/`
@@ -330,7 +346,7 @@ npm run test:coverage         # Coverage report
 ./scripts/run-auth-password-recovery-tests.sh --ci
 
 # Manual Maven execution
-cd backend/vortex-authorization-service && mvn test jacoco:report
+cd backend/vortex-authorization-service && ./mvnw test jacoco:report
 
 # View HTML reports
 open coverage-reports/auth-registration/index.html
@@ -363,7 +379,7 @@ open coverage-reports/auth-password-recovery/index.html
    ```bash
    # Recrear banco PostgreSQL (desenvolvimento)
    docker stop vortex-auth-db && docker rm vortex-auth-db
-   cd infra/docker && docker-compose -f docker-compose.auth.yml up -d auth-db
+   cd infra/docker && docker compose -f docker-compose.auth.yml up -d auth-db
    ```
 
 3. **Criar migração faltante**: Se uma migração específica está faltando
@@ -391,5 +407,5 @@ curl http://localhost:8081/q/health
 docker logs vortex-auth-db -f
 
 # Iniciar apenas serviço de autorização
-cd backend/vortex-authorization-service && mvn quarkus:dev
+cd backend/vortex-authorization-service && ./mvnw quarkus:dev
 ```

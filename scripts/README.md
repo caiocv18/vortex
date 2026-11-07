@@ -158,21 +158,39 @@ Script para verificação de portas utilizadas pelos serviços.
 
 #### Uso
 ```bash
-./scripts/check-ports.sh
+./scripts/check-ports.sh              # pergunta antes de encerrar cada processo
+./scripts/check-ports.sh --auto-kill  # encerra sem perguntar (o start-vortex.sh usa este)
 ```
 
 #### Funcionalidade
 - Verifica disponibilidade das portas padrão
-- Lista serviços em execução
-- Identifica conflitos de porta
+- Só conta quem está escutando (LISTEN); conexões de cliente não são conflito
+- Pula portas publicadas por containers Docker (quem cuida delas é o docker compose)
+- Encerra com TERM, espera até 10 s e só então manda KILL
 
 #### Portas Monitoradas
 - **8080**: Vortex Application Service (Spring Boot)
 - **8081**: Vortex Authorization Service (Quarkus)
 - **5173**: Frontend Application Service (Vue.js)
 - **3001**: Frontend Authorization Service (React)
+- **9092**: Kafka
 - **5432**: PostgreSQL
-- **1521**: Oracle
+
+---
+
+### 📊 medir-memoria.sh
+Tabela de memória do Vortex em texto puro (o `start-vortex.sh` imprime no fim de toda subida).
+
+#### Uso
+```bash
+./scripts/medir-memoria.sh
+```
+
+#### Funcionalidade
+- RSS de cada processo iniciado pelo launcher (pid files em `logs/`), sozinho e com os filhos
+- Uso e limite de memória de cada container `vortex-*` (`docker stats --no-stream`)
+- Total da VM do WSL (`free -m`) e RAM livre do Windows (`powershell.exe` pela interop)
+- Sempre sai com 0, mesmo com partes paradas
 
 ---
 

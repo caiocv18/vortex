@@ -112,12 +112,29 @@ graph TB
 
 1. **Iniciar o Kafka**:
 ```bash
-# Usando Docker Compose
-docker-compose -f docker-compose.kafka.yml up -d
+# Pelo launcher (sobe o broker do docker-compose.kafka-simple.yml)
+./start-vortex.sh -e dev -m kafka
+
+# Ou direto pelo Docker Compose v2
+docker compose -f infra/docker/docker-compose.kafka-simple.yml up -d kafka
 
 # Verificar se está funcionando
-docker-compose -f docker-compose.kafka.yml ps
+docker compose -f infra/docker/docker-compose.kafka-simple.yml ps
 ```
+
+O broker é o `apache/kafka-native:4.4.0`: Kafka 4.4 compilado com GraalVM (cerca de 130 a 250 MB de RAM, contra uns 680 MB da imagem JVM), em **KRaft de nó único**, sem ZooKeeper. O mesmo processo é broker e controller; os listeners são `localhost:9092` para clientes no host e `kafka:19092` para containers na rede `vortex-simple`. Os dados ficam na camada do container e somem no `docker compose down`; os tópicos da aplicação são recriados pelo próprio backend (`KafkaConfig`) e o auto-create está ligado.
+
+A imagem nativa não traz as CLIs do Kafka. Para listar tópicos, use a imagem JVM numa execução avulsa:
+```bash
+docker run --rm --network vortex-simple apache/kafka:4.4.0 \
+  /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list
+```
+
+| Arquivo | Uso |
+|---------|-----|
+| `docker-compose.kafka-simple.yml` | o do launcher: só o broker, mais a Kafka UI no profile `ui` |
+| `docker-compose.kafka.yml` | broker + Confluent Platform 8.4 (Connect, Schema Registry na 8085, ksqlDB, ferramentas), cada um no seu profile |
+| `docker-compose.full-kafka.yml` | stack prd completa (Oracle, backend e frontend em container) |
 
 2. **Configurar o Application Properties**:
 ```properties
@@ -136,21 +153,20 @@ spring.profiles.active=kafka
 
 ### Monitoramento
 
-**Kafka UI**: http://localhost:8080
+**Kafka UI** (kafbat/kafka-ui v1.5.0, sucessora da provectuslabs/kafka-ui): http://localhost:8090
+- Só sobe com o profile `ui`: `docker compose -f infra/docker/docker-compose.kafka-simple.yml --profile ui up -d kafka-ui`
 - Visualizar tópicos e mensagens
 - Monitorar consumers e producers
 - Verificar lag de consumo
 
-**Métricas da Aplicação**: http://localhost:8081/actuator/metrics
-- Métricas específicas do Kafka
-- Health checks
-- Informações de performance
+**Health da Aplicação**: http://localhost:8080/health
+- O backend não usa Spring Boot Actuator; o health é um controller próprio
 
 ### Testando a Integração
 
 1. **Criar um Produto**:
 ```bash
-curl -X POST http://localhost:8081/api/produtos \
+curl -X POST http://localhost:8080/api/produtos \
   -H "Content-Type: application/json" \
   -d '{
     "descricao": "Produto Teste Kafka",
@@ -161,13 +177,13 @@ curl -X POST http://localhost:8081/api/produtos \
 ```
 
 2. **Verificar Evento no Kafka UI**:
-- Acessar http://localhost:8080
+- Acessar http://localhost:8090 (profile `ui`)
 - Navegar para o tópico `vortex.produto.events`
 - Verificar se o evento foi publicado
 
 3. **Fazer uma Movimentação**:
 ```bash
-curl -X POST http://localhost:8081/api/movimentos \
+curl -X POST http://localhost:8080/api/movimentos \
   -H "Content-Type: application/json" \
   -d '{
     "produtoId": 1,
