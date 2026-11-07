@@ -5,9 +5,12 @@ import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.event.*;
 import br.com.vortex.authorization.security.JwtService;
 import br.com.vortex.authorization.security.PasswordService;
+import io.smallrye.jwt.auth.principal.JWTParser;
+import io.smallrye.jwt.auth.principal.ParseException;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.json.JsonString;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
@@ -15,6 +18,7 @@ import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -29,6 +33,9 @@ public class AuthService {
 
     @Inject
     JwtService jwtService;
+
+    @Inject
+    JWTParser jwtParser;
 
     @Inject
     PasswordService passwordService;
@@ -49,21 +56,21 @@ public class AuthService {
     public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
         // Check rate limiting
         if (!rateLimitService.isAllowed(request.identifier, ipAddress)) {
-            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
+            rateLimitService.recordFailedAttempt(request.identifier, ipAddress);
             throw new BadRequestException("Too many failed login attempts. Please try again later.");
         }
 
         // Find user
         User user = User.findByEmailOrUsername(request.identifier);
         if (user == null || !user.isActiveAndVerified()) {
-            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
+            rateLimitService.recordFailedAttempt(request.identifier, ipAddress);
             throw unauthorized("Invalid credentials");
         }
 
         // Verify password
         Credential credential = Credential.findByUserId(user.id);
         if (credential == null || !passwordService.verifyPassword(request.password, credential.passwordHash)) {
-            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
+            rateLimitService.recordFailedAttempt(request.identifier, ipAddress);
             throw unauthorized("Invalid credentials");
         }
 
@@ -388,64 +395,50 @@ public class AuthService {
     }
 
     public ValidateTokenResponse validateToken(ValidateTokenRequest request) {
+        JsonWebToken jwt;
         try {
-            // Parse JWT without verifying signature first to get claims
-            String[] tokenParts = request.getToken().split("\\.");
-            if (tokenParts.length != 3) {
-                return new ValidateTokenResponse(false, null, null, null, null);
-            }
-
-            // Decode payload
-            String payload = new String(java.util.Base64.getUrlDecoder().decode(tokenParts[1]));
-            
-            // Parse JSON claims manually (simple approach)
-            Map<String, Object> claims = parseJsonClaims(payload);
-            
-            String subject = (String) claims.get("sub");
-            String email = (String) claims.get("email");
-            String username = (String) claims.get("username");
-            
-            if (subject == null || email == null) {
-                return new ValidateTokenResponse(false, null, null, null, null);
-            }
-
-            // Check if user exists and is active
-            User user = User.findById(UUID.fromString(subject));
-            if (user == null || !user.isActive) {
-                return new ValidateTokenResponse(false, null, null, null, null);
-            }
-
-            // Get user roles
-            java.util.List<String> roles = user.roles != null ? 
-                user.roles.stream().map(role -> role.name).collect(java.util.stream.Collectors.toList()) :
-                java.util.List.of();
-
-            return new ValidateTokenResponse(true, username, email, roles, subject);
-            
-        } catch (Exception e) {
+            // Verifica assinatura (mp.jwt.verify.publickey.location), emissor (mp.jwt.verify.issuer)
+            // e expiração. Antes o payload era só decodificado em Base64, sem conferir a assinatura:
+            // qualquer token montado à mão com o sub e o email de um usuário passava como válido.
+            jwt = jwtParser.parse(request.getToken());
+        } catch (ParseException e) {
             LOGGER.debug("Token validation failed: {}", e.getMessage());
-            return new ValidateTokenResponse(false, null, null, null, null);
+            return invalidToken();
         }
+
+        String subject = jwt.getSubject();
+        String email = stringClaim(jwt, "email");
+        String username = stringClaim(jwt, "username");
+
+        // O refresh token não leva email: só o access token serve para autenticar
+        if (subject == null || email == null) {
+            return invalidToken();
+        }
+
+        // Check if user exists and is active
+        User user;
+        try {
+            user = User.findById(UUID.fromString(subject));
+        } catch (IllegalArgumentException e) {
+            return invalidToken();
+        }
+        if (user == null || !Boolean.TRUE.equals(user.isActive)) {
+            return invalidToken();
+        }
+
+        return new ValidateTokenResponse(true, username, email, List.copyOf(roleNames(user)), subject);
     }
 
-    private Map<String, Object> parseJsonClaims(String json) {
-        // Simple JSON parsing for JWT claims
-        Map<String, Object> claims = new java.util.HashMap<>();
-        
-        // Remove braces and split by comma
-        json = json.trim().substring(1, json.length() - 1);
-        String[] pairs = json.split(",");
-        
-        for (String pair : pairs) {
-            String[] keyValue = pair.split(":", 2);
-            if (keyValue.length == 2) {
-                String key = keyValue[0].trim().replace("\"", "");
-                String value = keyValue[1].trim().replace("\"", "");
-                claims.put(key, value);
-            }
+    private static ValidateTokenResponse invalidToken() {
+        return new ValidateTokenResponse(false, null, null, null, null);
+    }
+
+    private static String stringClaim(JsonWebToken jwt, String name) {
+        Object value = jwt.getClaim(name);
+        if (value instanceof JsonString jsonString) {
+            return jsonString.getString();
         }
-        
-        return claims;
+        return value != null ? value.toString() : null;
     }
 
     // NotAuthorizedException(Object, Object...) recebe o challenge do WWW-Authenticate, não a mensagem:

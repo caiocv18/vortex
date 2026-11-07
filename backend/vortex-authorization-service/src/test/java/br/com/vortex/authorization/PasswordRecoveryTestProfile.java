@@ -38,9 +38,12 @@ public class PasswordRecoveryTestProfile implements QuarkusTestProfile {
         config.put("auth.password.require-special-chars", "true");
         config.put("auth.password.special-chars", "!@#$%^&*()-_=+[]{}|;:,.<>?");
         
-        // JWT configuration for testing
+        // JWT configuration for testing: só o par de teste de src/test/resources/jwt-test,
+        // com o mesmo emissor na assinatura e na verificação
         config.put("mp.jwt.verify.issuer", "https://vortex-auth-test");
-        config.put("mp.jwt.verify.publickey.location", "publicKey.pem");
+        config.put("auth.jwt.issuer", "https://vortex-auth-test");
+        config.put("mp.jwt.verify.publickey.location", "jwt-test/publicKey.pem");
+        config.put("smallrye.jwt.sign.key.location", "jwt-test/privateKey.pem");
         config.put("auth.jwt.access-token.expiration", "3600");
         config.put("auth.jwt.refresh-token.expiration", "604800");
         

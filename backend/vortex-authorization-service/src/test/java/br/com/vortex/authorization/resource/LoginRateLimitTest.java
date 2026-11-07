@@ -1,0 +1,160 @@
+package br.com.vortex.authorization.resource;
+
+import br.com.vortex.authorization.dto.RegisterRequest;
+import br.com.vortex.authorization.entity.LoginAttempt;
+import br.com.vortex.authorization.util.TestDataBuilder;
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.test.common.http.TestHTTPEndpoint;
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import io.restassured.response.ValidatableResponse;
+import io.restassured.specification.RequestSpecification;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.net.InetAddress;
+import java.time.OffsetDateTime;
+import java.util.List;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Rate limit do login ponta a ponta, com o RateLimitService real. O limite (auth.rate-limit.login-attempts)
+ * e a janela (auth.rate-limit.window-minutes) vêm do application.properties de teste, com os mesmos
+ * valores do padrão de produção. A janela é provada com tentativas gravadas no passado, sem esperar.
+ */
+@QuarkusTest
+@TestHTTPEndpoint(AuthResource.class)
+class LoginRateLimitTest {
+
+    private static final String TOO_MANY = "Too many failed login attempts. Please try again later.";
+    private static final String WRONG_PASSWORD = "Wrong@Password123";
+
+    // Faixa de documentação (RFC 5737), enviada por X-Forwarded-For só por este teste
+    private static final String IP_A = "198.51.100.10";
+    private static final String IP_B = "198.51.100.20";
+    private static final String IP_C = "198.51.100.30";
+
+    @Inject
+    @ConfigProperty(name = "auth.rate-limit.login-attempts")
+    int maxAttempts;
+
+    @Inject
+    @ConfigProperty(name = "auth.rate-limit.window-minutes")
+    int windowMinutes;
+
+    // As falhas agora ficam commitadas (é isso que este teste prova): limpa antes e depois para
+    // não herdar tentativas de outras classes nem deixar IPs e contas bloqueados para elas
+    @BeforeEach
+    void clearAttemptsBefore() {
+        QuarkusTransaction.requiringNew().run(() -> LoginAttempt.deleteAll());
+    }
+
+    @AfterEach
+    void clearAttemptsAfter() {
+        QuarkusTransaction.requiringNew().run(() -> LoginAttempt.deleteAll());
+    }
+
+    @Test
+    @DisplayName("N failed logins from one IP block that IP, even with the right password and for other accounts")
+    void failedLoginsFromOneIpBlockThatIp() {
+        RegisterRequest victim = registerUser();
+        RegisterRequest other = registerUser();
+
+        failLogins(victim.email, IP_A, maxAttempts);
+
+        // As falhas sobreviveram ao rollback do 401: a senha certa já não entra a partir deste IP
+        login(victim.email, victim.password, IP_A).statusCode(401).body("message", is(TOO_MANY));
+        // O bloqueio é do IP, não só da conta atacada
+        login(other.email, other.password, IP_A).statusCode(401).body("message", is(TOO_MANY));
+    }
+
+    @Test
+    @DisplayName("A different IP is not affected by another IP's failures")
+    void aDifferentIpIsNotAffected() {
+        RegisterRequest victim = registerUser();
+        RegisterRequest other = registerUser();
+
+        failLogins(victim.email, IP_A, maxAttempts);
+
+        login(other.email, other.password, IP_B).statusCode(200).body("success", is(true));
+        // A conta atacada segue travada de qualquer IP: o limite conta falhas por e-mail OU por IP
+        login(victim.email, victim.password, IP_B).statusCode(401).body("message", is(TOO_MANY));
+    }
+
+    @Test
+    @DisplayName("Failures older than the window do not count; the same failures inside it block")
+    void failuresOlderThanTheWindowDoNotCount() {
+        RegisterRequest user = registerUser();
+
+        recordFailures(user.email, IP_C, maxAttempts, OffsetDateTime.now().minusMinutes(windowMinutes + 1L));
+        login(user.email, user.password, IP_C).statusCode(200).body("success", is(true));
+
+        recordFailures(user.email, IP_C, maxAttempts, OffsetDateTime.now().minusMinutes(1));
+        login(user.email, user.password, IP_C).statusCode(401).body("message", is(TOO_MANY));
+    }
+
+    @Test
+    @DisplayName("Without proxy headers the failed attempt is recorded with the socket address, not 'unknown'")
+    void withoutProxyHeadersTheSocketAddressIsRecorded() throws Exception {
+        RegisterRequest user = registerUser();
+
+        login(user.email, WRONG_PASSWORD, null).statusCode(401).body("message", is("Invalid credentials"));
+
+        List<LoginAttempt> attempts = QuarkusTransaction.requiringNew()
+            .call(() -> LoginAttempt.<LoginAttempt>list("email", user.email));
+        assertEquals(1, attempts.size(), "a falha precisa ficar gravada mesmo com o 401");
+        LoginAttempt attempt = attempts.get(0);
+        assertFalse(attempt.success);
+        assertNotEquals("unknown", attempt.ipAddress);
+        assertTrue(InetAddress.getByName(attempt.ipAddress).isLoopbackAddress(),
+            "esperado o endereço do socket (loopback no teste), veio " + attempt.ipAddress);
+    }
+
+    private RegisterRequest registerUser() {
+        RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
+        given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .when()
+            .post("/register")
+            .then()
+            .statusCode(201);
+        return request;
+    }
+
+    private ValidatableResponse login(String identifier, String password, String forwardedFor) {
+        RequestSpecification request = given()
+            .contentType(ContentType.JSON)
+            .body(TestDataBuilder.createLoginRequest(identifier, password));
+        if (forwardedFor != null) {
+            request = request.header("X-Forwarded-For", forwardedFor);
+        }
+        return request.when().post("/login").then();
+    }
+
+    private void failLogins(String identifier, String ip, int times) {
+        for (int i = 0; i < times; i++) {
+            login(identifier, WRONG_PASSWORD, ip).statusCode(401).body("message", is("Invalid credentials"));
+        }
+    }
+
+    private static void recordFailures(String email, String ip, int times, OffsetDateTime attemptedAt) {
+        QuarkusTransaction.requiringNew().run(() -> {
+            for (int i = 0; i < times; i++) {
+                LoginAttempt attempt = new LoginAttempt();
+                attempt.email = email;
+                attempt.ipAddress = ip;
+                attempt.success = false;
+                attempt.attemptedAt = attemptedAt;
+                attempt.persist();
+            }
+        });
+    }
+}

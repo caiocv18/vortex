@@ -2,6 +2,8 @@ package br.com.vortex.authorization.resource;
 
 import br.com.vortex.authorization.dto.*;
 import br.com.vortex.authorization.service.AuthService;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.net.SocketAddress;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +35,9 @@ public class AuthResource {
     
     @Context
     HttpHeaders httpHeaders;
+
+    @Context
+    HttpServerRequest httpServerRequest;
 
     @POST
     @Path("/login")
@@ -153,8 +158,16 @@ public class AuthResource {
         if (xRealIp != null && !xRealIp.isEmpty()) {
             return xRealIp;
         }
-        
-        // Fallback to remote address (may be proxy)
+
+        // Fallback to the socket remote address (may be a proxy). Antes caía no literal "unknown":
+        // todo cliente sem cabeçalho de proxy dividia o mesmo balde do rate limit.
+        SocketAddress remoteAddress = httpServerRequest.remoteAddress();
+        if (remoteAddress != null) {
+            String host = remoteAddress.hostAddress() != null ? remoteAddress.hostAddress() : remoteAddress.host();
+            if (host != null && !host.isEmpty()) {
+                return host;
+            }
+        }
         return "unknown";
     }
 

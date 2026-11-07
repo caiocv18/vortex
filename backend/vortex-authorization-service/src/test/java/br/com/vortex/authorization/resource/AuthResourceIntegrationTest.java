@@ -14,6 +14,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.*;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
@@ -630,5 +632,41 @@ class AuthResourceIntegrationTest {
             .body("data.user.email", is(request.email))
             .body("data.user.username", is(request.username))
             .body("data.user.roles", hasItem("USER"));
+    }
+
+    @Test
+    @Order(21)
+    @DisplayName("POST /validate-token - Should answer 200 with valid=false for a token with a forged payload")
+    void testValidateTokenForgedPayload() {
+        RegisterRequest registerRequest = TestDataBuilder.createValidRegisterRequest();
+        String accessToken = given()
+            .contentType(ContentType.JSON)
+            .body(registerRequest)
+            .when()
+            .post("/register")
+            .then()
+            .statusCode(201)
+            .extract()
+            .path("data.accessToken");
+
+        // Troca o e-mail no payload e mantém a assinatura original: o contrato segue o mesmo
+        // (HTTP 200, campo valid), mas a assinatura agora é conferida e o token é recusado
+        String[] parts = accessToken.split("\\.");
+        String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8)
+            .replace(registerRequest.email, "attacker@evil.example");
+        String forged = parts[0] + "."
+            + Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8))
+            + "." + parts[2];
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(TestDataBuilder.createValidateTokenRequest(forged))
+            .when()
+            .post("/validate-token")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("valid", is(false))
+            .body("email", nullValue());
     }
 }
