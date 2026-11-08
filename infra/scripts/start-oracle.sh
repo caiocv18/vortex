@@ -40,9 +40,14 @@ if [[ -f "$DOCKER_DIR/docker-compose.yml" ]]; then
     # A rede vortex-simple é external no docker-compose.yml
     docker network inspect vortex-simple > /dev/null 2>&1 || docker network create vortex-simple > /dev/null
 
-    # Iniciar Oracle (sem "down -v": o volume vortex-oracle-data guarda o banco entre subidas)
+    # A rede vortex-rabbitmq-network também é external no docker-compose.yml (backend no -m rabbitmq)
+    docker network inspect vortex-rabbitmq-network > /dev/null 2>&1 || docker network create vortex-rabbitmq-network > /dev/null
+
+    # Iniciar Oracle (sem "down -v": o volume vortex-oracle-data guarda o banco entre subidas).
+    # O docker-compose.yml exige JWT_SECRET (é do backend) e o Compose interpola o arquivo
+    # inteiro: para subir só o banco, qualquer valor serve.
     print_color $BLUE "🚀 Iniciando Oracle Database..."
-    docker compose up -d db
+    JWT_SECRET="${JWT_SECRET:-nao-usado-pelo-oracle}" docker compose up -d db
 
     # Aguardar Oracle estar pronto
     print_color $BLUE "⏳ Aguardando Oracle estar completamente pronto..."

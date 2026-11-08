@@ -20,6 +20,9 @@
 # - Build só do que mudou (carimbo por artefato) e cache AOT das duas JVMs (JEP 514/515)
 # - Docker Compose v2 ("docker compose") em todo lugar; Kafka nativo em KRaft, sem ZooKeeper
 # - Parada por pid file: TERM, até 15 s de espera e só então KILL (nada de pkill por padrão)
+# - pid file com PID, instante de início e boot_id: PID reaproveitado nunca recebe sinal
+# - Par de chaves RSA do JWT do serviço de autorização gerado quando falta (nunca sobrescreve)
+# - Ambiente prd exige JWT_SECRET forte antes de subir qualquer container
 # - Java (SDKMAN) e Node.js (nvm) carregados pelo próprio launcher
 
 set -e
@@ -68,6 +71,19 @@ AUTH_BACKEND_DIR="backend/vortex-authorization-service"
 APP_FRONTEND_DIR="frontend/vortex-application-service"
 AUTH_FRONTEND_DIR="frontend/vortex-authorization-service"
 LEVE_COMPOSE="infra/docker/docker-compose.leve.yml"
+# Stack prd (backend + Oracle): docker-compose.yml + override, como um "docker compose" sem -f
+PRD_COMPOSE_FILES=(-f infra/docker/docker-compose.yml -f infra/docker/docker-compose.override.yml)
+
+# Chaves RSA do JWT do serviço de autorização (fora do git: *.pem). O auth assina com a privada;
+# o backend principal confere com a pública quando o auth está fora (AUTH_JWT_PUBLIC_KEY_LOCATION).
+AUTH_JWT_DIR="$AUTH_BACKEND_DIR/src/main/resources/jwt"
+# Local antigo: tudo em META-INF/resources é servido como arquivo estático pelo Quarkus
+AUTH_JWT_LEGACY_DIR="$AUTH_BACKEND_DIR/src/main/resources/META-INF/resources"
+
+# PostgreSQL 18 do serviço de autorização: volume próprio (docker-compose.auth.yml). O antigo,
+# do PostgreSQL 17, nunca é apagado; scripts/migrar-auth-db-pg18.sh copia os dados dele.
+AUTH_DB_VOLUME="vortex-auth-db-data-pg18"
+AUTH_DB_LEGACY_VOLUME="docker_auth-db-data"
 
 # URLs que entram no build dos frontends: o navegador chama os backends direto
 FRONT_VITE_API_BASE_URL="http://localhost:8080/api"
@@ -114,7 +130,8 @@ show_help() {
     echo ""
     echo "Ambientes:"
     echo "  dev  - Desenvolvimento com H2 Database"
-    echo "  prd  - Produção com Oracle Database (backend principal no Docker)"
+    echo "  prd  - Produção com Oracle Database (backend principal no Docker)."
+    echo "         Exige JWT_SECRET forte: export JWT_SECRET=\"\$(openssl rand -base64 48)\""
     echo ""
     echo "Modos de execução:"
     echo "  leve - Padrão. Builds só do que mudou, jars com JVM enxuta e cache AOT,"
@@ -213,14 +230,70 @@ wait_pid_exit() {
     ! kill -0 "$pid" 2>/dev/null
 }
 
-# Para o processo de um pid file: confere se o PID ainda é o processo esperado (o padrão casa
-# com a linha de comando), manda TERM, espera até STOP_TIMEOUT segundos e só então KILL.
+# Identidade dos processos dos pid files. O pid file guarda "PID início boot_id": o instante de
+# início do processo (campo 22 do /proc/PID/stat, em ticks desde o boot do kernel) e o boot_id
+# do kernel. Os pid files sobrevivem quando a distro desliga (fechar o último terminal) e os PIDs
+# recomeçam baixos na volta; um PID reaproveitado por outro processo tem outro instante de
+# início (ou outro boot), então nunca recebe sinal. A linha de comando não basta: "java" ou
+# "node" casam com qualquer language server do editor.
+
+# Instante de início de um PID (ticks desde o boot). Falha se o processo não existe.
+proc_start_ticks() {
+    local stat fields
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    # O campo 2 (comm) vem entre parênteses e pode ter espaços e ")": corta até o último ") "
+    stat=${stat##*) }
+    read -r -a fields <<< "$stat"
+    # fields[0] é o campo 3 (state), então o 22 (starttime) fica no índice 19
+    [[ "${fields[19]:-}" =~ ^[0-9]+$ ]] || return 1
+    echo "${fields[19]}"
+}
+
+kernel_boot_id() {
+    cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo "sem-boot-id"
+}
+
+# Grava o pid file de um processo que acabou de ser iniciado. $1 arquivo, $2 PID
+write_pid_file() {
+    local start
+    start=$(proc_start_ticks "$2") || start="?"
+    printf '%s %s %s\n' "$2" "$start" "$(kernel_boot_id)" > "$1"
+}
+
+# 0 se o PID do pid file ainda é o MESMO processo: vivo, mesmo boot e mesmo instante de início.
+# Pid file sem carimbo (formato antigo, só o PID) nunca confere: nada garante quem é o PID agora.
+# $1 PID, $2 início gravado, $3 boot_id gravado
+pid_identity_matches() {
+    local pid=$1 start=$2 boot=$3 now
+    [[ "$pid" =~ ^[0-9]+$ && "$start" =~ ^[0-9]+$ && -n "$boot" ]] || return 1
+    [[ "$boot" == "$(kernel_boot_id)" ]] || return 1
+    now=$(proc_start_ticks "$pid") || return 1
+    [[ "$now" == "$start" ]]
+}
+
+# Imprime o PID do pid file só se ele ainda é o processo que o launcher iniciou
+pid_file_live_pid() {
+    local pid="" start="" boot=""
+    [[ -f "$1" ]] || return 1
+    read -r pid start boot _ < "$1" || true
+    pid_identity_matches "$pid" "$start" "$boot" || return 1
+    echo "$pid"
+}
+
+# Para o processo de um pid file: confere se o PID ainda é o processo que o launcher iniciou
+# (instante de início e boot_id, mais o padrão da linha de comando), manda TERM, espera até
+# STOP_TIMEOUT segundos e só então KILL. PID que não confere nunca recebe sinal.
 stop_pid_file() {
     local file=$1 label=$2 pattern=${3:-}
     [[ -f "$file" ]] || return 0
-    local pid cmd
-    pid=$(tr -dc '0-9' < "$file")
-    if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
+    local pid="" start="" boot="" cmd
+    read -r pid start boot _ < "$file" || true
+    if [[ ! "$pid" =~ ^[0-9]+$ ]] || ! kill -0 "$pid" 2>/dev/null; then
+        rm -f "$file"
+        return 0
+    fi
+    if ! pid_identity_matches "$pid" "$start" "$boot"; then
+        print_color $YELLOW "   ⚠️  $file aponta para o PID $pid, que agora é outro processo (ou o pid file é de uma versão antiga do launcher); nenhum sinal enviado."
         rm -f "$file"
         return 0
     fi
@@ -424,6 +497,142 @@ check_prerequisites() {
     print_color $GREEN "✅ Docker encontrado e rodando ($(docker compose version --short 2>/dev/null || echo 'compose v2'))"
 }
 
+# DER da chave pública (para comparar par de chaves sem depender da formatação do PEM)
+public_key_der_sha() {
+    openssl pkey -pubin -in "$1" -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1
+}
+
+private_key_public_der_sha() {
+    openssl pkey -in "$1" -pubout -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1
+}
+
+# Par de chaves RSA do JWT do serviço de autorização (privateKey.pem e publicKey.pem). Ficam fora
+# do git (*.pem), então um clone novo não tem nenhuma, e um clone antigo pode tê-las ainda em
+# META-INF/resources. Nunca sobrescreve uma chave que existe:
+#   - par completo: só confere que as duas são do mesmo par;
+#   - par só no local antigo: move para jwt/ (os tokens já emitidos continuam valendo);
+#   - só a privada: deriva a pública dela;
+#   - só a pública: para com erro (gerar uma privada nova trocaria a pública);
+#   - nenhuma: gera RSA 2048 (PKCS#8 e X.509 SubjectPublicKeyInfo, os formatos do SmallRye JWT
+#     e do AuthTokenVerifier do backend principal).
+# $1 pasta das chaves, $2 pasta antiga (os padrões são as do módulo)
+ensure_auth_jwt_keys() {
+    local dir=${1:-$AUTH_JWT_DIR} legacy=${2:-$AUTH_JWT_LEGACY_DIR}
+    local priv="$dir/privateKey.pem" pub="$dir/publicKey.pem"
+
+    if [[ ! -e "$priv" && ! -e "$pub" && -s "$legacy/privateKey.pem" && -s "$legacy/publicKey.pem" ]]; then
+        mkdir -p "$dir"
+        if move_no_clobber "$legacy/privateKey.pem" "$priv" && move_no_clobber "$legacy/publicKey.pem" "$pub"; then
+            chmod 600 "$priv"
+            print_color $GREEN "🔑 Chaves JWT do auth movidas de $legacy para $dir (lá elas eram servidas como arquivo estático)"
+        fi
+    fi
+
+    if [[ -e "$priv" && -e "$pub" ]]; then
+        if [[ ! -s "$priv" || ! -s "$pub" ]]; then
+            print_color $RED "❌ $priv ou $pub está vazio. Nada foi sobrescrito: mova os dois para fora de $dir e rode de novo (o launcher gera um par novo)."
+            return 1
+        fi
+        if command -v openssl > /dev/null 2>&1; then
+            local from_priv from_pub
+            from_priv=$(private_key_public_der_sha "$priv")
+            from_pub=$(public_key_der_sha "$pub")
+            # sha256 da entrada vazia: o openssl não conseguiu ler a chave
+            local empty_sha="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            if [[ "$from_priv" != "$empty_sha" && "$from_pub" != "$empty_sha" && "$from_priv" != "$from_pub" ]]; then
+                print_color $RED "❌ $priv e $pub não são do mesmo par: o auth assinaria tokens que nem ele consegue conferir."
+                print_color $YELLOW "💡 Nada foi sobrescrito. Mova os dois para fora de $dir e rode de novo (o launcher gera um par novo)."
+                return 1
+            fi
+        fi
+        if [[ -e "$legacy/privateKey.pem" ]]; then
+            print_color $YELLOW "⚠️  Ainda existe $legacy/privateKey.pem: tudo em META-INF/resources é servido como arquivo estático (GET /privateKey.pem). O auth usa $priv; apague a cópia antiga."
+        fi
+        return 0
+    fi
+
+    if ! command -v openssl > /dev/null 2>&1; then
+        print_color $RED "❌ Faltam as chaves JWT do auth em $dir e o openssl não está instalado para gerá-las."
+        print_color $YELLOW "💡 sudo apt-get install -y openssl e rode de novo."
+        return 1
+    fi
+    mkdir -p "$dir"
+
+    if [[ -s "$priv" && ! -e "$pub" ]]; then
+        if ! openssl pkey -in "$priv" -pubout -out "$pub.tmp.$$" 2>/dev/null; then
+            rm -f "$pub.tmp.$$"
+            print_color $RED "❌ $priv não é uma chave privada legível; nada foi sobrescrito."
+            return 1
+        fi
+        chmod 644 "$pub.tmp.$$"
+        if ! move_no_clobber "$pub.tmp.$$" "$pub"; then
+            rm -f "$pub.tmp.$$"
+            print_color $RED "❌ $pub apareceu durante a derivação; nada foi sobrescrito. Rode de novo."
+            return 1
+        fi
+        print_color $GREEN "🔑 $pub derivada de $priv"
+        return 0
+    fi
+
+    if [[ -e "$priv" || -e "$pub" ]]; then
+        print_color $RED "❌ Par de chaves JWT incompleto em $dir: há só a chave pública (ou um arquivo vazio)."
+        print_color $YELLOW "💡 Sem a privada o auth não assina tokens, e gerar uma nova trocaria a pública. Nada foi sobrescrito: mova o arquivo para fora de $dir e rode de novo."
+        return 1
+    fi
+
+    local tmp
+    tmp=$(mktemp -d)
+    if ! ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$tmp/privateKey.pem" ) > "$tmp/openssl.log" 2>&1 \
+        || ! openssl pkey -in "$tmp/privateKey.pem" -pubout -out "$tmp/publicKey.pem" >> "$tmp/openssl.log" 2>&1; then
+        print_color $RED "❌ Falha ao gerar as chaves JWT do auth:"
+        cat "$tmp/openssl.log"
+        rm -rf "$tmp"
+        return 1
+    fi
+    chmod 600 "$tmp/privateKey.pem"
+    chmod 644 "$tmp/publicKey.pem"
+    # A privada primeiro: se algo parar entre os dois mv, sobra só a privada, e a próxima subida
+    # deriva a pública dela (sobrar só a pública travaria o launcher)
+    if ! move_no_clobber "$tmp/privateKey.pem" "$priv" || ! move_no_clobber "$tmp/publicKey.pem" "$pub"; then
+        rm -rf "$tmp"
+        print_color $RED "❌ Outra chave apareceu em $dir durante a geração; nada foi sobrescrito. Rode de novo."
+        return 1
+    fi
+    rm -rf "$tmp"
+    print_color $GREEN "🔑 Par de chaves JWT do auth gerado (RSA 2048) em $dir"
+}
+
+# mv que nunca sobrescreve: falha (e deixa a origem) se o destino já existe. Não depende do
+# código de saída do "mv -n", que mudou entre versões do coreutils.
+move_no_clobber() {
+    [[ -e "$2" ]] && return 1
+    mv -n "$1" "$2" 2>/dev/null || true
+    [[ ! -e "$1" && -e "$2" ]]
+}
+
+# No ambiente prd o backend principal (SecurityConfigurationValidator, perfil prd) recusa subir
+# com o jwt.secret padrão ou fraco. Confere aqui, com as mesmas regras, antes de qualquer
+# container: falha na hora, com a dica, em vez de esperar o /health por 10 minutos.
+check_prd_jwt_secret() {
+    local secret=${JWT_SECRET:-} lower reason=""
+    lower=${secret,,}
+    if [[ -z "$secret" ]]; then
+        reason="não está definido"
+    elif (( ${#secret} < 32 )); then
+        reason="tem ${#secret} caracteres (o mínimo é 32)"
+    elif [[ "$lower" == *secret* || "$lower" == *password* || "$lower" == *change* || "$lower" == *default* ]]; then
+        reason="contém secret, password, change ou default"
+    elif [[ "$lower" =~ ^[a-z]+$ || "$lower" =~ ^[0-9]+$ ]]; then
+        reason="só tem letras ou só tem números"
+    elif [[ "$secret" == "$lower" ]] && (( ${#secret} < 50 )); then
+        reason="não tem maiúsculas e tem menos de 50 caracteres"
+    fi
+    [[ -z "$reason" ]] && return 0
+    print_color $RED "❌ Ambiente prd: JWT_SECRET $reason. O backend principal no perfil prd recusa subir sem um segredo forte."
+    print_color $YELLOW "💡 Gere um e exporte antes de subir:  export JWT_SECRET=\"\$(openssl rand -base64 48)\""
+    return 1
+}
+
 # ================================================================
 # REDES DOCKER
 # ================================================================
@@ -522,15 +731,22 @@ safe_docker_compose() {
     return 1
 }
 
+# docker compose para "down": os compose de prd exigem JWT_SECRET (${JWT_SECRET:?...}) e o
+# Compose interpola o arquivo inteiro em todo comando, até no "down". Para parar qualquer valor
+# serve (nada sobe), e sem ele o "down" falharia calado e deixaria a stack de pé.
+compose_for_down() {
+    JWT_SECRET="${JWT_SECRET:-nao-usado-no-down}" docker compose "$@"
+}
+
 # "down" de uma stack, SEM -v (volumes ficam), incluindo os serviços atrás de profiles
 compose_down() {
     [[ -f "$1" ]] || return 0
-    docker compose -f "$1" --profile '*' down > /dev/null 2>&1 || true
+    compose_for_down -f "$1" --profile '*' down > /dev/null 2>&1 || true
 }
 
 # Stack prd (backend + Oracle): docker-compose.yml + override, como um "docker compose" sem -f
 prd_compose() {
-    docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.override.yml "$@"
+    docker compose "${PRD_COMPOSE_FILES[@]}" "$@"
 }
 
 # Função para monitorar e recuperar redes Docker automaticamente
@@ -919,7 +1135,7 @@ stop_services() {
     compose_down infra/docker/docker-compose.full.yml
     compose_down infra/docker/docker-compose.full-kafka.yml
     compose_down infra/docker/docker-compose.full-rabbitmq.yml
-    prd_compose down > /dev/null 2>&1 || true
+    compose_for_down "${PRD_COMPOSE_FILES[@]}" down > /dev/null 2>&1 || true
     compose_down infra/docker/docker-compose.auth.yml
     compose_down infra/docker/docker-compose.kafka-simple.yml
     compose_down infra/docker/docker-compose.kafka.yml
@@ -1021,16 +1237,16 @@ fix_docker_networks() {
 clean_environment() {
     print_color $YELLOW "🧹 Limpando ambiente..."
     print_color $RED "⚠️  ATENÇÃO: Todos os dados do banco Oracle, do Kafka e do RabbitMQ serão perdidos!"
-    print_color $YELLOW "   (o volume docker_auth-db-data, do PostgreSQL do serviço de autorização, é mantido)"
+    print_color $YELLOW "   (os volumes do PostgreSQL do serviço de autorização são mantidos: $AUTH_DB_VOLUME e o antigo $AUTH_DB_LEGACY_VOLUME)"
     read -p "Tem certeza? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         stop_services
         # Só aqui, com confirmação, os volumes das stacks são apagados (down -v)
-        prd_compose down -v 2>/dev/null || true
-        docker compose -f infra/docker/docker-compose.full.yml down -v 2>/dev/null || true
-        docker compose -f infra/docker/docker-compose.full-kafka.yml --profile '*' down -v 2>/dev/null || true
-        docker compose -f infra/docker/docker-compose.full-rabbitmq.yml down -v 2>/dev/null || true
+        compose_for_down "${PRD_COMPOSE_FILES[@]}" down -v 2>/dev/null || true
+        compose_for_down -f infra/docker/docker-compose.full.yml down -v 2>/dev/null || true
+        compose_for_down -f infra/docker/docker-compose.full-kafka.yml --profile '*' down -v 2>/dev/null || true
+        compose_for_down -f infra/docker/docker-compose.full-rabbitmq.yml down -v 2>/dev/null || true
         docker compose -f infra/docker/docker-compose.kafka.yml --profile '*' down -v 2>/dev/null || true
         docker compose -f infra/docker/docker-compose.kafka-simple.yml --profile '*' down -v 2>/dev/null || true
         docker compose -f infra/docker/docker-compose.rabbitmq.yml --profile '*' down -v 2>/dev/null || true
@@ -1265,8 +1481,11 @@ wait_for_postgresql() {
 
     print_color $BLUE "⏳ Aguardando PostgreSQL estar pronto..."
 
+    # Pelo TCP do loopback, não pelo socket Unix: num volume novo o entrypoint roda o initdb num
+    # servidor temporário que só escuta no socket e é derrubado logo depois; pelo socket ele
+    # pareceria pronto, e o auth conectaria (por TCP) no meio da troca de servidor.
     while [[ $attempt -le $max_attempts ]]; do
-        if docker exec vortex-auth-db pg_isready -U vortex_auth -d vortex_auth >/dev/null 2>&1; then
+        if docker exec vortex-auth-db pg_isready -h 127.0.0.1 -U vortex_auth -d vortex_auth >/dev/null 2>&1; then
             print_color $GREEN "✅ PostgreSQL está pronto!"
             return 0
         fi
@@ -1280,6 +1499,21 @@ wait_for_postgresql() {
         sleep 2
         attempt=$((attempt + 1))
     done
+}
+
+# O PostgreSQL do auth passou do 17 para o 18 com um volume novo: a imagem 18 não sobe em cima
+# do cluster 17 do volume antigo. Na primeira subida (volume novo ainda não existe), avisa que os
+# usuários do volume antigo ficam lá até a migração. O volume antigo nunca é apagado.
+warn_auth_db_legacy_volume() {
+    if docker volume inspect "$AUTH_DB_VOLUME" > /dev/null 2>&1; then
+        return 0
+    fi
+    if ! docker volume inspect "$AUTH_DB_LEGACY_VOLUME" > /dev/null 2>&1; then
+        return 0
+    fi
+    print_color $YELLOW "⚠️  O PostgreSQL do serviço de autorização agora é o 18, num volume novo ($AUTH_DB_VOLUME), criado vazio agora."
+    print_color $YELLOW "   Os usuários cadastrados antes continuam no volume antigo $AUTH_DB_LEGACY_VOLUME (PostgreSQL 17), que não é apagado."
+    print_color $YELLOW "   Para trazê-los (pg_dump do 17 e restauração no 18), com o Vortex parado: bash scripts/migrar-auth-db-pg18.sh"
 }
 
 # Função para iniciar bancos de dados
@@ -1302,6 +1536,7 @@ start_databases() {
     else
         # Verificar se existe docker compose para auth e criar o container
         if [[ -f "infra/docker/docker-compose.auth.yml" ]]; then
+            warn_auth_db_legacy_volume
             print_color $BLUE "📦 Criando e iniciando PostgreSQL via docker compose..."
             if ! safe_docker_compose "infra/docker/docker-compose.auth.yml" "up -d" "auth-db"; then
                 print_color $RED "❌ Falha ao iniciar PostgreSQL via docker compose!"
@@ -1444,6 +1679,15 @@ app_messaging_env() {
             APP_MSG_ENV=(KAFKA_ENABLED=false RABBITMQ_ENABLED=false)
             ;;
     esac
+}
+
+# Chave pública do serviço de autorização para o backend principal (leve e dev): com o auth fora,
+# o fallback do AuthServiceClient confere a assinatura RS256, o emissor e a validade do token com
+# ela (auth.jwt.public-key-location). O emissor é o JWT_ISSUER do auth, que herda o ambiente.
+APP_AUTH_ENV=()
+app_auth_env() {
+    APP_AUTH_ENV=("AUTH_JWT_PUBLIC_KEY_LOCATION=$SCRIPT_DIR/$AUTH_JWT_DIR/publicKey.pem"
+        "AUTH_JWT_ISSUER=${JWT_ISSUER:-vortex-auth-service}")
 }
 
 # Perfil Quarkus: "leve" no modo leve; no modo dev o quarkus:dev já usa "dev". O perfil de
@@ -1639,6 +1883,11 @@ aot_cache_stale() {
     return 1
 }
 
+# 0 se o log mostra a JVM recusando o cache AOT (texto do HotSpot com -XX:AOTMode=on)
+aot_cache_rejected_in_log() {
+    grep -q "Unable to use AOT cache" "$1" 2>/dev/null
+}
+
 # Sobe uma JVM do modo leve (com o cache AOT se existir) e espera o health.
 # Na primeira subida com um cache novo usa -XX:AOTMode=on, que exige o cache: se a JVM subir,
 # o cache está valendo de verdade. Depois disso, modo padrão (auto): cache velho nunca trava.
@@ -1662,7 +1911,7 @@ launch_leve_jvm() {
     # shellcheck disable=SC2086
     ( cd "$dir" && exec env "${LAUNCH_ENV[@]}" nohup java $jvm_flags "${aot_flags[@]}" "${LAUNCH_ARGS[@]}" < /dev/null ) > "$log" 2>&1 &
     local pid=$!
-    echo "$pid" > "$pidfile"
+    write_pid_file "$pidfile" "$pid"
     print_color $GREEN "✅ $label iniciado (PID: $pid, log: $log)"
 
     local rc=0
@@ -1676,9 +1925,12 @@ launch_leve_jvm() {
         return 0
     fi
 
-    # Com AOTMode=on a JVM recusa subir se o cache não servir: o cache recusado é apagado (a
-    # próxima subida treina de novo) e a JVM sobe agora sem ele
-    if [[ "$validating" == "true" ]] && ! kill -0 "$pid" 2>/dev/null; then
+    # Com AOTMode=on a JVM recusa subir se o cache não servir, e diz isso no log ("Unable to use
+    # AOT cache.", logo depois de "Error occurred during initialization of VM"). Só nesse caso o
+    # cache é apagado (a próxima subida treina de novo) e a JVM sobe agora sem ele. Qualquer outra
+    # morte (um ApplicationRunner que lança, porta ocupada, OOM) não é culpa do cache: o cache
+    # fica e o erro real aparece abaixo.
+    if [[ "$validating" == "true" ]] && ! kill -0 "$pid" 2>/dev/null && aot_cache_rejected_in_log "$log"; then
         print_color $YELLOW "⚠️  A JVM não aceitou o cache AOT com -XX:AOTMode=on (log em ${log%.log}-aot-falhou.log)."
         print_color $YELLOW "   Cache apagado (a próxima subida treina de novo); subindo agora sem ele..."
         mv -f "$log" "${log%.log}-aot-falhou.log"
@@ -1689,6 +1941,9 @@ launch_leve_jvm() {
 
     if [[ $rc -eq 2 ]]; then
         print_color $RED "❌ $label terminou durante a subida. Últimas linhas de $log:"
+        if [[ "$validating" == "true" ]]; then
+            print_color $YELLOW "   (o log não mostra recusa do cache AOT, então ele foi mantido: o erro é outro)"
+        fi
     else
         print_color $RED "❌ $label não respondeu em $health_url. Últimas linhas de $log:"
     fi
@@ -1707,7 +1962,7 @@ train_auth_aot() {
     # shellcheck disable=SC2086
     ( cd "$dir" && exec env "${AUTH_MSG_ENV[@]}" java $AUTH_JVM_FLAGS -XX:AOTCacheOutput="$aot_rel" -Dquarkus.profile="$profile" -jar target/quarkus-app/quarkus-run.jar < /dev/null ) > "$log" 2>&1 &
     local pid=$!
-    echo "$pid" > logs/aot-train-auth.pid
+    write_pid_file logs/aot-train-auth.pid "$pid"
     local rc=0
     wait_for_http "http://localhost:8081/q/health" 180 "$pid" || rc=$?
     if [[ $rc -ne 0 ]]; then
@@ -1744,9 +1999,9 @@ train_app_aot() {
     local log="logs/aot-train-backend.log" t0
     t0=$(now_ms)
     # shellcheck disable=SC2086
-    ( cd "$dir" && exec env "${APP_MSG_ENV[@]}" java $APP_JVM_FLAGS -XX:AOTCacheOutput="$aot_rel" -Dspring.context.exit=onRefresh -jar "$jar_rel" --spring.profiles.active="$profiles" < /dev/null ) > "$log" 2>&1 &
+    ( cd "$dir" && exec env "${APP_MSG_ENV[@]}" "${APP_AUTH_ENV[@]}" java $APP_JVM_FLAGS -XX:AOTCacheOutput="$aot_rel" -Dspring.context.exit=onRefresh -jar "$jar_rel" --spring.profiles.active="$profiles" < /dev/null ) > "$log" 2>&1 &
     local pid=$!
-    echo "$pid" > logs/aot-train-backend.pid
+    write_pid_file logs/aot-train-backend.pid "$pid"
     if ! wait_pid_exit "$pid" 300; then
         print_color $YELLOW "⚠️  O treino do backend não terminou em 300 s: KILL (sem cache desta vez)"
         kill -KILL "$pid" 2>/dev/null || true
@@ -1820,6 +2075,7 @@ start_backend_leve() {
     local profiles stamp
     profiles=$(app_spring_profiles dev)
     app_messaging_env
+    app_auth_env
     stamp="flags=$APP_JVM_FLAGS|perfis=$profiles|java=$(java_version_line)|jar=$jar_sum"
     if aot_cache_stale "$dir/$aot_rel" "$dir/$leve_rel" "$stamp"; then
         train_app_aot "$dir" "$aot_rel" "$jar_rel" "$profiles" "$stamp" || true
@@ -1828,7 +2084,7 @@ start_backend_leve() {
     fi
 
     # 3) Execução, sempre a partir do target/leve/<jar>
-    LAUNCH_ENV=("${APP_MSG_ENV[@]}")
+    LAUNCH_ENV=("${APP_MSG_ENV[@]}" "${APP_AUTH_ENV[@]}")
     LAUNCH_ARGS=(-jar "$jar_rel" "--spring.profiles.active=$profiles")
     launch_leve_jvm "backend" "Backend principal (perfis $profiles)" "$dir" "$aot_rel" \
         "http://localhost:8080/health" "$APP_JVM_FLAGS"
@@ -1862,7 +2118,7 @@ record_child_jvm_pid() {
     local port=$1 parent_pid=$2 pidfile=$3 child
     child=$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1 || true)
     if [[ -n "$child" && "$child" != "$parent_pid" ]]; then
-        echo "$child" > "$pidfile"
+        write_pid_file "$pidfile" "$child"
     fi
 }
 
@@ -1888,7 +2144,7 @@ start_auth_backend_dev() {
     print_color $BLUE "🚀 Iniciando serviço de autorização (./mvnw quarkus:dev, JVM com $AUTH_DEV_JVM_FLAGS)..."
     ( cd "$AUTH_BACKEND_DIR" && exec env "${AUTH_MSG_ENV[@]}" MAVEN_OPTS="$DEV_MAVEN_OPTS" nohup ./mvnw -B quarkus:dev -Dquarkus.http.port=8081 "-Djvm.args=$jvm_args" < /dev/null ) > logs/auth-backend.log 2>&1 &
     local pid=$!
-    echo "$pid" > logs/auth-backend.pid
+    write_pid_file logs/auth-backend.pid "$pid"
     print_color $GREEN "✅ Backend de autorização iniciado (PID Maven: $pid)"
 
     # Aguardar healthcheck
@@ -1909,7 +2165,7 @@ start_vite_server() {
     ensure_port_free "$port" "$label" || return 1
     ( cd "$dir" && exec nohup ./node_modules/.bin/vite "$@" --port "$port" --strictPort < /dev/null ) > "logs/$name.log" 2>&1 &
     local pid=$!
-    echo "$pid" > "logs/$name.pid"
+    write_pid_file "logs/$name.pid" "$pid"
     print_color $GREEN "✅ $label iniciado (PID: $pid, porta $port)"
     if wait_for_http "http://localhost:$port/" 60 "$pid"; then
         return 0
@@ -1943,6 +2199,7 @@ start_backend_dev() {
     local spring_profiles
     spring_profiles=$(app_spring_profiles dev)
     app_messaging_env
+    app_auth_env
 
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         # Verificar se Kafka está rodando antes de iniciar o backend
@@ -1960,9 +2217,9 @@ start_backend_dev() {
     ensure_port_free 8080 "Main Backend" || return 1
 
     print_color $GREEN "📦 Executando com ./mvnw (JVM filha com $APP_DEV_JVM_FLAGS)..."
-    ( cd "$APP_BACKEND_DIR" && exec env SPRING_PROFILES_ACTIVE="$spring_profiles" "${APP_MSG_ENV[@]}" MAVEN_OPTS="$DEV_MAVEN_OPTS" nohup ./mvnw -B spring-boot:run "-Dspring-boot.run.jvmArguments=$APP_DEV_JVM_FLAGS" < /dev/null ) > logs/backend.log 2>&1 &
+    ( cd "$APP_BACKEND_DIR" && exec env SPRING_PROFILES_ACTIVE="$spring_profiles" "${APP_MSG_ENV[@]}" "${APP_AUTH_ENV[@]}" MAVEN_OPTS="$DEV_MAVEN_OPTS" nohup ./mvnw -B spring-boot:run "-Dspring-boot.run.jvmArguments=$APP_DEV_JVM_FLAGS" < /dev/null ) > logs/backend.log 2>&1 &
     local pid=$!
-    echo "$pid" > logs/backend.pid
+    write_pid_file logs/backend.pid "$pid"
     print_color $GREEN "✅ Backend iniciado (PID Maven: $pid) com perfis: $spring_profiles"
 
     # Aguardar healthcheck do backend
@@ -1979,9 +2236,14 @@ start_backend_dev() {
 start_backend_prd() {
     print_color $BLUE "🚀 Iniciando Backend em modo produção..."
 
-    # Definir perfis Spring baseado no sistema de mensageria
-    local spring_profiles kafka_enabled=false
+    # Definir perfis Spring baseado no sistema de mensageria. O RabbitMQ do -m rabbitmq é o do
+    # docker-compose.rabbitmq.yml: o docker-compose.yml já põe o vortex-app na rede dele e aponta
+    # RABBITMQ_HOST para vortex-rabbitmq; aqui só se liga (RABBITMQ_ENABLED=true).
+    local spring_profiles kafka_enabled=false rabbitmq_enabled=false
     spring_profiles=$(app_spring_profiles prd)
+    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+        rabbitmq_enabled=true
+    fi
 
     # Garantir que o Kafka está rodando antes de iniciar o backend
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
@@ -2014,7 +2276,7 @@ start_backend_prd() {
         fi
 
         # Variáveis só para este docker compose (subshell: nada vaza para o launcher)
-        if ! ( export SPRING_PROFILES_ACTIVE="$spring_profiles" KAFKA_ENABLED="$kafka_enabled"
+        if ! ( export SPRING_PROFILES_ACTIVE="$spring_profiles" KAFKA_ENABLED="$kafka_enabled" RABBITMQ_ENABLED="$rabbitmq_enabled"
                safe_docker_compose "$compose_file" "up -d --build" ); then
             print_color $RED "❌ Falha ao iniciar stack completa via docker compose!"
             return 1
@@ -2024,7 +2286,7 @@ start_backend_prd() {
     else
         # Apenas backend + Oracle (docker-compose.yml + override)
         print_color $BLUE "   🐳 docker compose up -d --build (o build do backend roda dentro do Docker)"
-        if ! ( export SPRING_PROFILES_ACTIVE="$spring_profiles" KAFKA_ENABLED="$kafka_enabled"
+        if ! ( export SPRING_PROFILES_ACTIVE="$spring_profiles" KAFKA_ENABLED="$kafka_enabled" RABBITMQ_ENABLED="$rabbitmq_enabled"
                prd_compose up -d --build ); then
             print_color $RED "❌ Falha ao iniciar backend + Oracle via docker compose!"
             return 1
@@ -2032,8 +2294,41 @@ start_backend_prd() {
         print_color $GREEN "✅ Backend e Oracle iniciados com perfis: $spring_profiles"
     fi
 
-    # Aguardar healthcheck do backend no Docker
-    wait_for_backend_healthcheck "localhost" "8080" 600
+    # Aguardar healthcheck do backend no Docker (falha na hora se o container parar)
+    print_color $BLUE "⏳ Aguardando healthcheck do backend em http://localhost:8080/health (container vortex-app)..."
+    local rc=0
+    wait_for_container_http "http://localhost:8080/health" 600 vortex-app || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        print_color $GREEN "✅ Backend está saudável!"
+        return 0
+    fi
+    if [[ $rc -eq 2 ]]; then
+        print_color $RED "❌ O container vortex-app parou durante a subida. Últimas linhas do log:"
+    else
+        print_color $RED "❌ Timeout aguardando o /health do backend. Últimas linhas do log:"
+    fi
+    docker logs --tail 40 vortex-app 2>&1 || true
+    return 1
+}
+
+# Espera um GET devolver 200 de um serviço em container. $1 url, $2 timeout em segundos,
+# $3 container. Retorno: 0 ok, 1 timeout, 2 o container parou (ou sumiu).
+wait_for_container_http() {
+    local url=$1 timeout=$2 container=$3 t0 state
+    t0=$(now_ms)
+    while true; do
+        if [[ "$(http_status "$url")" == "200" ]]; then
+            return 0
+        fi
+        state=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "ausente")
+        if [[ "$state" == "exited" || "$state" == "dead" || "$state" == "ausente" ]]; then
+            return 2
+        fi
+        if (( $(now_ms) - t0 >= timeout * 1000 )); then
+            return 1
+        fi
+        sleep 1
+    done
 }
 
 # Função para gerar arquivo de configuração do tema.
@@ -2132,8 +2427,7 @@ show_status() {
             print_color $RED "   ❌ Frontend de autorização não responde em http://localhost:3001"
         fi
     elif [[ -f "logs/auth-frontend.pid" ]]; then
-        PID=$(cat logs/auth-frontend.pid)
-        if ps -p "$PID" > /dev/null 2>&1; then
+        if PID=$(pid_file_live_pid logs/auth-frontend.pid); then
             print_color $GREEN "   ✅ Frontend de autorização rodando (PID: $PID)"
             print_color $GREEN "   🌐 App: http://localhost:3001"
         else
@@ -2226,8 +2520,7 @@ show_status() {
             print_color $GREEN "   ✅ Rodando no Docker"
             print_color $GREEN "   🌐 App: http://localhost:3000"
         elif [[ -f "logs/frontend.pid" ]]; then
-            PID=$(cat logs/frontend.pid)
-            if ps -p "$PID" > /dev/null 2>&1; then
+            if PID=$(pid_file_live_pid logs/frontend.pid); then
                 print_color $GREEN "   ✅ Rodando (PID: $PID)"
                 if [[ "$ENVIRONMENT" == "dev" ]]; then
                     print_color $GREEN "   🌐 App: http://localhost:5173"
@@ -2412,7 +2705,7 @@ main() {
                 monitor_docker_networks &
                 MONITOR_PID=$!
                 print_color $GREEN "✅ Monitoramento de redes ativo (PID: $MONITOR_PID)"
-                echo $MONITOR_PID > logs/network-monitor.pid
+                write_pid_file logs/network-monitor.pid "$MONITOR_PID"
                 exit 0
                 ;;
             *)
@@ -2471,9 +2764,19 @@ main() {
     # Escolher componentes
     choose_components
 
+    # prd: todo compose de prd exige JWT_SECRET, e o backend no perfil prd recusa um fraco.
+    # Confere antes de parar ou subir qualquer coisa.
+    if [[ "$ENVIRONMENT" == "prd" ]]; then
+        check_prd_jwt_secret || exit 1
+    fi
+
     # Parar serviços existentes
     print_color $YELLOW "🔄 Verificando serviços existentes..."
     stop_services
+
+    # Chaves RSA do JWT do auth: antes dos builds (entram no jar do auth) e do backend principal
+    # (que confere tokens com a pública)
+    ensure_auth_jwt_keys || abort_start "Chaves JWT do serviço de autorização indisponíveis"
 
     # Iniciar serviços
     print_color $BLUE "🚀 Iniciando serviços (modo $RUN_MODE, ambiente $ENVIRONMENT)..."
@@ -2563,5 +2866,8 @@ NO_INTERACTION="false"
 NODE_AVAILABLE="false"
 NPM_AVAILABLE="false"
 
-# Executar função principal
-main "$@"
+# Executar função principal (só quando executado; "source" carrega as funções, para os testes de
+# scripts/test-start-vortex.sh)
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

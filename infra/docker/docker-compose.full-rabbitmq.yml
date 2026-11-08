@@ -2,6 +2,9 @@
 #   Backend:       http://localhost:8080
 #   Frontend:      http://localhost:3000
 #   RabbitMQ AMQP: localhost:5672 / Management UI: http://localhost:15672
+# JWT_SECRET é obrigatório (export JWT_SECRET="$(openssl rand -base64 48)"), inclusive para o
+# "down": o Compose interpola o arquivo inteiro. A chave pública do serviço de autorização
+# (src/main/resources/jwt/publicKey.pem do módulo) precisa existir; o start-vortex.sh gera o par.
 name: vortex-full-rabbitmq
 
 services:
@@ -21,7 +24,8 @@ services:
     volumes:
       - oracle-data:/opt/oracle/oradata
       - ../oracle/init:/container-entrypoint-initdb.d:ro
-    mem_limit: 2g
+    # O teto de 2 GB do Oracle Free cobre só SGA + PGA: folga para processos de fundo e listener
+    mem_limit: 3g
     restart: "no"
     healthcheck:
       test: ["CMD", "healthcheck.sh"]
@@ -79,7 +83,11 @@ services:
       ORACLE_DB_URL: jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1
       ORACLE_DB_USERNAME: vortex_user
       ORACLE_DB_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
+      JWT_SECRET: "${JWT_SECRET:?defina JWT_SECRET (32+ caracteres aleatórios, ex. openssl rand -base64 48) para o backend no perfil prd}"
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://host.docker.internal:8081}
+      # Chave pública do auth para o fallback do AuthServiceClient (montada abaixo)
+      AUTH_JWT_PUBLIC_KEY_LOCATION: /app/keys/auth-public-key.pem
+      AUTH_JWT_ISSUER: ${JWT_ISSUER:-vortex-auth-service}
 
       # Message broker (lidos pelo application-rabbitmq.properties)
       MESSAGE_BROKER_TYPE: rabbitmq
@@ -100,6 +108,12 @@ services:
       - "8080:8080"
     volumes:
       - ../../backend/vortex-application-service/logs:/app/logs
+      - type: bind
+        source: ../../backend/vortex-authorization-service/src/main/resources/jwt/publicKey.pem
+        target: /app/keys/auth-public-key.pem
+        read_only: true
+        bind:
+          create_host_path: false
     mem_limit: 768m
     restart: "no"
     healthcheck:

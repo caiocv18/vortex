@@ -35,6 +35,27 @@ mb() {
     awk -v k="${1:-0}" 'BEGIN { printf "%.0f", k / 1024 }'
 }
 
+# Instante de início de um PID (campo 22 do /proc/PID/stat), como no start-vortex.sh
+proc_start_ticks() {
+    local stat fields
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    stat=${stat##*) }
+    read -r -a fields <<< "$stat"
+    [[ "${fields[19]:-}" =~ ^[0-9]+$ ]] || return 1
+    echo "${fields[19]}"
+}
+
+# O pid file do launcher é "PID início boot_id": só conta o PID que ainda é o mesmo processo
+# (um PID reaproveitado depois de a distro reiniciar seria de outro programa)
+pid_file_pid() {
+    local pid="" start="" boot=""
+    read -r pid start boot _ < "$1" 2>/dev/null || true
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    [[ "$boot" == "$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)" ]] || return 1
+    [[ "$(proc_start_ticks "$pid")" == "$start" ]] || return 1
+    echo "$pid"
+}
+
 label_for() {
     case "$1" in
         backend) echo "Backend principal" ;;
@@ -79,8 +100,8 @@ found_proc=0
 shopt -s nullglob
 for pidfile in logs/*.pid; do
     name=$(basename "$pidfile" .pid)
-    pid=$(tr -dc '0-9' < "$pidfile")
-    if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
+    if ! pid=$(pid_file_pid "$pidfile") || ! kill -0 "$pid" 2>/dev/null; then
+        read -r pid _ < "$pidfile" 2>/dev/null || true
         printf '%s %8s %10s %14s\n' "$(pad "$(label_for "$name")" 34)" "${pid:--}" "parado" "-"
         continue
     fi

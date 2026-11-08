@@ -187,10 +187,48 @@ Tabela de memória do Vortex em texto puro (o `start-vortex.sh` imprime no fim d
 ```
 
 #### Funcionalidade
-- RSS de cada processo iniciado pelo launcher (pid files em `logs/`), sozinho e com os filhos
+- RSS de cada processo iniciado pelo launcher (pid files em `logs/`), sozinho e com os filhos. Só conta o PID que ainda é o mesmo processo (mesmo instante de início e mesmo boot), como o `--stop`
 - Uso e limite de memória de cada container `vortex-*` (`docker stats --no-stream`)
 - Total da VM do WSL (`free -m`) e RAM livre do Windows (`powershell.exe` pela interop)
 - Sempre sai com 0, mesmo com partes paradas
+
+---
+
+### 🧪 test-start-vortex.sh
+Testes do `start-vortex.sh` que não precisam de Docker, JVM nem rede. Carrega as funções do launcher com `source` (o `main` só roda quando o arquivo é executado) e usa pastas temporárias.
+
+#### Uso
+```bash
+bash scripts/test-start-vortex.sh   # sai com 1 se algum teste falhar
+```
+
+#### O que confere
+- **pid files**: o arquivo guarda `PID início boot_id`; PID reaproveitado (outro instante de início), outro boot do kernel ou pid file no formato antigo (só o PID) nunca recebem sinal
+- **Cache AOT**: só a recusa explícita da JVM (`Unable to use AOT cache.` no log) apaga o cache; qualquer outra morte na validação mantém o cache e mostra o erro real
+- **Chaves JWT do auth**: gera o par quando falta (RSA 2048, PKCS#8 e X.509), nunca sobrescreve, deriva a pública da privada, move o par de `META-INF/resources` e recusa par trocado ou incompleto
+- **prd**: as regras do `JWT_SECRET` (as mesmas do `SecurityConfigurationValidator`) e o valor neutro que os `down` recebem
+- **Backend principal**: `AUTH_JWT_PUBLIC_KEY_LOCATION` e `AUTH_JWT_ISSUER` passados nos modos leve e dev
+- **PostgreSQL do auth**: o aviso do volume antigo do PostgreSQL 17 na primeira subida
+
+---
+
+### 🐘 migrar-auth-db-pg18.sh
+Traz os usuários do PostgreSQL 17 do serviço de autorização (volume antigo `docker_auth-db-data`) para o PostgreSQL 18 (volume `vortex-auth-db-data-pg18`). A imagem 18 não sobe em cima do cluster 17, por isso o compose usa um volume novo e a migração é por `pg_dump` e restauração.
+
+#### Uso
+```bash
+./start-vortex.sh --stop                 # o auth não pode estar no ar
+bash scripts/migrar-auth-db-pg18.sh      # sobe o auth-db (18) se preciso e para no fim
+```
+
+Opções: `--origem VOLUME`, `--destino CONTAINER`, `--imagem-origem IMAGEM` e `--substituir` (troca um destino que já tem usuários; sem ela, o script recusa).
+
+#### Como funciona
+- Copia o volume antigo para um volume temporário: o antigo é montado só leitura e fica byte a byte igual
+- Sobe sobre a cópia um PostgreSQL temporário da versão do cluster (`postgres:17`, a imagem do compose antigo) e tira o `pg_dump` do banco `vortex_auth` para um arquivo
+- Restaura no PostgreSQL 18 numa transação só: se algo falhar, o destino fica como estava
+- Confere o número de usuários dos dois lados e apaga só o que criou (container e volume temporários)
+- O volume antigo nunca é apagado; quando não precisar mais dele: `docker volume rm docker_auth-db-data`
 
 ---
 

@@ -1,7 +1,12 @@
 # Serviço de autorização: PostgreSQL (usado em todos os modos do start-vortex.sh, que sobe só o
 # auth-db), mais backend Quarkus e frontend React em container para quem quiser tudo no Docker.
-# Sem "name:" de propósito: o projeto continua "docker" (nome da pasta) e o volume dos dados
-# continua docker_auth-db-data.
+# Sem "name:" de propósito: o projeto continua "docker" (nome da pasta), e o "down" desta pasta
+# continua alcançando os containers criados pelas versões anteriores deste arquivo.
+#
+# Dados: volume vortex-auth-db-data-pg18 (PostgreSQL 18). O volume antigo docker_auth-db-data
+# guarda um cluster do PostgreSQL 17 na raiz (era montado em /var/lib/postgresql/data), e a
+# imagem 18 se recusa a subir em cima dele. Ele nunca é apagado; para trazer os usuários dele:
+#   bash scripts/migrar-auth-db-pg18.sh   (pg_dump do 17, restauração no 18)
 
 services:
   # PostgreSQL Database for Auth Service
@@ -27,12 +32,14 @@ services:
       - "5432:5432"
     volumes:
       # A partir do PG 18 a imagem oficial monta em /var/lib/postgresql (PGDATA por versão).
-      - auth-db-data:/var/lib/postgresql
+      # Volume próprio do 18: nunca o docker_auth-db-data do PG 17 (ver o cabeçalho).
+      - auth-db-data-pg18:/var/lib/postgresql
       - ./init-auth-db.sql:/docker-entrypoint-initdb.d/init-auth-db.sql:ro
     mem_limit: 256m
     restart: "no"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vortex_auth -d vortex_auth"]
+      # Pelo TCP: num volume novo o initdb roda num servidor temporário só no socket Unix
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U vortex_auth -d vortex_auth"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -54,15 +61,20 @@ services:
       POSTGRES_DB_USERNAME: vortex_auth
       POSTGRES_DB_PASSWORD: vortex_auth_password
 
-      # JWT Configuration
+      # JWT Configuration. O auth assina os tokens em RS256 com o par de chaves de
+      # src/main/resources/jwt/ (entra no jar no build); o JWT_SECRET abaixo vira o
+      # auth.jwt.secret, que nenhum código do serviço lê hoje.
       JWT_SECRET: ${JWT_SECRET:-vortex-super-secret-jwt-key-change-in-production}
       JWT_ISSUER: vortex-auth-service
       JWT_ACCESS_TOKEN_EXPIRATION: 15m
       JWT_REFRESH_TOKEN_EXPIRATION: 7d
 
-      # CORS e proxies confiáveis (X-Forwarded-For só vale vindo deles)
+      # CORS e proxies confiáveis (X-Forwarded-For só vale vindo deles).
+      # Padrão 0.0.0.0/32 = nenhum proxy confiável, igual ao application.properties: o cliente do
+      # host chega pelo gateway da bridge (172.x), então confiar em 172.16.0.0/12 deixaria qualquer
+      # um trocar o próprio IP pelo cabeçalho. Defina TRUSTED_PROXIES só com um proxy real na frente.
       CORS_ALLOWED_ORIGINS: "http://localhost:3001,http://localhost:5173,http://localhost:4173"
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,[::1],172.16.0.0/12}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-0.0.0.0/32}
 
       # Application Configuration
       QUARKUS_HTTP_PORT: 8081
@@ -118,7 +130,10 @@ services:
       - vortex-auth-network
 
 volumes:
-  auth-db-data:
+  auth-db-data-pg18:
+    # Nome fixo, fora do prefixo do projeto: é o que o start-vortex.sh e o
+    # scripts/migrar-auth-db-pg18.sh procuram
+    name: vortex-auth-db-data-pg18
 
 networks:
   vortex-auth-network:

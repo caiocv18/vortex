@@ -21,7 +21,8 @@ services:
     #   - "8082:8080"
 
   db:
-    # O Oracle Free usa AL32UTF8 por padrão e se limita a 2 GB de RAM.
+    # O Oracle Free usa AL32UTF8 por padrão e limita SGA + PGA a 2 GB (o mem_limit do
+    # docker-compose.yml dá folga para os processos de fundo e o listener).
     # Descomente para mapear portas diferentes
     # ports:
     #   - "1522:1521"

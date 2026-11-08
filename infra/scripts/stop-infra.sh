@@ -26,6 +26,10 @@ print_color $YELLOW "🛑 Parando todos os serviços de infraestrutura..."
 
 cd "$DOCKER_DIR"
 
+# Os compose de prd exigem JWT_SECRET, e o Compose interpola o arquivo inteiro até no "down".
+# Para parar qualquer valor serve (nada sobe); sem ele o "down" falharia calado.
+export JWT_SECRET="${JWT_SECRET:-nao-usado-no-down}"
+
 down() {
     docker compose "$@" --profile '*' down 2>/dev/null || true
 }
