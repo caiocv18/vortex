@@ -10,7 +10,8 @@ Script de inicialização completo (`start-vortex.sh`) que sobe os dois backends
 - **🚀 Ambiente de Produção**: Oracle Database Free + backend em container
 - **🔨 Build só do que mudou**: carimbo por artefato; a segunda subida sem mudança no código não compila nada
 - **🧰 Toolchain própria**: carrega Java 27 (SDKMAN) e Node.js 26 (nvm) sozinho
-- **🛑 Parada limpa**: pid files, TERM, até 15 s de espera e só então KILL
+- **🛑 Parada limpa**: pid files com a identidade do processo, TERM, até 15 s de espera e só então KILL
+- **🔑 Chaves JWT do auth**: gera o par RSA quando falta, sem nunca sobrescrever uma chave
 - **📊 Tabela de memória**: RSS de cada processo e container, RAM da VM do WSL e do Windows
 
 ## 🚀 Uso Rápido
@@ -30,7 +31,8 @@ A ordem das perguntas é: tema, ambiente, **modo (leve ou dev)**, mensageria e c
 # Hot reload (modo dev)
 ./start-vortex.sh -e dev -r dev -m none
 
-# Ambiente de produção (Oracle; backend principal no Docker)
+# Ambiente de produção (Oracle; backend principal no Docker). Exige um JWT_SECRET forte:
+export JWT_SECRET="$(openssl rand -base64 48)"
 ./start-vortex.sh -e prd -m none
 
 # Apenas backend
@@ -117,7 +119,7 @@ Como funciona:
 1. **Backend principal**: o jar do Spring Boot é extraído (`java -Djarmode=tools -jar target/<jar> extract --destination target/leve`) e roda sempre a partir de `target/leve/<jar>`, porque o cache exige o layout extraído e os mesmos timestamps de jar. O treino roda uma vez com `-XX:AOTCacheOutput=target/leve/app.aot -Dspring.context.exit=onRefresh` (o contexto sobe e a JVM sai), com as mesmas flags e os mesmos perfis.
 2. **Backend de autorização**: o treino roda com `-XX:AOTCacheOutput=target/quarkus-app/app.aot`; o launcher espera o `/q/health` responder 200 e manda TERM, porque o cache é gravado na saída.
 3. **Quando treina de novo**: se o cache não existe, se ficou mais velho que o build ou a extração, ou se mudaram as flags, os perfis (inclusive o de mensageria) ou a versão do Java (carimbo em `app.aot.stamp`).
-4. **Validação**: a primeira subida com um cache novo usa `-XX:AOTMode=on`, que exige o cache. Se a JVM subir, o cache está valendo de verdade (o log mostra `Opened AOT cache`). Se recusar, o launcher apaga o cache, sobe sem ele e treina de novo na próxima vez.
+4. **Validação**: a primeira subida com um cache novo usa `-XX:AOTMode=on`, que exige o cache. Se a JVM subir, o cache está valendo de verdade (o log mostra `Opened AOT cache`). Se a JVM recusar o cache (o log termina em `Unable to use AOT cache.`), o launcher guarda esse log em `logs/<serviço>-aot-falhou.log`, apaga o cache, sobe sem ele e treina de novo na próxima vez. Se a JVM morrer por qualquer outro motivo (um `ApplicationRunner` que lança, porta ocupada, falta de memória), o cache fica e o launcher mostra o erro real: o treino do backend principal sai logo depois do refresh do contexto, então esses erros só aparecem nessa primeira subida.
 5. **Subidas normais**: modo padrão (auto). Um cache velho nunca trava a subida; no máximo a JVM o ignora.
 
 Os tempos de cada subida ficam em `logs/startup-times.log`.
@@ -158,6 +160,10 @@ Nesta distro WSL o Docker Engine sobe no boot da distro (o `[boot] command` do `
 - **Backend**: Spring Boot com perfil `prd`, em container (`vortex-app`, build dentro do Docker)
 - **Database**: Oracle Database Free 23ai (`gvenzl/oracle-free:23.26.3-slim-faststart`, serviço `FREEPDB1`)
 - **Serviço de autorização e frontends**: seguem o modo escolhido (no modo leve, jar com cache AOT e nginx estático)
+- **`JWT_SECRET` obrigatório**: o backend no perfil `prd` recusa o segredo padrão e qualquer segredo fraco (menos de 32 caracteres, as palavras secret, password, change ou default, só letras ou só números, ou sem maiúsculas e com menos de 50 caracteres). O launcher confere com as mesmas regras antes de parar ou subir qualquer coisa e para com a dica; os compose de prd param com `required variable JWT_SECRET is missing a value` se ele faltar. Gere com `export JWT_SECRET="$(openssl rand -base64 48)"`
+- **Chave pública do auth**: o `vortex-app` recebe a `publicKey.pem` do serviço de autorização montada só leitura em `/app/keys/auth-public-key.pem` (`AUTH_JWT_PUBLIC_KEY_LOCATION`), para conferir os tokens quando o auth está fora
+- **Mensageria**: com `-m kafka` o `vortex-app` fala com o `kafka:19092` pela rede `vortex-simple`; com `-m rabbitmq`, com o `vortex-rabbitmq` pela rede `vortex-rabbitmq-network` (usuário `vortex`, vhost `vortex-vhost`)
+- **Falha rápida**: se o container `vortex-app` parar durante a subida, o launcher mostra as últimas linhas do log dele na hora, sem esperar os 10 minutos do health
 - **URLs**:
   - API: http://localhost:8080
   - Frontend: http://localhost:5173 (modo leve) ou http://localhost:4173 (modo dev, `vite preview`)
@@ -184,8 +190,29 @@ Nesta distro WSL o Docker Engine sobe no boot da distro (o `[boot] command` do `
 
 ### Database
 - **Dev**: H2 em memória (automático) e PostgreSQL 18 (`vortex-auth-db`, porta 5432) para o serviço de autorização
-- **Prd**: Oracle Database Free (Docker), volume `vortex-oracle-data`
-- **Persistência**: o volume `docker_auth-db-data` guarda o PostgreSQL; `--stop` nunca apaga volume
+- **Prd**: Oracle Database Free (Docker), volume `vortex-oracle-data`, `mem_limit: 3g` (o teto de 2 GB do Oracle Free cobre só SGA e PGA; a folga é para os processos de fundo e o listener)
+- **Persistência**: o volume `vortex-auth-db-data-pg18` guarda o PostgreSQL 18; `--stop` nunca apaga volume
+
+#### PostgreSQL 17 → 18: volume novo
+O volume antigo `docker_auth-db-data` guarda um cluster do PostgreSQL 17 na raiz (era montado em `/var/lib/postgresql/data`). A imagem 18 monta em `/var/lib/postgresql` e se recusa a subir em cima dele, então o compose usa o volume novo `vortex-auth-db-data-pg18`, criado vazio na primeira subida. O launcher avisa nessa hora se o volume antigo existe. Ele nunca é apagado; para trazer os usuários cadastrados antes:
+
+```bash
+./start-vortex.sh --stop
+bash scripts/migrar-auth-db-pg18.sh     # pg_dump do 17 (numa cópia do volume) e restauração no 18
+docker volume rm docker_auth-db-data    # só quando não precisar mais do volume antigo
+```
+
+Detalhes em [scripts/README.md](scripts/README.md#-migrar-auth-db-pg18sh).
+
+### 🔑 Chaves JWT do serviço de autorização
+O auth assina os tokens em RS256 com `backend/vortex-authorization-service/src/main/resources/jwt/privateKey.pem`, e o backend principal confere com a `publicKey.pem` quando o auth está fora. As duas ficam fora do git (`*.pem`). Antes dos builds, toda subida:
+- par completo: só confere que as duas chaves são do mesmo par (um par trocado interrompe a subida, porque o auth assinaria tokens que nem ele consegue conferir);
+- par só no local antigo (`src/main/resources/META-INF/resources`, servido como arquivo estático pelo Quarkus): move para `jwt/`, e os tokens já emitidos continuam valendo;
+- só a privada: deriva a pública dela;
+- só a pública: para com erro (gerar uma privada nova trocaria a pública);
+- nenhuma: gera um par RSA 2048 com `openssl` (PKCS#8 e X.509, privada com permissão 600).
+
+Nenhuma chave existente é sobrescrita. Nos modos leve e dev o backend principal recebe `AUTH_JWT_PUBLIC_KEY_LOCATION` (caminho absoluto da `publicKey.pem`) e `AUTH_JWT_ISSUER` (o `JWT_ISSUER` do auth, padrão `vortex-auth-service`).
 
 ## 🔧 Pré-requisitos
 
@@ -199,7 +226,7 @@ O launcher carrega o SDKMAN e o nvm sozinho (o `.bashrc` retorna cedo em shell n
 ## 🛑 Como a parada funciona
 
 `./start-vortex.sh --stop` (e o começo de toda subida):
-1. Lê os pid files em `logs/` (backends, JVMs filhas do modo dev, wrappers do Maven, servidores Vite e treinos de cache AOT), confere se o PID ainda é o processo esperado, manda **TERM**, espera até 15 s e só então manda KILL. Nada de `pkill -f vite` (que pegaria vitest e Playwright) nem `pkill -f kafka` (que pegaria o próprio backend com o perfil kafka).
+1. Lê os pid files em `logs/` (backends, JVMs filhas do modo dev, wrappers do Maven, servidores Vite e treinos de cache AOT). Cada um guarda `PID início boot_id`: o instante de início do processo (campo 22 do `/proc/PID/stat`) e o `boot_id` do kernel. O sinal só vai se o PID ainda for o **mesmo processo** (mesmo instante de início, mesmo boot e linha de comando do programa esperado). Os pid files sobrevivem quando a distro desliga e os PIDs recomeçam baixos na volta: um PID reaproveitado por um language server do editor ou pelo seu terminal nunca recebe sinal, e o pid file velho é descartado com aviso (o mesmo vale para um pid file no formato antigo, só com o PID). Depois manda **TERM**, espera até 15 s e só então manda KILL. Nada de `pkill -f vite` (que pegaria vitest e Playwright) nem `pkill -f kafka` (que pegaria o próprio backend com o perfil kafka).
 2. Faz `docker compose ... down` **sem `-v`** em cada stack (inclusive o `vortex-static`): os volumes ficam.
 3. Para qualquer container `vortex-*` que tenha sobrado.
 
@@ -261,7 +288,12 @@ sudo service docker status        # o Engine sobe pelo [boot] command do /etc/ws
 
 **3. Oracle não inicia**
 ```bash
-docker logs vortex-db             # precisa de até 2 GB de RAM livres
+docker logs vortex-db             # o container pode usar até 3 GB de RAM (mem_limit: 3g)
+```
+
+**3b. `-e prd` para logo no começo com "JWT_SECRET ..."**
+```bash
+export JWT_SECRET="$(openssl rand -base64 48)"   # o perfil prd recusa o segredo padrão
 ```
 
 **4. Forçar um build ou um treino de cache AOT novo**
@@ -276,12 +308,18 @@ rm -f backend/vortex-authorization-service/target/quarkus-app/app.aot*  # novo t
 ls logs/build-*.log logs/npm-ci-*.log logs/aot-train-*.log
 ```
 
+**6. Testes do próprio launcher** (sem Docker, JVM nem rede)
+```bash
+bash scripts/test-start-vortex.sh
+```
+
 ## 🔄 Fluxo de Execução
 
 1. **Verificação**: diretórios, Docker (espera até 60 s), Compose v2, portas
 2. **Toolchain**: Java 27 (SDKMAN) e Node.js 26 (nvm)
-3. **Seleção**: tema, ambiente, modo, mensageria e componentes
+3. **Seleção**: tema, ambiente, modo, mensageria e componentes (no prd, confere o `JWT_SECRET` antes de seguir)
 4. **Limpeza**: para o que estiver de pé (pid files e `docker compose down` sem `-v`)
-5. **Builds** (modo leve): só o que mudou, um por vez
-6. **Inicialização**: PostgreSQL, mensageria, serviço de autorização, backend principal e frontends
-7. **Relatório**: status, URLs, modo e tabela de memória
+5. **Chaves JWT do auth**: gera ou move o par quando falta, sem sobrescrever
+6. **Builds** (modo leve): só o que mudou, um por vez
+7. **Inicialização**: PostgreSQL, mensageria, serviço de autorização, backend principal e frontends
+8. **Relatório**: status, URLs, modo e tabela de memória

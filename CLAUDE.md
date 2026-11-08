@@ -105,7 +105,8 @@ npm run test:coverage         # Coverage report
 ```bash
 # Environment options
 ./start-vortex.sh -e dev      # Development (H2 database)
-./start-vortex.sh -e prd      # Production (Oracle Database Free, main backend in Docker)
+./start-vortex.sh -e prd      # Production (Oracle Database Free, main backend in Docker); needs a strong JWT_SECRET:
+                              #   export JWT_SECRET="$(openssl rand -base64 48)"
 
 # Run modes (-r/--modo, default leve; asked right after the environment)
 ./start-vortex.sh --modo leve # Jars + AOT cache, frontends built and served by one nginx
@@ -245,7 +246,7 @@ npm run test:coverage         # Coverage report
 
 ### Local Development
 1. **Main Backend**: Spring Boot on port 8080 with H2 database
-2. **Auth Backend**: Quarkus on port 8081 with PostgreSQL 18 (`vortex-auth-db`, port 5432)
+2. **Auth Backend**: Quarkus on port 8081 with PostgreSQL 18 (`vortex-auth-db`, port 5432, volume `vortex-auth-db-data-pg18`)
 3. **Main Frontend**: Vue.js on port 5173 (Vite dev server in dev mode, nginx `vortex-static` in light mode)
 4. **Auth Frontend**: React on port 3001 (same split)
 5. **Database Console**: `http://localhost:8080/h2-console` (dev environment)
@@ -309,7 +310,12 @@ npm run test:coverage         # Coverage report
 - **Run modes**: `--modo leve` (default) runs both backends as jars (Spring Boot extracted to `target/leve/`, Quarkus `quarkus-run.jar`) with one JVM flag set defined at the top of `start-vortex.sh` (`-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m`, `-Xmx320m` app, `-Xmx224m` auth, `MALLOC_ARENA_MAX=2`) and serves both `dist/` folders from one nginx (`infra/docker/docker-compose.leve.yml`, container `vortex-static`, ports 5173 and 3001, no `/api/` proxy). Measured: about 620 MB for the whole system. `--modo dev` keeps hot reload with capped child JVMs.
 - **Incremental builds (light mode)**: content stamps in `target/.vortex-build` and `dist/.vortex-build`; one build at a time, before any JVM starts. `.env.local` (theme) is rewritten only when its content changes.
 - **AOT cache (light mode, JDK 27)**: trained once per build/flags/profiles (`target/leve/app.aot`, `target/quarkus-app/app.aot`), validated once with `-XX:AOTMode=on`, then used in auto mode. Startup: Spring 11.6 s to 5.8 s, Quarkus 4.7 s to 2.8 s. Never train both services at once (the training JVM forks a second JVM to assemble the cache, ~1.4 GB together for the Spring one).
-- **Process control**: pid files in `logs/` for every process the launcher starts (JVMs, Maven wrappers, Vite servers, AOT training runs); stop sends TERM, waits up to 15 s, then KILL. Compose stacks go down without `-v`. No broad `pkill` patterns.
+- **Process control**: pid files in `logs/` for every process the launcher starts (JVMs, Maven wrappers, Vite servers, AOT training runs), written as `PID starttime boot_id` (field 22 of `/proc/PID/stat` and the kernel boot id). A pid is signalled only if it is still the same process (same start time, same boot, expected command line), so a PID reused after the distro restarts is never touched; legacy pid files holding only a PID are dropped without a signal. Stop sends TERM, waits up to 15 s, then KILL. Compose stacks go down without `-v` (with a neutral `JWT_SECRET`, since the prd compose files require it even for `down`). No broad `pkill` patterns.
+- **AOT cache validation**: the cache is deleted only when the log shows the JVM rejected it (`Unable to use AOT cache.`); any other death during the `-XX:AOTMode=on` run keeps the cache and shows the real error.
+- **Auth JWT keys**: before any build, the launcher makes sure `backend/vortex-authorization-service/src/main/resources/jwt/{privateKey,publicKey}.pem` exist (gitignored): it checks a full pair matches, moves a pair left in `META-INF/resources` (served as static files), derives a missing public key, or generates RSA 2048 with `openssl`. It never overwrites a key. The main backend gets `AUTH_JWT_PUBLIC_KEY_LOCATION` (and `AUTH_JWT_ISSUER`) in light and dev mode; the prd compose files mount the public key read-only at `/app/keys/auth-public-key.pem`.
+- **prd secrets and wiring**: every prd compose file passes `JWT_SECRET` as `${JWT_SECRET:?...}` and the launcher rejects a missing or weak secret (same rules as `SecurityConfigurationValidator`) before touching anything. The prd backend joins `vortex-rabbitmq-network` and gets `RABBITMQ_*` for `-m rabbitmq`. The launcher fails fast when the `vortex-app` container exits during startup. Oracle has `mem_limit: 3g` (Oracle Free caps only SGA+PGA at 2 GB).
+- **Auth PostgreSQL 18 volume**: `vortex-auth-db-data-pg18`. The old `docker_auth-db-data` holds a PostgreSQL 17 cluster the 18 image refuses; it is never deleted. `scripts/migrar-auth-db-pg18.sh` copies its data over (pg_dump from a temporary PG 17 on a copy of the old volume, single-transaction restore).
+- **Launcher tests**: `bash scripts/test-start-vortex.sh` (no Docker, JVM or network; sources the launcher, whose `main` runs only when executed).
 - **Ports**: `scripts/check-ports.sh --auto-kill` at startup checks 3001, 5173, 8080, 8081, 9092 and 5432, only listeners, skips container-published ports, TERM before KILL.
 - **Logging**: Centralized logs in `/logs/` directory (`backend.log`, `auth-backend.log`, `build-*.log`, `aot-train-*.log`, `startup-times.log`)
 - **Health Checks**: Validates service startup and readiness (`/health` and `/q/health`; there is no Actuator in the main backend)

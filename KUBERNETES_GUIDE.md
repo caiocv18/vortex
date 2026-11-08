@@ -206,7 +206,9 @@ spec:
     spec:
       containers:
       - name: oracle
-        # Oracle Database Free 23ai: sem login no registry da Oracle; se limita a 2 GB de RAM
+        # Oracle Database Free 23ai: sem login no registry da Oracle. O teto de 2 GB do produto
+        # cobre só SGA + PGA; o limite do pod também conta os processos de fundo e o listener, e
+        # os nós do Kubernetes rodam sem swap: chegar no limite é OOM kill, não lentidão
         image: gvenzl/oracle-free:23.26.3-slim-faststart
         ports:
         - containerPort: 1521
@@ -233,10 +235,10 @@ spec:
           mountPath: /container-entrypoint-initdb.d
         resources:
           requests:
-            memory: "1Gi"
+            memory: "2Gi"
             cpu: "1"
           limits:
-            memory: "2Gi"
+            memory: "3Gi"
             cpu: "2"
         livenessProbe:
           exec:

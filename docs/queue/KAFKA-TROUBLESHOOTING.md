@@ -57,14 +57,12 @@ docker network rm vortex-network vortex-kafka-network 2>/dev/null || true
 
 #### **Passo 2: Iniciar Kafka Simples**
 ```bash
-# Usar o docker-compose simplificado
-docker-compose -f docker-compose.kafka-simple.yml up -d
+# Usar o compose simplificado (Docker Compose v2; a rede vortex-simple é external)
+docker network inspect vortex-simple > /dev/null 2>&1 || docker network create vortex-simple
+docker compose -f infra/docker/docker-compose.kafka-simple.yml up -d kafka
 
-# Aguardar inicialização
-sleep 30
-
-# Verificar status
-docker-compose -f docker-compose.kafka-simple.yml ps
+# Verificar status (o healthcheck fica healthy quando o listener abre)
+docker compose -f infra/docker/docker-compose.kafka-simple.yml ps
 ```
 
 #### **Passo 3: Configurar Aplicação**
@@ -86,29 +84,33 @@ mvn spring-boot:run -Dspring-boot.run.profiles=kafka
 # Verificar containers
 docker ps | grep vortex
 
-# Verificar logs do Kafka
+# Verificar logs do Kafka (KRaft: não há ZooKeeper)
 docker logs vortex-kafka-simple --tail 50
+```
 
-# Verificar logs do ZooKeeper
-docker logs vortex-zookeeper-simple --tail 50
+O broker `vortex-kafka-simple` é o `apache/kafka-native`, que não traz as CLIs do Kafka: `docker exec vortex-kafka-simple kafka-topics ...` falha. As CLIs rodam numa execução avulsa da imagem JVM, na rede `vortex-simple`, onde o broker atende em `kafka:19092`:
 
-# Verificar saúde do Kafka
-docker exec vortex-kafka-simple kafka-broker-api-versions --bootstrap-server localhost:9092
+```bash
+# Atalho para as CLIs (scripts em /opt/kafka/bin da imagem JVM)
+kcli() { docker run --rm -i --network vortex-simple apache/kafka:4.4.0 "/opt/kafka/bin/$1.sh" --bootstrap-server kafka:19092 "${@:2}"; }
+
+# Verificar saúde do Kafka (o broker responde a um pedido de metadados)
+kcli kafka-topics --list > /dev/null && echo "broker respondendo"
 ```
 
 ### **Verificar Conectividade**
 ```bash
 # Listar tópicos
-docker exec vortex-kafka-simple kafka-topics --list --bootstrap-server localhost:9092
+kcli kafka-topics --list
 
 # Criar tópico de teste
-docker exec vortex-kafka-simple kafka-topics --create --topic test --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+kcli kafka-topics --create --topic test --partitions 1 --replication-factor 1
 
 # Produzir mensagem de teste
-echo "test message" | docker exec -i vortex-kafka-simple kafka-console-producer --bootstrap-server localhost:9092 --topic test
+echo "test message" | kcli kafka-console-producer --topic test
 
 # Consumir mensagem de teste
-docker exec vortex-kafka-simple kafka-console-consumer --bootstrap-server localhost:9092 --topic test --from-beginning --max-messages 1
+kcli kafka-console-consumer --topic test --from-beginning --max-messages 1
 ```
 
 ### **Verificar Portas**
@@ -184,12 +186,10 @@ curl -X POST http://localhost:8080/api/movimentos-estoque \
 ## 🔧 **Problemas Específicos e Soluções**
 
 ### **Problema: "node already exists and owner does not match current session"**
-**Solução:**
+**Solução:** esse erro era do ZooKeeper, que saiu: o broker agora roda em KRaft e guarda os dados na camada do container, que somem no `down`. Recriar o container basta:
 ```bash
-# Limpar dados do ZooKeeper
-docker-compose -f docker-compose.kafka-simple.yml down -v
-docker volume rm vortex-kafka-simple_kafka-simple-data 2>/dev/null || true
-docker-compose -f docker-compose.kafka-simple.yml up -d
+docker compose -f infra/docker/docker-compose.kafka-simple.yml down
+docker compose -f infra/docker/docker-compose.kafka-simple.yml up -d kafka
 ```
 
 ### **Problema: "DNS resolution failed for kafka"**
@@ -213,11 +213,11 @@ telnet localhost 9092
 ### **Problema: Tópicos não são criados automaticamente**
 **Solução:**
 ```bash
-# Criar tópicos manualmente
-docker exec vortex-kafka-simple kafka-topics --create --topic vortex.movimento.estoque --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
-docker exec vortex-kafka-simple kafka-topics --create --topic vortex.produto.events --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
-docker exec vortex-kafka-simple kafka-topics --create --topic vortex.alertas.estoque --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-docker exec vortex-kafka-simple kafka-topics --create --topic vortex.auditoria --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1
+# Criar tópicos manualmente (kcli: o atalho da seção "Diagnóstico de Problemas")
+kcli kafka-topics --create --topic vortex.movimento.estoque --partitions 3 --replication-factor 1
+kcli kafka-topics --create --topic vortex.produto.events --partitions 2 --replication-factor 1
+kcli kafka-topics --create --topic vortex.alertas.estoque --partitions 1 --replication-factor 1
+kcli kafka-topics --create --topic vortex.auditoria --partitions 2 --replication-factor 1
 ```
 
 ---

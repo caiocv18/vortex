@@ -365,15 +365,23 @@ No **modo leve** (padrão) os backends rodam como jar com JVM enxuta e cache AOT
 ### 🐳 Execução com Docker (Produção)
 
 ```bash
+# O backend no perfil prd recusa o JWT_SECRET padrão: gere um forte antes
+export JWT_SECRET="$(openssl rand -base64 48)"
+
 # Ambiente de produção completo
 ./start-vortex.sh -e prd -m kafka
 
-# Ou manualmente
+# Ou manualmente (o compose também exige o JWT_SECRET, até no "down")
 cd infra/docker
 docker compose -f docker-compose.full-kafka.yml up -d
 ```
 
 O Oracle é o Oracle Database Free 23ai (`gvenzl/oracle-free:23.26.3-slim-faststart`, serviço `FREEPDB1`), sem login no registry da Oracle. Veja [infra/docs/README-ORACLE.md](infra/docs/README-ORACLE.md).
+
+O backend em container recebe a chave pública do serviço de autorização (`backend/vortex-authorization-service/src/main/resources/jwt/publicKey.pem`, montada só leitura) para conferir tokens quando o auth está fora. O par de chaves fica fora do git; o `start-vortex.sh` gera o par quando falta, sem sobrescrever chave nenhuma.
+
+> [!NOTE]
+> O PostgreSQL do serviço de autorização passou do 17 para o 18 num volume novo (`vortex-auth-db-data-pg18`): a imagem 18 não sobe em cima do volume antigo (`docker_auth-db-data`). Para trazer os usuários cadastrados antes, com o Vortex parado: `bash scripts/migrar-auth-db-pg18.sh`. O volume antigo nunca é apagado pelo launcher.
 
 ### 🔧 Desenvolvimento Local Manual
 
@@ -426,7 +434,8 @@ Para uma experiência mais simples e automatizada, use o **Vortex Launcher** - u
 # Ambiente de desenvolvimento com hot reload
 ./start-vortex.sh -e dev --modo dev
 
-# Ambiente de produção (Oracle + Docker)
+# Ambiente de produção (Oracle + Docker), com um JWT_SECRET forte
+export JWT_SECRET="$(openssl rand -base64 48)"
 ./start-vortex.sh -e prd
 
 # Apenas backend

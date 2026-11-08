@@ -6,7 +6,8 @@ Este documento descreve como configurar e executar a aplicação com Oracle Data
 
 - Docker Engine com o plugin Docker Compose v2 (`docker compose`)
 - Nenhum login em registry: a imagem é a `gvenzl/oracle-free:23.26.3-slim-faststart`, do Docker Hub
-- Cerca de 2 GB de RAM livres: o Oracle Database Free se limita a 2 GB, e o compose usa `mem_limit: 2g`
+- Cerca de 3 GB de RAM livres. O compose usa `mem_limit: 3g`: o Oracle Database Free limita a 2 GB só a SGA e a PGA, e o container também conta a memória privada dos processos de fundo, das sessões e do listener. Medido em 07/11/2026 com o `23.26.3-slim-faststart` e o limite de 3g: `sga_target` 1536M e `pga_aggregate_target` 512M; memória que não dá para devolver (anônima mais a SGA em memória compartilhada) de 1,3 GiB ocioso e 1,5 GiB com 20 sessões dedicadas (o máximo do pool do perfil `prd`), 63 a 104 processos e nenhum OOM. Só a SGA inteira (1,5 GiB) mais a memória anônima medida com as 20 sessões (0,7 GiB) já passam dos 2 GB, então o antigo `mem_limit: 2g` não tinha folga. O resto do limite é cache de disco dos datafiles, que o kernel devolve sob pressão; por isso o `docker stats` do `vortex-db` mostra 2,2 a 2,6 GiB mesmo ocioso
+- `JWT_SECRET` forte exportado (o backend no perfil `prd` recusa o padrão): `export JWT_SECRET="$(openssl rand -base64 48)"`
 
 ## Configuração Implementada
 
@@ -49,16 +50,19 @@ Eles rodam **uma vez só**, na primeira inicialização do volume, como `SYS` no
 - `infra/docker/docker-compose.yml` (+ `docker-compose.override.yml`): serviço `db` (container `vortex-db`) e backend `vortex` (container `vortex-app`)
 - Stacks completas: `docker-compose.full.yml`, `docker-compose.full-kafka.yml` e `docker-compose.full-rabbitmq.yml`
 - O backend recebe `ORACLE_DB_URL=jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1`, `ORACLE_DB_USERNAME=vortex_user` e `ORACLE_DB_PASSWORD`
+- O backend também recebe `JWT_SECRET`, obrigatório: todo compose de prd usa `${JWT_SECRET:?...}`, e como o Compose interpola o arquivo inteiro, até o `docker compose up -d db` e o `down` param sem ele (`required variable JWT_SECRET is missing a value`)
+- A chave pública do serviço de autorização é montada só leitura em `/app/keys/auth-public-key.pem` (`AUTH_JWT_PUBLIC_KEY_LOCATION`); o `start-vortex.sh` gera o par de chaves quando falta
 
 ## Como Executar
 
 ### 1. Pelo launcher (recomendado)
 
 ```bash
+export JWT_SECRET="$(openssl rand -base64 48)"
 ./start-vortex.sh -e prd -m none
 ```
 
-O launcher sobe o Oracle (`docker compose up -d db`), espera o log `DATABASE IS READY TO USE` e depois sobe o backend em container.
+O launcher confere o `JWT_SECRET` (as mesmas regras do `SecurityConfigurationValidator`) antes de mexer em qualquer coisa, sobe o Oracle (`docker compose up -d db`), espera o log `DATABASE IS READY TO USE` e depois sobe o backend em container. Se o `vortex-app` parar durante a subida, o launcher mostra as últimas linhas do log dele na hora.
 
 ### 2. Script de conveniência
 
@@ -69,6 +73,7 @@ O launcher sobe o Oracle (`docker compose up -d db`), espera o log `DATABASE IS 
 ### 3. Ambiente completo manual (Oracle + Aplicação)
 
 ```bash
+export JWT_SECRET="$(openssl rand -base64 48)"
 cd infra/docker
 docker compose up -d
 ```
@@ -134,7 +139,7 @@ O `02-insert-data.sql` traz:
 
 ### Oracle não inicia
 
-1. Verificar se há RAM livre suficiente (o container usa até 2 GB)
+1. Verificar se há RAM livre suficiente (o container pode usar até 3 GB, o `mem_limit`)
 2. Aguardar a primeira subida (baixa a imagem e copia o banco pronto para o volume)
 3. Verificar logs: `docker logs vortex-db`
 
@@ -147,8 +152,11 @@ O `02-insert-data.sql` traz:
 ### Executar apenas Oracle (sem aplicação)
 
 ```bash
+./infra/scripts/start-oracle.sh      # passa um JWT_SECRET neutro: o banco não usa
+
+# ou direto pelo Compose (o arquivo exige JWT_SECRET, mesmo subindo só o db)
 cd infra/docker
-docker compose up -d db
+JWT_SECRET=nao-usado-pelo-oracle docker compose up -d db
 ```
 
 ### Conectar ao Oracle externamente
@@ -169,13 +177,13 @@ Para executar a aplicação localmente (fora do Docker) conectando ao Oracle no 
 
 1. Subir apenas o Oracle:
 ```bash
-cd infra/docker && docker compose up -d db
+./infra/scripts/start-oracle.sh
 ```
 
-2. Executar a aplicação com profile prd:
+2. Executar a aplicação com profile prd (o perfil exige um `JWT_SECRET` forte):
 ```bash
 cd backend/vortex-application-service
-ORACLE_DB_USERNAME=vortex_user ORACLE_DB_PASSWORD=vortex_password \
+JWT_SECRET="$(openssl rand -base64 48)" ORACLE_DB_USERNAME=vortex_user ORACLE_DB_PASSWORD=vortex_password \
   ./mvnw spring-boot:run -Dspring-boot.run.profiles=prd
 ```
 

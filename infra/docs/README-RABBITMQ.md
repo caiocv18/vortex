@@ -140,7 +140,13 @@ if ("rabbitmq".equals(brokerType)) {
 
 # 3. Modo não interativo
 ./start-vortex.sh --no-interaction -e dev -m rabbitmq
+
+# 4. Ambiente prd (backend no Docker), com um JWT_SECRET forte
+export JWT_SECRET="$(openssl rand -base64 48)"
+./start-vortex.sh -e prd -m rabbitmq
 ```
+
+No `-e prd`, o backend roda no container `vortex-app` (`infra/docker/docker-compose.yml`). Ele entra na rede `vortex-rabbitmq-network` do `docker-compose.rabbitmq.yml` e recebe `RABBITMQ_HOST=vortex-rabbitmq`, porta 5672, usuário `vortex`, senha `vortex123` e vhost `vortex-vhost`; o launcher liga a integração com `RABBITMQ_ENABLED=true` junto do perfil `prd,rabbitmq`. Sem `-m rabbitmq`, `RABBITMQ_ENABLED` fica `false` e o backend não tenta o broker.
 
 ### Acessar Management UI
 

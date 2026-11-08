@@ -347,19 +347,34 @@ public class EstoqueStreams {
 
 ### Comandos Úteis
 
+O broker é o `apache/kafka-native`, que não traz as CLIs do Kafka (`docker exec` nele não acha `kafka-topics`). O broker do launcher é o container `vortex-kafka-simple`, na rede `vortex-simple`; dentro dela ele atende em `kafka:19092`. As CLIs rodam numa execução avulsa da imagem JVM do Kafka, na mesma rede:
+
 ```bash
+# Atalho para as CLIs (scripts em /opt/kafka/bin da imagem JVM)
+kcli() { docker run --rm -i --network vortex-simple apache/kafka:4.4.0 "/opt/kafka/bin/$1.sh" --bootstrap-server kafka:19092 "${@:2}"; }
+
 # Listar tópicos
-docker exec vortex-kafka kafka-topics --bootstrap-server localhost:9092 --list
+kcli kafka-topics --list
 
 # Verificar consumer groups
-docker exec vortex-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
+kcli kafka-consumer-groups --list
 
 # Ver detalhes de um consumer group
-docker exec vortex-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --group vortex-inventory-group --describe
+kcli kafka-consumer-groups --group vortex-inventory-group --describe
 
-# Consumir mensagens de um tópico
-docker exec vortex-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic vortex.movimento.estoque --from-beginning
+# Consumir mensagens de um tópico (Ctrl+C para sair)
+kcli kafka-console-consumer --topic vortex.movimento.estoque --from-beginning
 ```
+
+Com o `docker-compose.kafka.yml` (broker `vortex-kafka`, rede `vortex-kafka-network`), as CLIs ficam no container do profile `tools`:
+
+```bash
+docker compose -f infra/docker/docker-compose.kafka.yml --profile tools up -d kafka-tools
+docker exec vortex-kafka-tools kafka-topics --bootstrap-server kafka:19092 --list
+docker exec vortex-kafka-tools kafka-consumer-groups --bootstrap-server kafka:19092 --group vortex-inventory-group --describe
+```
+
+Na stack `docker-compose.full-kafka.yml` a rede é a `vortex-network`: troque `--network vortex-simple` por `--network vortex-network` no atalho acima.
 
 ## 🎯 Próximos Passos
 

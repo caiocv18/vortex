@@ -52,7 +52,7 @@ infra/
 | Kafka UI (profile `ui`) | `kafbat/kafka-ui:v1.5.0` | 384m |
 | Kafka Connect, Schema Registry, ksqlDB, ferramentas (profiles) | `confluentinc/cp-*:8.4.0` | 384m a 768m |
 | RabbitMQ | `rabbitmq:4.4.0-management-alpine` | 256m |
-| Oracle | `gvenzl/oracle-free:23.26.3-slim-faststart` | 2g |
+| Oracle | `gvenzl/oracle-free:23.26.3-slim-faststart` | 3g (o teto de 2 GB do Oracle Free cobre só SGA e PGA) |
 | Backends (build) | `eclipse-temurin:27-jdk` | |
 | Backends (runtime) | `eclipse-temurin:27-jre-alpine` | 768m (app) / 512m (auth) |
 | Frontends (build / runtime) | `node:26.13.0-alpine` / `nginx:1.30.6-alpine` | 32m |
@@ -99,11 +99,18 @@ infra/
 
 ## 🐳 Configurações Docker
 
+> [!IMPORTANT]
+> Os compose de prd (`docker-compose.yml`, `full`, `full-kafka` e `full-rabbitmq`) exigem `JWT_SECRET`: o backend no perfil `prd` recusa o segredo padrão. O Compose interpola o arquivo inteiro em todo comando, então sem ele até o `down` e o `up -d db` param com `required variable JWT_SECRET is missing a value`. Exporte antes: `export JWT_SECRET="$(openssl rand -base64 48)"`. O `./infra/scripts/start-oracle.sh` e o `./infra/scripts/stop-infra.sh` já cuidam disso sozinhos.
+>
+> Eles também montam, só leitura, a chave pública do serviço de autorização (`backend/vortex-authorization-service/src/main/resources/jwt/publicKey.pem`) em `/app/keys/auth-public-key.pem`. Ela fica fora do git; o `start-vortex.sh` gera o par quando falta. Sem o arquivo, o `up` falha com o caminho, em vez de criar uma pasta no lugar.
+
 ### Backend + Oracle (Produção)
 ```bash
 cd infra/docker
 docker compose up -d
 ```
+
+O `vortex-app` entra também nas redes `vortex-simple` (Kafka do `docker-compose.kafka-simple.yml`) e `vortex-rabbitmq-network` (RabbitMQ do `docker-compose.rabbitmq.yml`); o launcher liga um ou outro com `KAFKA_ENABLED` e `RABBITMQ_ENABLED`.
 
 ### Stack Completa
 ```bash
@@ -128,6 +135,8 @@ docker compose -f docker-compose.full-rabbitmq.yml up -d
 cd infra/docker
 docker compose -f docker-compose.auth.yml up -d
 ```
+
+O PostgreSQL 18 guarda os dados no volume `vortex-auth-db-data-pg18`. O volume antigo `docker_auth-db-data` tem um cluster do PostgreSQL 17 na raiz, e a imagem 18 se recusa a subir em cima dele; ele nunca é apagado. Para trazer os usuários dele, com o Vortex parado: `bash scripts/migrar-auth-db-pg18.sh` (pg_dump do 17 numa cópia do volume e restauração no 18 numa transação só).
 
 ### Apenas Kafka
 ```bash
@@ -177,6 +186,8 @@ docker run --rm --network vortex-simple apache/kafka:4.4.0 \
 docker run --rm --network vortex-simple apache/kafka:4.4.0 \
   /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:19092 --list
 ```
+
+Com o `docker-compose.kafka.yml` (rede `vortex-kafka-network`), as CLIs ficam no container do profile `tools`: `docker exec vortex-kafka-tools kafka-topics --bootstrap-server kafka:19092 --list`.
 
 ## 🐰 RabbitMQ
 
