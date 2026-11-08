@@ -6,8 +6,13 @@ export function LoginPage() {
   useTheme();
   return (
     <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex flex-col lg:flex-row">
+      {/*
+        Colunas centralizadas na vertical com folga: padding no topo (no celular a marca é o
+        primeiro bloco e o título encostava na borda) e centro "safe" (justify-center-safe),
+        que alinha ao início em vez de empurrar o conteúdo para cima da tela quando ele não cabe.
+      */}
       {/* Left side - Branding */}
-      <div className="lg:flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
+      <div className="lg:flex-1 flex flex-col justify-center-safe pt-12 px-4 sm:px-6 lg:py-12 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-md lg:max-w-none">
           <div className="text-center lg:text-left">
             <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl lg:text-6xl">
@@ -84,7 +89,7 @@ export function LoginPage() {
       </div>
 
       {/* Right side - Login form */}
-      <div className="lg:flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+      <div className="lg:flex-1 flex flex-col justify-center-safe py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
         <LoginForm />
       </div>
     </div>

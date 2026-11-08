@@ -6,13 +6,17 @@ export function RegisterPage() {
   useTheme();
   return (
     <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex flex-col lg:flex-row">
+      {/*
+        Mesmo layout da LoginPage, espelhado: no celular os benefícios são o último bloco e
+        ganham padding embaixo; centro "safe" (justify-center-safe) nas duas colunas.
+      */}
       {/* Left side - Registration form */}
-      <div className="lg:flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+      <div className="lg:flex-1 flex flex-col justify-center-safe py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
         <RegisterForm />
       </div>
 
       {/* Right side - Benefits */}
-      <div className="lg:flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
+      <div className="lg:flex-1 flex flex-col justify-center-safe pb-12 px-4 sm:px-6 lg:py-12 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-md lg:max-w-none">
           <div className="text-center lg:text-left">
             <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl lg:text-6xl">
