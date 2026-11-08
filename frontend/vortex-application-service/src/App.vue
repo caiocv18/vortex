@@ -1,13 +1,32 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useDisplay } from 'vuetify'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthStore } from '@/stores/auth'
 import { RouterView } from 'vue-router'
 
-const drawer = ref(true)
+// Drawer responsivo, pelos breakpoints padrão do Vuetify 4 (mobile = largura abaixo de lg, 1145px;
+// cobre celular, tablet e a faixa sm/md de 600 a 1145px):
+// - desktop: fixo (permanent), aberto, com o modo rail, como sempre foi;
+// - mobile: temporário (sobreposto ao conteúdo, com scrim), fechado ao carregar, aberto pelo
+//   ícone do app bar; o próprio VNavigationDrawer fecha ao navegar, ao tocar no scrim e ao
+//   passar de desktop para mobile (e reabre ao voltar para desktop, por ser permanent lá).
+const { mobile, xs } = useDisplay()
+const drawer = ref(!mobile.value)
 const rail = ref(false)
+// Rail só no desktop: no drawer temporário ele esconderia os rótulos sem ganhar espaço nenhum
+const railActive = computed(() => rail.value && !mobile.value)
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
+
+// Botão do cabeçalho do drawer: no desktop alterna o rail; no mobile fecha o drawer
+const onDrawerHeaderToggle = () => {
+  if (mobile.value) {
+    drawer.value = false
+  } else {
+    rail.value = !rail.value
+  }
+}
 
 const menuItems = [
   { title: 'Home', value: 'home', icon: 'mdi-home', to: '/' },
@@ -56,21 +75,21 @@ onMounted(async () => {
     <v-navigation-drawer
       v-if="showNavigation"
       v-model="drawer"
-      :rail="rail"
-      permanent
+      :rail="railActive"
+      :permanent="!mobile"
       @click="rail = false"
       app
     >
-      <v-list-item
-        prepend-avatar="/logo.png"
-        title="Sistema de Estoque"
-        subtitle="Vortex"
-      >
+      <!-- Título em title-small e com quebra de linha: no tamanho padrão do Material 3 o nome
+           não cabe nos 256px (avatar + botão do rail) e virava "Sistema de E..." -->
+      <v-list-item prepend-avatar="/logo.png">
+        <v-list-item-title class="text-title-small text-wrap">Sistema de Estoque</v-list-item-title>
+        <v-list-item-subtitle>Vortex</v-list-item-subtitle>
         <template v-slot:append>
           <v-btn
             variant="text"
             icon="mdi-chevron-left"
-            @click.stop="rail = !rail"
+            @click.stop="onDrawerHeaderToggle"
           ></v-btn>
         </template>
       </v-list-item>
@@ -113,14 +132,17 @@ onMounted(async () => {
       color="primary"
       app
     >
+      <!-- No mobile o ícone fica sempre visível: é ele que abre e fecha o drawer temporário -->
       <v-app-bar-nav-icon
         @click="drawer = !drawer"
-        v-if="!drawer || rail"
+        v-if="mobile || !drawer || rail"
       ></v-app-bar-nav-icon>
 
-      <v-toolbar-title>Sistema de Estoque</v-toolbar-title>
-
-      <v-spacer></v-spacer>
+      <!-- Sem v-spacer: no Vuetify 4 o v-toolbar-title já cresce (flex: 1 1) e empurra os botões
+           para a direita; com o spacer os dois dividiam o espaço livre ao meio e, no celular, o
+           título ficava com metade da largura e cortava. No xs (abaixo de 600px) o título desce
+           para title-medium para caber inteiro ao lado dos três botões. -->
+      <v-toolbar-title :class="{ 'text-title-medium': xs }">Sistema de Estoque</v-toolbar-title>
 
       <!-- User menu -->
       <v-menu

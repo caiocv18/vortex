@@ -132,10 +132,11 @@ const getProductTypeName = (typeId: number | undefined) => {
 </script>
 
 <template>
+  <!-- Sem margem no título: o gap do grid do Vuetify 4 (24px) já separa o título do card -->
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-headline-large mb-6">Produtos</h1>
+        <h1 class="text-headline-large">Produtos</h1>
       </v-col>
     </v-row>
 

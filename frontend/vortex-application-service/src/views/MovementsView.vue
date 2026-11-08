@@ -155,10 +155,11 @@ const formatDate = (date: string | undefined) => {
 </script>
 
 <template>
+  <!-- Sem margem no título: o gap do grid do Vuetify 4 (24px) já separa o título do card -->
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-headline-large mb-6">Movimentação de Estoque</h1>
+        <h1 class="text-headline-large">Movimentação de Estoque</h1>
       </v-col>
     </v-row>
 

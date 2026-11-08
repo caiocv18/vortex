@@ -11,6 +11,14 @@ export default defineConfig((configEnv) =>
         environment: 'jsdom',
         exclude: [...configDefaults.exclude, 'e2e/**'],
         root: fileURLToPath(new URL('./', import.meta.url)),
+        // Teste que monta componente do Vuetify (App.spec.ts): os componentes do pacote importam o
+        // próprio .css, que o Node não carrega ("Unknown file extension .css"). Inline faz o Vite
+        // processar o vuetify, como no guia de testes unitários do Vuetify.
+        server: {
+          deps: {
+            inline: ['vuetify'],
+          },
+        },
       },
     }),
   ),
