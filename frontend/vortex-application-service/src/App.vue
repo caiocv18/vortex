@@ -80,11 +80,13 @@ onMounted(async () => {
       @click="rail = false"
       app
     >
-      <!-- Título em title-small e com quebra de linha: no tamanho padrão do Material 3 o nome
-           não cabe nos 256px (avatar + botão do rail) e virava "Sistema de E..." -->
+      <!-- Duas linhas: o nome do produto no título e o "Sistema de Estoque" (que o app bar já
+           mostra em destaque) no subtítulo pequeno. Entre o avatar e o botão do rail sobram
+           ~120px dos 256px; "Sistema de Estoque" como título não cabia nem em title-small,
+           quebrava em duas linhas e o cabeçalho ficava com três. -->
       <v-list-item prepend-avatar="/logo.png">
-        <v-list-item-title class="text-title-small text-wrap">Sistema de Estoque</v-list-item-title>
-        <v-list-item-subtitle>Vortex</v-list-item-subtitle>
+        <v-list-item-title class="text-title-medium">Vortex</v-list-item-title>
+        <v-list-item-subtitle class="text-body-small">Sistema de Estoque</v-list-item-subtitle>
         <template v-slot:append>
           <v-btn
             variant="text"

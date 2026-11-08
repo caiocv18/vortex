@@ -9,6 +9,14 @@
 // A paleta antiga tinha um quase branco (#f5ffff), invisível no card claro, e um quase preto
 // (#00262c), invisível no card escuro.
 //
+// Slots 6 e 8 trocados em 08/11/2026: a pizza dos relatórios mostra todas as fatias juntas, e
+// nela o verde (#008300) parecia o verde-água (ΔE 15,6 no claro, 11,9 no escuro) e o vermelho
+// (#e34948) parecia o laranja (ΔE 7,1). Marrom e carmim são famílias que a paleta não tinha;
+// passam nos mesmos gates entre vizinhas, inclusive no fecho da pizza (8 encosta no 1), e o
+// pior par que envolve os dois ficou em 16,2 no claro e 11,7 no escuro (OKLab ×100, visão
+// normal). Oito cores não ficam todas acima de 15 entre si na faixa de luminosidade do tema
+// escuro; a legenda com o nome e a tabela ao lado do gráfico cobrem o resto.
+//
 // Mais de 8 fatias não ganham cor repetida (duas fatias com a mesma cor confundem quem é quem):
 // o excedente vira uma fatia "Outros", em cinza neutro, por foldTail().
 //
@@ -21,9 +29,9 @@ export const CHART_SERIES_LIGHT = [
   '#1baf7a', // verde-água
   '#eda100', // amarelo
   '#e87ba4', // magenta
-  '#008300', // verde
+  '#8d5901', // marrom
   '#6250d6', // violeta
-  '#e34948', // vermelho
+  '#980b40', // carmim
 ] as const
 
 export const CHART_SERIES_DARK = [
@@ -32,9 +40,9 @@ export const CHART_SERIES_DARK = [
   '#199e70',
   '#c98500',
   '#d55181',
-  '#008300',
+  '#8d5901',
   '#9085e9',
-  '#e66767',
+  '#a14759',
 ] as const
 
 /** Cor da fatia "Outros": cinza neutro, legível nos dois temas, que não se passa por série. */

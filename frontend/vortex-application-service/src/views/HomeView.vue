@@ -121,9 +121,12 @@ onMounted(() => {
     </v-row>
 
     <!-- Cards da mesma linha com a mesma altura: o v-col já estica (flex), o card ocupa a altura
-         toda (h-100) e o "Acessar" vai para o pé do card (mt-auto), alinhado entre eles -->
+         toda (h-100) e o "Acessar" vai para o pé do card (mt-auto), alinhado entre eles.
+         Quatro por linha só a partir do xl (1545px): no lg (1145px) o drawer fixo entra junto e
+         tira 256px, e com quatro colunas sobravam ~112px para o título, menos que os ~140px de
+         "Movimentação" (cortado até ~1250px). De 840 a 1545px a grade fica 2x2. -->
     <v-row>
-      <v-col cols="12" md="6" lg="3">
+      <v-col cols="12" md="6" xl="3">
         <v-card class="h-100 d-flex flex-column">
           <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-shape</v-icon>
@@ -144,7 +147,7 @@ onMounted(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" md="6" lg="3">
+      <v-col cols="12" md="6" xl="3">
         <v-card class="h-100 d-flex flex-column">
           <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-package-variant</v-icon>
@@ -165,7 +168,7 @@ onMounted(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" md="6" lg="3">
+      <v-col cols="12" md="6" xl="3">
         <v-card class="h-100 d-flex flex-column">
           <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-swap-horizontal</v-icon>
@@ -186,7 +189,7 @@ onMounted(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" md="6" lg="3">
+      <v-col cols="12" md="6" xl="3">
         <v-card class="h-100 d-flex flex-column">
           <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-chart-box</v-icon>
