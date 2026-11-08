@@ -25,6 +25,29 @@ function contrast(a: string, b: string): number {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }
 
+// Distância perceptual em visão normal: OKLab ×100, a mesma conta do validador de paleta usado
+// para escolher as cores (piso de 15 entre vizinhas)
+function oklab(hex: string): [number, number, number] {
+  const value = Number.parseInt(hex.slice(1), 16)
+  const [r = 0, g = 0, b = 0] = [(value >> 16) & 255, (value >> 8) & 255, value & 255].map((channel) => {
+    const c = channel / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+function deltaE(a: string, b: string): number {
+  const [x, y] = [oklab(a), oklab(b)]
+  return 100 * Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2])
+}
+
 const lightSurfaces = [...new Set(Object.values(colorThemes).map((t) => t.light.surface))]
 const darkSurfaces = [...new Set(Object.values(colorThemes).map((t) => t.dark.surface))]
 
@@ -49,6 +72,31 @@ describe('chart palette', () => {
       for (const color of [...CHART_SERIES_DARK, CHART_OTHER_COLOR]) {
         expect(contrast(color, surface), `${color} sobre ${surface}`).toBeGreaterThanOrEqual(2)
       }
+    }
+  })
+
+  // Vizinhas na ordem das séries (barras, linhas, fatias seguidas), incluindo o fecho da pizza:
+  // a última fatia encosta na primeira
+  it('keeps neighboring series apart under normal vision, pie wrap-around included', () => {
+    for (const series of [CHART_SERIES_LIGHT, CHART_SERIES_DARK]) {
+      series.forEach((color, i) => {
+        const next = series[(i + 1) % series.length] ?? color
+        expect(deltaE(color, next), `${color} ao lado de ${next}`).toBeGreaterThanOrEqual(15)
+      })
+    }
+  })
+
+  // Regressão: a pizza mostra todas as fatias de uma vez, e o vermelho e o laranja antigos
+  // (#e34948 e #eb6834) ficavam a 7,1, quase a mesma cor. Oito cores não ficam todas acima de
+  // 15 entre si no tema escuro, então aqui o piso barra só o par quase idêntico.
+  it('has no near-identical pair anywhere in the palette', () => {
+    for (const series of [CHART_SERIES_LIGHT, CHART_SERIES_DARK]) {
+      const colors = [...series, CHART_OTHER_COLOR]
+      colors.forEach((a, i) => {
+        for (const b of colors.slice(i + 1)) {
+          expect(deltaE(a, b), `${a} e ${b}`).toBeGreaterThanOrEqual(9)
+        }
+      })
     }
   })
 })
