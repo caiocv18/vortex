@@ -114,21 +114,22 @@ O comando de status agora mostra informações detalhadas:
 ```
 
 ### **Comandos Kafka**
+O launcher sobe o broker `vortex-kafka-simple` (`apache/kafka-native`, rede `vortex-simple`), que não traz as CLIs do Kafka. Elas rodam numa execução avulsa da imagem JVM, na mesma rede:
 ```bash
 # Logs do Kafka
-docker logs vortex-kafka -f
+docker logs vortex-kafka-simple -f
+
+# Atalho para as CLIs (scripts em /opt/kafka/bin da imagem JVM)
+kcli() { docker run --rm -i --network vortex-simple apache/kafka:4.4.0 "/opt/kafka/bin/$1.sh" --bootstrap-server kafka:19092 "${@:2}"; }
 
 # Listar tópicos
-docker exec vortex-kafka kafka-topics --bootstrap-server localhost:9092 --list
+kcli kafka-topics --list
 
 # Listar consumer groups
-docker exec vortex-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list
+kcli kafka-consumer-groups --list
 
-# Consumir mensagens de um tópico
-docker exec vortex-kafka kafka-console-consumer \
-  --bootstrap-server localhost:9092 \
-  --topic vortex.movimento.estoque \
-  --from-beginning
+# Consumir mensagens de um tópico (Ctrl+C para sair)
+kcli kafka-console-consumer --topic vortex.movimento.estoque --from-beginning
 ```
 
 ## 🌐 Portas e Serviços

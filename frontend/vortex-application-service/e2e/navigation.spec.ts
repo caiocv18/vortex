@@ -13,9 +13,11 @@ test.describe('Navigation', () => {
     // Verifica se o sidebar está visível
     await expect(page.locator('.v-navigation-drawer')).toBeVisible()
     
-    // Verifica o título do sistema no sidebar
-    await expect(page.locator('text=Sistema de Estoque')).toBeVisible()
-    await expect(page.locator('text=Vortex')).toBeVisible()
+    // Verifica o título do sistema no sidebar (o mesmo texto também está no app bar e no card
+    // de boas-vindas, então a busca fica restrita ao drawer e ao texto exato)
+    const drawer = page.getByRole('navigation')
+    await expect(drawer.getByText('Sistema de Estoque', { exact: true })).toBeVisible()
+    await expect(drawer.getByText('Vortex', { exact: true })).toBeVisible()
     
     // Verifica todos os itens do menu
     await expect(page.locator('.v-list-item:has-text("Home")')).toBeVisible()
@@ -67,7 +69,7 @@ test.describe('Navigation', () => {
 
   test('theme toggle works correctly', async ({ page }) => {
     // Pega o ícone inicial do tema
-    const initialThemeIcon = await page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
+    const initialThemeIcon = page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
     const initialIconClass = await initialThemeIcon.getAttribute('class')
     
     // Clica no botão de tema no app bar
@@ -77,10 +79,9 @@ test.describe('Navigation', () => {
     await page.waitForTimeout(500)
     
     // Verifica se o ícone mudou
-    const newThemeIcon = await page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
-    const newIconClass = await newThemeIcon.getAttribute('class')
-    
-    expect(initialIconClass).not.toBe(newIconClass)
+    const newThemeIcon = page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
+    // Asserção web-first (com retry): o ícone atual não tem mais a classe do ícone inicial
+    await expect(newThemeIcon).not.toHaveAttribute('class', initialIconClass ?? '')
     
     // Verifica se o tema foi salvo no localStorage
     const theme = await page.evaluate(() => localStorage.getItem('theme'))

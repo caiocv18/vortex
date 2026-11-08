@@ -1,6 +1,86 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import 'tailwindcss';
+
+/*
+  Cores do tema (primary/secondary): src/hooks/useTheme.ts grava no :root, em tempo de execução,
+  as variáveis --vx-primary-<tom> e --vx-secondary-<tom> como trios "r g b" (ex.: "34 197 94").
+  O prefixo --tw- ficou de fora porque o Tailwind 4 o usa nas próprias variáveis internas.
+  Com `inline`, o utilitário recebe rgb(var(--vx-...)) direto (bg-primary-500 vira
+  background-color: rgb(var(--vx-primary-500))), então a cor acompanha a troca de tema, e o
+  modificador de opacidade (bg-primary-500/50) continua valendo via color-mix().
+*/
+@theme inline {
+  --color-primary-50: rgb(var(--vx-primary-50));
+  --color-primary-100: rgb(var(--vx-primary-100));
+  --color-primary-200: rgb(var(--vx-primary-200));
+  --color-primary-300: rgb(var(--vx-primary-300));
+  --color-primary-400: rgb(var(--vx-primary-400));
+  --color-primary-500: rgb(var(--vx-primary-500));
+  --color-primary-600: rgb(var(--vx-primary-600));
+  --color-primary-700: rgb(var(--vx-primary-700));
+  --color-primary-800: rgb(var(--vx-primary-800));
+  --color-primary-900: rgb(var(--vx-primary-900));
+
+  --color-secondary-50: rgb(var(--vx-secondary-50));
+  --color-secondary-100: rgb(var(--vx-secondary-100));
+  --color-secondary-200: rgb(var(--vx-secondary-200));
+  --color-secondary-300: rgb(var(--vx-secondary-300));
+  --color-secondary-400: rgb(var(--vx-secondary-400));
+  --color-secondary-500: rgb(var(--vx-secondary-500));
+  --color-secondary-600: rgb(var(--vx-secondary-600));
+  --color-secondary-700: rgb(var(--vx-secondary-700));
+  --color-secondary-800: rgb(var(--vx-secondary-800));
+  --color-secondary-900: rgb(var(--vx-secondary-900));
+}
+
+@theme {
+  --font-sans: Inter, system-ui, sans-serif;
+
+  --animate-fade-in: fadeIn 0.5s ease-in-out;
+  --animate-slide-in: slideIn 0.3s ease-out;
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes slideIn {
+    0% {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  /* O Preflight do Tailwind 4 voltou o cursor dos botões para `default`; mantém o `pointer` do v3 */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 :root {
   /* Primary colors - Vortex brand */
@@ -88,25 +168,27 @@ code {
   border-color: var(--primary-color);
 }
 
-/* Button styles */
-.btn-primary {
-  background-color: var(--primary-color);
-  color: white;
-  transition: var(--transition-fast);
-}
+/* Button styles (na camada components: utilitários do Tailwind 4 podem sobrescrever) */
+@layer components {
+  .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    transition: var(--transition-fast);
+  }
 
-.btn-primary:hover {
-  background-color: var(--primary-dark);
-}
+  .btn-primary:hover {
+    background-color: var(--primary-dark);
+  }
 
-.btn-secondary {
-  background-color: var(--secondary-color);
-  color: white;
-  transition: var(--transition-fast);
-}
+  .btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+    transition: var(--transition-fast);
+  }
 
-.btn-secondary:hover {
-  background-color: var(--secondary-dark);
+  .btn-secondary:hover {
+    background-color: var(--secondary-dark);
+  }
 }
 
 /* Animation classes */

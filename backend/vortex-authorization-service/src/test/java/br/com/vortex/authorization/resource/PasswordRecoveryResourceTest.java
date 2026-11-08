@@ -5,8 +5,10 @@ import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.service.EventPublisher;
 import br.com.vortex.authorization.security.PasswordService;
 import br.com.vortex.authorization.util.TestDataBuilder;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.InjectMock;
 import io.restassured.http.ContentType;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.*;
@@ -36,6 +38,17 @@ class PasswordRecoveryResourceTest {
     // Helper method to generate unique tokens
     private String generateUniqueToken(String prefix) {
         return prefix + System.currentTimeMillis() + "_" + System.nanoTime();
+    }
+
+    // A requisição HTTP roda em outra thread e outra transação. Fixture criada dentro da
+    // transação do próprio teste (ainda não commitada) é invisível para ela: o reset recebia
+    // "Invalid or expired reset token" e o forgot-password não achava o usuário.
+    private static void persistCommitted(PanacheEntityBase... entities) {
+        QuarkusTransaction.requiringNew().run(() -> {
+            for (PanacheEntityBase entity : entities) {
+                entity.persist();
+            }
+        });
     }
 
     @BeforeEach
@@ -189,7 +202,7 @@ class PasswordRecoveryResourceTest {
         String newPassword = "NewValidPassword@123";
         
         PasswordResetToken token = TestDataBuilder.createPasswordResetToken(testUser, resetToken);
-        token.persist();
+        persistCommitted(token);
         
         ResetPasswordRequest request = TestDataBuilder.createResetPasswordRequest(resetToken, newPassword);
         
@@ -222,7 +235,7 @@ class PasswordRecoveryResourceTest {
         // Arrange
         String resetToken = generateUniqueToken("validToken");
         PasswordResetToken token = TestDataBuilder.createPasswordResetToken(testUser, resetToken);
-        token.persist();
+        persistCommitted(token);
         
         ResetPasswordRequest request = new ResetPasswordRequest();
         request.token = resetToken;
@@ -281,7 +294,7 @@ class PasswordRecoveryResourceTest {
         
         PasswordResetToken token = TestDataBuilder.createPasswordResetToken(testUser, expiredToken);
         token.expiresAt = OffsetDateTime.now().minusHours(2); // Expired 2 hours ago
-        token.persist();
+        persistCommitted(token);
         
         ResetPasswordRequest request = TestDataBuilder.createResetPasswordRequest(expiredToken, newPassword);
         
@@ -309,7 +322,7 @@ class PasswordRecoveryResourceTest {
         String weakPassword = "weak";
         
         PasswordResetToken token = TestDataBuilder.createPasswordResetToken(testUser, resetToken);
-        token.persist();
+        persistCommitted(token);
         
         ResetPasswordRequest request = TestDataBuilder.createResetPasswordRequest(resetToken, weakPassword);
         
@@ -438,7 +451,7 @@ class PasswordRecoveryResourceTest {
         // Test reset password response headers
         String resetToken = generateUniqueToken("validResetToken");
         PasswordResetToken token = TestDataBuilder.createPasswordResetToken(testUser, resetToken);
-        token.persist();
+        persistCommitted(token);
         
         ResetPasswordRequest resetRequest = TestDataBuilder.createResetPasswordRequest(resetToken, "ValidPassword@123");
         when(passwordService.isValidPassword(anyString())).thenReturn(true);
@@ -463,10 +476,9 @@ class PasswordRecoveryResourceTest {
         // Create user with special characters in email
         User specialUser = TestDataBuilder.createTestUser();
         specialUser.email = "test+user@sub-domain.example-site.com";
-        specialUser.persist();
 
         Credential credential = TestDataBuilder.createCredential(specialUser, "$2a$12$hashedPassword");
-        credential.persist();
+        persistCommitted(specialUser, credential);
 
         ForgotPasswordRequest request = TestDataBuilder.createForgotPasswordRequest(specialUser.email);
         String specialToken = generateUniqueToken("specialToken");

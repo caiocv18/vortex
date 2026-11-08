@@ -1,18 +1,20 @@
+// Tem que ser o primeiro import: grava a sessão que o app de login devolve na URL e limpa a URL
+// antes de ./router ser avaliado (ver authCallbackEntry.ts)
+import './authCallbackEntry'
+
+// Vuetify 4: a ordem das @layer é declarada em public/layers.css (linkado no index.html).
+// 'vuetify/styles' continua antes do CSS da app. Componentes e diretivas entram sob
+// demanda pelo vite-plugin-vuetify (autoImport), sem import * de tudo.
+import 'vuetify/styles'
+import '@mdi/font/css/materialdesignicons.css'
 import './assets/main.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-
-// Vuetify
-import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
-import '@mdi/font/css/materialdesignicons.css'
 
 import App from './App.vue'
 import router from './router'
-import { handleAuthCallback } from './utils/authCallback'
 
 // Import test utilities (for debugging)
 import './test-api'
@@ -43,9 +45,8 @@ const vortexThemeDark = {
 const savedTheme = localStorage.getItem('theme') || 'light'
 
 const vuetify = createVuetify({
-  components,
-  directives,
   theme: {
+    // Explícito: no Vuetify 4 o padrão passou a ser 'system'
     defaultTheme: savedTheme,
     themes: {
       light: vortexTheme,
@@ -54,11 +55,8 @@ const vuetify = createVuetify({
   },
 })
 
-// Tornar vuetify acessível globalmente para o tema
-;(window as any).vuetify = vuetify
-
-// Handle auth callback before app initialization
-handleAuthCallback()
+// Tornar vuetify acessível globalmente para o tema (tipado em env.d.ts)
+window.vuetify = vuetify
 
 const app = createApp(App)
 

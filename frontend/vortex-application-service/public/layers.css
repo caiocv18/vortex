@@ -1,0 +1,27 @@
+/*
+ * Ordem das cascade layers do Vuetify 4, declarada antes de qualquer outro CSS.
+ * Cópia de node_modules/vuetify/lib/styles/layers.css (vuetify 4.3.2).
+ *
+ * Fica em public/ e é linkado direto no index.html (sem passar pelo bundle), como manda o
+ * guia de upgrade do Vuetify 4: no build, o CSS do chunk compartilhado dos componentes
+ * (@layer vuetify-components) entra no <head> antes do CSS de entrada (vuetify/styles).
+ * Sem esta declaração, vuetify-components viraria a camada mais fraca e o reset e o base
+ * do Vuetify (e o reset em src/assets/base.css) passariam por cima dos componentes.
+ *
+ * Ao atualizar o Vuetify: comparar com o arquivo do pacote e trocar o ?v= no index.html.
+ */
+@layer vuetify-core {
+  @layer reset, base;
+}
+@layer vuetify-components;
+@layer vuetify-overrides;
+@layer vuetify-utilities {
+  @layer theme-base;
+  @layer typography;
+  @layer helpers;
+  @layer theme-background;
+  @layer theme-foreground;
+}
+@layer vuetify-final {
+  @layer transitions, trumps;
+}

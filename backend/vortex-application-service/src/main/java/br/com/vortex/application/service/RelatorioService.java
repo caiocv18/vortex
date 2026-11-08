@@ -9,7 +9,6 @@ import br.com.vortex.application.model.enums.TipoMovimentacao;
 import br.com.vortex.application.repository.MovimentoEstoqueRepository;
 import br.com.vortex.application.repository.ProdutoRepository;
 import br.com.vortex.application.repository.TipoProdutoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,6 @@ public class RelatorioService {
     private final TipoProdutoRepository tipoProdutoRepository;
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
 
-    @Autowired
     public RelatorioService(ProdutoRepository produtoRepository,
                            TipoProdutoRepository tipoProdutoRepository,
                            MovimentoEstoqueRepository movimentoEstoqueRepository) {

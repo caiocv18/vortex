@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.AutoConfigurationImportFilter=\
+br.com.vortex.application.config.OptionalIntegrationsAutoConfigurationFilter

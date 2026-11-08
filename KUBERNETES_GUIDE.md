@@ -11,35 +11,35 @@ Este guia apresenta uma análise detalhada de como implementar o projeto **Vorte
 O projeto Vortex é composto por uma arquitetura de microsserviços com os seguintes componentes:
 
 #### **Backend Services**
-1. **Vortex Application Service** (Spring Boot 3.5.3)
+1. **Vortex Application Service** (Spring Boot 4.1.2)
    - **Porta**: 8080
-   - **Framework**: Spring Boot com Java 24
+   - **Framework**: Spring Boot com Java 27
    - **Funcionalidades**: Controle de estoque, produtos, movimentações e relatórios
    - **Dependências**: JPA, Security, Validation, OpenAPI
 
-2. **Vortex Authorization Service** (Quarkus 3.24.2)
+2. **Vortex Authorization Service** (Quarkus 3.40.1.1)
    - **Porta**: 8081
-   - **Framework**: Quarkus com Java 24
+   - **Framework**: Quarkus com Java 27
    - **Funcionalidades**: Autenticação, autorização, JWT, OIDC
    - **Dependências**: Hibernate Panache, SmallRye JWT, Health Check
 
 #### **Frontend Applications**
-1. **Main Application Frontend** (Vue.js 3.5.17)
+1. **Main Application Frontend** (Vue.js 3.5)
    - **Porta**: 5173 (dev) / 4173 (prod)
-   - **Framework**: Vue.js + Vite + TypeScript
-   - **UI Library**: Vuetify 3.8.11
+   - **Framework**: Vue.js + Vite 8 + TypeScript
+   - **UI Library**: Vuetify 4
    - **Funcionalidades**: Interface principal do sistema
 
-2. **Authorization Frontend** (React 18.2.0)
+2. **Authorization Frontend** (React 19)
    - **Porta**: 3001
-   - **Framework**: React + TypeScript + Vite
+   - **Framework**: React + TypeScript + Vite 8 + Tailwind 4
    - **Funcionalidades**: Interface de login e registro
 
 #### **Infraestrutura**
-- **Banco de Dados**: Oracle Enterprise (produção) / H2 (desenvolvimento)
-- **Message Brokers**: Apache Kafka, RabbitMQ, Amazon SQS (configurável)
-- **Containerização**: Docker com multi-stage builds
-- **Orquestração**: Docker Compose (atual)
+- **Banco de Dados**: Oracle Database Free 23ai (produção) / PostgreSQL 18 (autorização) / H2 (desenvolvimento)
+- **Message Brokers**: Apache Kafka 4.4 (KRaft, sem ZooKeeper), RabbitMQ 4.4, Amazon SQS (configurável)
+- **Containerização**: Docker com multi-stage builds (JRE 27 Alpine nos backends)
+- **Orquestração**: Docker Compose v2 (atual)
 
 ## 🎯 Estratégia de Migração para Kubernetes
 
@@ -135,8 +135,8 @@ data:
   application.properties: |
     spring.profiles.active=prd,kubernetes
     spring.jpa.hibernate.ddl-auto=validate
-    spring.datasource.url=jdbc:oracle:thin:@oracle-service:1521:ORCLCDB
-    spring.kafka.bootstrap-servers=kafka-service:9092
+    spring.datasource.url=jdbc:oracle:thin:@//oracle-service:1521/FREEPDB1
+    spring.kafka.bootstrap-servers=kafka-service:29092
     spring.kafka.consumer.group-id=vortex-inventory-group
     management.endpoints.web.exposure.include=health,metrics,prometheus
     management.endpoint.health.show-details=always
@@ -176,9 +176,9 @@ metadata:
   namespace: vortex-system
 type: Opaque
 data:
-  oracle-sid: T1JDTENEQg==          # ORCLCDB
-  oracle-pdb: T1JDTFBEQjE=          # ORCLPDB1
-  oracle-user: c3lzdGVt              # system
+  # Oracle Database Free (gvenzl/oracle-free): PDB fixo FREEPDB1, usuário da aplicação criado pelo APP_USER
+  oracle-user: dm9ydGV4X3VzZXI=              # vortex_user
+  oracle-app-password: dm9ydGV4X3Bhc3N3b3Jk  # vortex_password
 ```
 
 ### 4. **Deployments dos Microsserviços**
@@ -206,48 +206,50 @@ spec:
     spec:
       containers:
       - name: oracle
-        image: container-registry.oracle.com/database/enterprise:latest
+        # Oracle Database Free 23ai: sem login no registry da Oracle. O teto de 2 GB do produto
+        # cobre só SGA + PGA; o limite do pod também conta os processos de fundo e o listener, e
+        # os nós do Kubernetes rodam sem swap: chegar no limite é OOM kill, não lentidão
+        image: gvenzl/oracle-free:23.26.3-slim-faststart
         ports:
         - containerPort: 1521
-        - containerPort: 5500
         env:
-        - name: ORACLE_SID
-          valueFrom:
-            secretKeyRef:
-              name: oracle-db-secret
-              key: oracle-sid
-        - name: ORACLE_PDB
-          valueFrom:
-            secretKeyRef:
-              name: oracle-db-secret
-              key: oracle-pdb
-        - name: ORACLE_PWD
+        - name: ORACLE_PASSWORD          # senha de SYS e SYSTEM
           valueFrom:
             secretKeyRef:
               name: vortex-secrets
               key: oracle-password
+        - name: APP_USER                 # criado no PDB FREEPDB1 na primeira subida
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secret
+              key: oracle-user
+        - name: APP_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secret
+              key: oracle-app-password
         volumeMounts:
         - name: oracle-storage
           mountPath: /opt/oracle/oradata
-        - name: oracle-init
-          mountPath: /opt/oracle/scripts/startup
+        - name: oracle-init                # rodam só na primeira inicialização do volume
+          mountPath: /container-entrypoint-initdb.d
         resources:
           requests:
-            memory: "4Gi"
-            cpu: "2"
+            memory: "2Gi"
+            cpu: "1"
           limits:
-            memory: "8Gi"
-            cpu: "4"
+            memory: "3Gi"
+            cpu: "2"
         livenessProbe:
           exec:
-            command: ["lsnrctl", "status"]
+            command: ["healthcheck.sh"]
           initialDelaySeconds: 120
           periodSeconds: 30
           timeoutSeconds: 10
         readinessProbe:
           exec:
-            command: ["lsnrctl", "status"]
-          initialDelaySeconds: 60
+            command: ["healthcheck.sh"]
+          initialDelaySeconds: 30
           periodSeconds: 15
           timeoutSeconds: 5
       volumes:
@@ -270,66 +272,27 @@ spec:
   - name: oracle-port
     port: 1521
     targetPort: 1521
-  - name: oracle-em
-    port: 5500
-    targetPort: 5500
+  # O Oracle Free não traz o Enterprise Manager Express: a antiga porta 5500 saiu
   type: ClusterIP
 ```
 
 #### **4.2 Apache Kafka**
+
+> [!IMPORTANT]
+> **ZooKeeper foi removido.** O Kafka 4.x só roda em KRaft: o próprio broker faz o papel de controller. O Deployment e o Service do ZooKeeper (`confluentinc/cp-zookeeper:7.4.0`, porta 2181) saíram deste guia, assim como já saíram do `infra/docker`.
+
+Nó único em KRaft com o broker nativo (GraalVM), o mesmo do `docker-compose.kafka-simple.yml`. Para mais de um broker em KRaft, use um StatefulSet (cada broker precisa de `KAFKA_NODE_ID` fixo e de um voter estável em `KAFKA_CONTROLLER_QUORUM_VOTERS`) ou um operador como o Strimzi, e suba os fatores de replicação.
+
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: zookeeper
-  namespace: vortex-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: zookeeper
-  template:
-    metadata:
-      labels:
-        app: zookeeper
-    spec:
-      containers:
-      - name: zookeeper
-        image: confluentinc/cp-zookeeper:7.4.0
-        ports:
-        - containerPort: 2181
-        env:
-        - name: ZOOKEEPER_CLIENT_PORT
-          value: "2181"
-        - name: ZOOKEEPER_TICK_TIME
-          value: "2000"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: zookeeper-service
-  namespace: vortex-system
-spec:
-  selector:
-    app: zookeeper
-  ports:
-  - port: 2181
-    targetPort: 2181
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kafka
   namespace: vortex-system
 spec:
-  replicas: 3
+  replicas: 1                       # KRaft de nó único: broker e controller no mesmo processo
+  strategy:
+    type: Recreate                  # o volume é ReadWriteOnce
   selector:
     matchLabels:
       app: kafka
@@ -340,35 +303,58 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: confluentinc/cp-kafka:7.4.0
+        image: apache/kafka-native:4.4.0
         ports:
-        - containerPort: 9092
         - containerPort: 29092
         env:
-        - name: KAFKA_BROKER_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: KAFKA_ZOOKEEPER_CONNECT
-          value: "zookeeper-service:2181"
-        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-          value: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+        - name: CLUSTER_ID
+          value: "4L6g3nShT-eMCtK--X86sw"
+        - name: KAFKA_NODE_ID
+          value: "1"
+        - name: KAFKA_PROCESS_ROLES
+          value: "broker,controller"
+        - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+          value: "1@localhost:29093"
+        - name: KAFKA_LISTENERS
+          value: "PLAINTEXT://:29092,CONTROLLER://:29093"
         - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://kafka-service:29092,PLAINTEXT_HOST://localhost:9092"
+          value: "PLAINTEXT://kafka-service:29092"
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+        - name: KAFKA_CONTROLLER_LISTENER_NAMES
+          value: "CONTROLLER"
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: "PLAINTEXT"
         - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-          value: "3"
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: "1"
+        - name: KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR
+          value: "1"
         - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
           value: "true"
+        - name: KAFKA_LOG_DIRS
+          value: "/var/lib/kafka/data/kraft"
+        - name: KAFKA_OPTS
+          value: "-Xmx256m"
+        securityContext:
+          runAsUser: 1000             # appuser da imagem
         volumeMounts:
         - name: kafka-storage
           mountPath: /var/lib/kafka/data
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
+            memory: "512Mi"
             cpu: "1"
+      securityContext:
+        fsGroup: 1000                 # o PVC fica gravável pelo appuser
       volumes:
       - name: kafka-storage
         persistentVolumeClaim:
@@ -386,9 +372,6 @@ spec:
   - name: kafka-internal
     port: 29092
     targetPort: 29092
-  - name: kafka-external
-    port: 9092
-    targetPort: 9092
   type: ClusterIP
 ```
 
@@ -488,10 +471,10 @@ spec:
     spec:
       initContainers:
       - name: wait-for-db
-        image: busybox:1.35
+        image: busybox:1.38.0
         command: ['sh', '-c', 'until nc -z oracle-service 1521; do echo waiting for oracle; sleep 2; done;']
       - name: wait-for-kafka
-        image: busybox:1.35
+        image: busybox:1.38.0
         command: ['sh', '-c', 'until nc -z kafka-service 29092; do echo waiting for kafka; sleep 2; done;']
       containers:
       - name: vortex-app
@@ -785,7 +768,7 @@ spec:
     spec:
       containers:
       - name: prometheus
-        image: prom/prometheus:v2.40.0
+        image: prom/prometheus:v3.16.0
         ports:
         - containerPort: 9090
         volumeMounts:
@@ -843,7 +826,8 @@ spec:
     spec:
       containers:
       - name: fluentd
-        image: fluent/fluentd-kubernetes-daemonset:v1.14.6-debian-elasticsearch7-1.0
+        # A linha v1.20 só sai para Elasticsearch 8 (a variante elasticsearch7 parou na v1.19)
+        image: fluent/fluentd-kubernetes-daemonset:v1.20.1-debian-elasticsearch8-1.1
         env:
         - name: FLUENT_ELASTICSEARCH_HOST
           value: "elasticsearch-service"
@@ -1054,12 +1038,13 @@ spec:
         spec:
           containers:
           - name: oracle-backup
-            image: oracle/database:19.3.0-ee
+            # Mesma imagem do banco: traz o expdp do Oracle Database Free
+            image: gvenzl/oracle-free:23.26.3-slim-faststart
             command:
             - /bin/bash
             - -c
             - |
-              expdp system/Oracle_1234@oracle-service:1521/ORCLPDB1 \
+              expdp system/Oracle_1234@oracle-service:1521/FREEPDB1 \
                 directory=backup_dir \
                 dumpfile=vortex_backup_$(date +%Y%m%d).dmp \
                 logfile=vortex_backup_$(date +%Y%m%d).log \
@@ -1163,10 +1148,7 @@ kubectl apply -f k8s/storage/
 kubectl apply -f k8s/database/oracle-deployment.yaml
 kubectl wait --for=condition=ready pod -l app=oracle-db --timeout=300s
 
-# Deploy do Kafka
-kubectl apply -f k8s/messaging/zookeeper.yaml
-kubectl wait --for=condition=ready pod -l app=zookeeper --timeout=120s
-
+# Deploy do Kafka (KRaft: não há mais ZooKeeper para subir antes)
 kubectl apply -f k8s/messaging/kafka.yaml
 kubectl wait --for=condition=ready pod -l app=kafka --timeout=180s
 ```

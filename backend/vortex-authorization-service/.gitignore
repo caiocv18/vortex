@@ -1,2 +1,4 @@
 target
 *.pem
+# Exceção única: o par RSA só de teste entra no git; as chaves reais (src/main/resources/jwt) seguem ignoradas
+!/src/test/resources/jwt-test/*.pem

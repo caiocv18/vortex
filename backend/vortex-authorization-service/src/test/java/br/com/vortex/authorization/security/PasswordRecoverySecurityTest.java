@@ -5,8 +5,9 @@ import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.service.AuthService;
 import br.com.vortex.authorization.service.RateLimitService;
 import br.com.vortex.authorization.util.TestDataBuilder;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.InjectMock;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
@@ -97,10 +98,12 @@ class PasswordRecoverySecurityTest {
         assertTrue(token.expiresAt.isBefore(OffsetDateTime.now().plusMinutes(65)));
     }
 
+    // Sem @Transactional de propósito: o forgotPassword lança BadRequestException e, se entrasse
+    // na transação do teste, a deixaria marcada para rollback; a consulta final ao banco falhava
+    // com "Unable to acquire JDBC Connection". O usuário já vem commitado do @BeforeEach.
     @Test
     @Order(2)
     @DisplayName("Should enforce rate limiting on forgot password requests")
-    @Transactional
     void testRateLimitingForgotPassword() {
         // Arrange
         ForgotPasswordRequest request = TestDataBuilder.createForgotPasswordRequest(testUser.email);
@@ -179,6 +182,9 @@ class PasswordRecoverySecurityTest {
         token.persist();
         
         when(passwordService.isValidPassword(newPassword)).thenReturn(true);
+        // Sem este stub o mock devolvia null, a credencial ficava com password_hash nulo e o flush
+        // disparado pela segunda chamada estourava ConstraintViolationException no lugar do 400
+        when(passwordService.hashPassword(newPassword)).thenReturn("$2a$12$timingHash");
         
         // Act - Measure response times
         long validTokenStartTime = System.nanoTime();
@@ -264,8 +270,10 @@ class PasswordRecoverySecurityTest {
         String resetToken = "concurrentToken123";
         String newPassword = "ConcurrentPassword@123";
         
+        // As duas tentativas rodam em outras threads, cada uma na sua transação: o token precisa
+        // estar commitado, senão nenhuma o enxerga e o teste não exercita a concorrência
         PasswordResetToken token = TestDataBuilder.createPasswordResetToken(testUser, resetToken);
-        token.persist();
+        QuarkusTransaction.requiringNew().run(token::persist);
         
         ResetPasswordRequest request = TestDataBuilder.createResetPasswordRequest(resetToken, newPassword);
         

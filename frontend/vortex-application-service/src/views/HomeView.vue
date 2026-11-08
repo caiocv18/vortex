@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { tiposProdutoApi } from '@/api'
+import axios from 'axios'
+import { tiposProdutoApi, type TipoProdutoDTO } from '@/api'
+
+interface ApiTestError {
+  message: string
+  response?: unknown
+  code?: string
+}
 
 // Teste de API
-const apiTestResult = ref<any>(null)
-const apiTestError = ref<any>(null)
+const apiTestResult = ref<TipoProdutoDTO[] | null>(null)
+const apiTestError = ref<ApiTestError | null>(null)
 const loading = ref(false)
 
 const testApi = async () => {
@@ -16,13 +23,14 @@ const testApi = async () => {
     console.log('Testando API com token...')
     const response = await tiposProdutoApi.findAllTiposProduto()
     console.log('Resposta do teste:', response)
-    apiTestResult.value = response.data
-  } catch (error: any) {
+    // O spec OpenAPI tipa a lista como objeto único; normaliza como as stores fazem
+    apiTestResult.value = Array.isArray(response.data) ? response.data : [response.data]
+  } catch (error: unknown) {
     console.error('Erro no teste:', error)
     apiTestError.value = {
-      message: error.message,
-      response: error.response,
-      code: error.code
+      message: error instanceof Error ? error.message : String(error),
+      response: axios.isAxiosError(error) ? error.response : undefined,
+      code: axios.isAxiosError(error) ? error.code : undefined
     }
   } finally {
     loading.value = false
@@ -35,11 +43,13 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- Espaçamento vertical: só o gap do grid do Vuetify 4 (24px entre linhas e colunas); margens
+       extras nos cards e nas linhas somavam com ele e davam 48px num lugar e 24px no outro -->
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <v-card class="mb-6">
-          <v-card-title class="text-h4">
+        <v-card>
+          <v-card-title class="text-headline-large text-wrap">
             Bem-vindo ao Sistema de Estoque
           </v-card-title>
           <v-card-subtitle>
@@ -53,11 +63,11 @@ onMounted(() => {
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>
+          <!-- flex-wrap: em tela estreita o botão desce para a linha de baixo em vez de cortar o título -->
+          <v-card-title class="d-flex flex-wrap align-center ga-4 text-wrap">
             Teste de Conexão com API
-            <v-btn 
-              @click="testApi" 
-              class="ml-4"
+            <v-btn
+              @click="testApi"
               size="small"
               variant="outlined"
               :loading="loading"
@@ -110,20 +120,22 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <v-row class="mt-6">
+    <!-- Cards da mesma linha com a mesma altura: o v-col já estica (flex), o card ocupa a altura
+         toda (h-100) e o "Acessar" vai para o pé do card (mt-auto), alinhado entre eles -->
+    <v-row>
       <v-col cols="12" md="6" lg="3">
-        <v-card>
-          <v-card-title class="d-flex align-center">
+        <v-card class="h-100 d-flex flex-column">
+          <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-shape</v-icon>
             <div>
-              <div class="text-h6">Tipos de Produto</div>
-              <div class="text-caption">Categorias disponíveis</div>
+              <div class="text-title-large">Tipos de Produto</div>
+              <div class="text-body-small">Categorias disponíveis</div>
             </div>
           </v-card-title>
           <v-card-text>
             <p>Gerencie os tipos de produtos do seu estoque.</p>
           </v-card-text>
-          <v-card-actions>
+          <v-card-actions class="mt-auto">
             <v-btn color="primary" to="/product-types" variant="text">
               Acessar
               <v-icon end>mdi-arrow-right</v-icon>
@@ -133,18 +145,18 @@ onMounted(() => {
       </v-col>
 
       <v-col cols="12" md="6" lg="3">
-        <v-card>
-          <v-card-title class="d-flex align-center">
+        <v-card class="h-100 d-flex flex-column">
+          <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-package-variant</v-icon>
             <div>
-              <div class="text-h6">Produtos</div>
-              <div class="text-caption">Itens em estoque</div>
+              <div class="text-title-large">Produtos</div>
+              <div class="text-body-small">Itens em estoque</div>
             </div>
           </v-card-title>
           <v-card-text>
             <p>Cadastre e gerencie todos os produtos.</p>
           </v-card-text>
-          <v-card-actions>
+          <v-card-actions class="mt-auto">
             <v-btn color="primary" to="/products" variant="text">
               Acessar
               <v-icon end>mdi-arrow-right</v-icon>
@@ -154,18 +166,18 @@ onMounted(() => {
       </v-col>
 
       <v-col cols="12" md="6" lg="3">
-        <v-card>
-          <v-card-title class="d-flex align-center">
+        <v-card class="h-100 d-flex flex-column">
+          <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-swap-horizontal</v-icon>
             <div>
-              <div class="text-h6">Movimentação</div>
-              <div class="text-caption">Entradas e saídas</div>
+              <div class="text-title-large">Movimentação</div>
+              <div class="text-body-small">Entradas e saídas</div>
             </div>
           </v-card-title>
           <v-card-text>
             <p>Registre movimentações de estoque.</p>
           </v-card-text>
-          <v-card-actions>
+          <v-card-actions class="mt-auto">
             <v-btn color="primary" to="/movements" variant="text">
               Acessar
               <v-icon end>mdi-arrow-right</v-icon>
@@ -175,18 +187,18 @@ onMounted(() => {
       </v-col>
 
       <v-col cols="12" md="6" lg="3">
-        <v-card>
-          <v-card-title class="d-flex align-center">
+        <v-card class="h-100 d-flex flex-column">
+          <v-card-title class="d-flex align-center text-wrap">
             <v-icon size="40" color="primary" class="mr-3">mdi-chart-box</v-icon>
             <div>
-              <div class="text-h6">Relatórios</div>
-              <div class="text-caption">Análises e métricas</div>
+              <div class="text-title-large">Relatórios</div>
+              <div class="text-body-small">Análises e métricas</div>
             </div>
           </v-card-title>
           <v-card-text>
             <p>Visualize relatórios detalhados.</p>
           </v-card-text>
-          <v-card-actions>
+          <v-card-actions class="mt-auto">
             <v-btn color="primary" to="/reports" variant="text">
               Acessar
               <v-icon end>mdi-arrow-right</v-icon>

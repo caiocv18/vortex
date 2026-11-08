@@ -4,7 +4,7 @@ import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -121,7 +121,10 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        // Spring AMQP 4: conversor JSON do Jackson 3 (substitui o Jackson2JsonMessageConverter).
+        // O construtor padrão passou a confiar só em java.util/java.lang no cabeçalho __TypeId__
+        // (o antigo confiava em tudo); os eventos da aplicação vêm do pacote dto.
+        return new JacksonJsonMessageConverter("br.com.vortex.application.dto");
     }
 
     @Bean

@@ -11,7 +11,7 @@ test.describe('Products Page', () => {
     await expect(page.locator('h1:has-text("Produtos")')).toBeVisible()
     
     // Verifica elementos principais da página
-    await expect(page.locator('input[label="Pesquisar"]')).toBeVisible()
+    await expect(page.getByLabel('Pesquisar')).toBeVisible()
     await expect(page.locator('button:has-text("Novo Produto")')).toBeVisible()
     await expect(page.locator('.v-data-table')).toBeVisible()
   })
@@ -34,13 +34,13 @@ test.describe('Products Page', () => {
     await page.waitForSelector('.v-data-table', { timeout: 10000 })
     
     // Preenche o campo de pesquisa
-    await page.fill('input[label="Pesquisar"]', 'produto')
+    await page.getByLabel('Pesquisar').fill('produto')
     
     // Aguarda a filtragem
     await page.waitForTimeout(1000)
     
     // Verifica se o campo de pesquisa foi preenchido
-    await expect(page.locator('input[label="Pesquisar"]')).toHaveValue('produto')
+    await expect(page.getByLabel('Pesquisar')).toHaveValue('produto')
   })
 
   test('can open new product dialog', async ({ page }) => {
@@ -49,10 +49,12 @@ test.describe('Products Page', () => {
     
     // Verifica se o diálogo foi aberto
     await expect(page.locator('.v-dialog .v-card')).toBeVisible()
-    await expect(page.locator('text=Novo Produto')).toBeVisible()
-    await expect(page.locator('input[label="Descrição"]')).toBeVisible()
-    await expect(page.locator('input[label="Valor do Fornecedor"]')).toBeVisible()
-    await expect(page.locator('.v-select')).toBeVisible() // Tipo de produto select
+    // Busca restrita ao diálogo: o botão tem o mesmo texto e o rodapé da tabela tem outro select
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('Novo Produto')).toBeVisible()
+    await expect(dialog.getByLabel('Descrição do Produto')).toBeVisible()
+    await expect(dialog.getByLabel('Valor do Fornecedor')).toBeVisible()
+    await expect(dialog.getByRole('combobox', { name: 'Tipo de Produto' })).toBeVisible()
     await expect(page.locator('button:has-text("Cancelar")')).toBeVisible()
     await expect(page.locator('button:has-text("Criar")')).toBeVisible()
   })
@@ -66,7 +68,7 @@ test.describe('Products Page', () => {
     await page.click('button:has-text("Cancelar")')
     
     // Verifica se o diálogo foi fechado
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('form validation works in new product dialog', async ({ page }) => {
@@ -82,14 +84,14 @@ test.describe('Products Page', () => {
     await expect(page.locator('text=Tipo de produto é obrigatório')).toBeVisible()
     
     // Preenche com uma descrição muito curta
-    await page.fill('input[label="Descrição"]', 'ab')
+    await page.getByLabel('Descrição do Produto').fill('ab')
     await page.click('button:has-text("Criar")')
     
     // Verifica se a mensagem de erro para descrição curta aparece
     await expect(page.locator('text=Descrição deve ter pelo menos 3 caracteres')).toBeVisible()
     
     // Preenche com valor negativo
-    await page.fill('input[label="Valor do Fornecedor"]', '-10')
+    await page.getByLabel('Valor do Fornecedor').fill('-10')
     await page.click('button:has-text("Criar")')
     
     // Verifica se a mensagem de erro para valor negativo aparece
@@ -102,25 +104,27 @@ test.describe('Products Page', () => {
     
     // Preenche os campos obrigatórios
     const productName = `Produto Teste ${Date.now()}`
-    await page.fill('input[label="Descrição"]', productName)
-    await page.fill('input[label="Valor do Fornecedor"]', '10.50')
-    
-    // Seleciona um tipo de produto (se houver opções disponíveis)
-    const selectElement = page.locator('.v-select')
-    await selectElement.click()
-    
-    // Aguarda as opções aparecerem e seleciona a primeira (se houver)
-    await page.waitForTimeout(1000)
-    const firstOption = page.locator('.v-list-item').first()
-    if (await firstOption.isVisible()) {
-      await firstOption.click()
-    }
+    await page.getByLabel('Descrição do Produto').fill(productName)
+    await page.getByLabel('Valor do Fornecedor').fill('10.50')
+
+    // Seleciona um tipo de produto: o primeiro item do menu do select. O antigo
+    // '.v-list-item' first() pegava o cabeçalho do menu lateral, e o tipo ficava vazio.
+    // O clique vai no campo (combobox externo do v-select), como o usuário faz: o input
+    // interno tem size=1 e fica coberto pelo próprio campo.
+    await page
+      .getByRole('dialog')
+      .getByRole('combobox')
+      .filter({ has: page.getByRole('combobox', { name: 'Tipo de Produto' }) })
+      .click()
+    const firstOption = page.getByRole('listbox').getByRole('option').first()
+    await expect(firstOption).toBeVisible()
+    await firstOption.click()
     
     // Clica em Criar
     await page.click('button:has-text("Criar")')
     
     // Aguarda o diálogo fechar
-    await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+    await expect(page.locator('.v-dialog .v-card')).toBeHidden()
   })
 
   test('displays stock levels with appropriate colors', async ({ page }) => {
@@ -134,9 +138,11 @@ test.describe('Products Page', () => {
       // Verifica se os chips estão visíveis
       await expect(stockChips.first()).toBeVisible()
       
-      // Verifica se há chips com cores diferentes (success para estoque alto, error para baixo)
-      const successChips = page.locator('.v-chip.bg-success')
-      const errorChips = page.locator('.v-chip.bg-error')
+      // Verifica se há chips com cores diferentes (success para estoque alto, error para baixo).
+      // O v-chip usa a variante 'tonal' por padrão, que aplica a cor como text-<cor>; bg-<cor>
+      // só existe nas variantes 'flat' e 'elevated'.
+      const successChips = page.locator('.v-chip.text-success')
+      const errorChips = page.locator('.v-chip.text-error')
       
       // Pelo menos um tipo de chip deve estar presente
       const hasSuccessChips = await successChips.count() > 0
@@ -157,9 +163,9 @@ test.describe('Products Page', () => {
       // Verifica se pelo menos uma célula contém formato de moeda brasileira
       await expect(currencyCells.first()).toBeVisible()
       
-      // Verifica se o formato está correto (R$ X,XX)
+      // Verifica se o formato está correto (R$ X,XX, com ponto de milhar: R$ 1.500,00)
       const cellText = await currencyCells.first().textContent()
-      expect(cellText).toMatch(/R\$\s*\d+,\d{2}/)
+      expect(cellText).toMatch(/R\$\s*\d{1,3}(\.\d{3})*,\d{2}/)
     }
   })
 
@@ -198,8 +204,8 @@ test.describe('Products Page', () => {
       await expect(page.locator('button:has-text("Salvar")')).toBeVisible()
       
       // Os campos devem estar preenchidos com os valores existentes
-      const descriptionInput = page.locator('input[label="Descrição"]')
-      const priceInput = page.locator('input[label="Valor do Fornecedor"]')
+      const descriptionInput = page.getByLabel('Descrição do Produto')
+      const priceInput = page.getByLabel('Valor do Fornecedor')
       
       await expect(descriptionInput).not.toHaveValue('')
       await expect(priceInput).not.toHaveValue('')
@@ -236,10 +242,9 @@ test.describe('Products Page', () => {
       // Verifica se pelo menos uma célula de tipo está visível
       await expect(typeColumns.first()).toBeVisible()
       
-      // Verifica se não há "N/A" ou IDs numéricos na coluna tipo
-      const cellText = await typeColumns.first().textContent()
-      expect(cellText).not.toBe('N/A')
-      expect(cellText).not.toMatch(/^\d+$/)
+      // Verifica se não há "N/A" ou IDs numéricos na coluna tipo (asserções web-first)
+      await expect(typeColumns.first()).not.toHaveText('N/A')
+      await expect(typeColumns.first()).not.toHaveText(/^\d+$/)
     }
   })
 
@@ -276,8 +281,8 @@ test.describe('Products Page', () => {
         await page.waitForTimeout(500)
         
         // Verifica se a ordenação foi aplicada (ícone de ordenação deve aparecer)
-        const sortIcon = page.locator('th:has-text("ID") .mdi-arrow-up, th:has-text("ID") .mdi-arrow-down')
-        // Nota: O ícone pode não estar visível dependendo da implementação do Vuetify
+        // Nota: O ícone pode não estar visível dependendo da implementação do Vuetify,
+        // por isso não há asserção sobre '.mdi-arrow-up' / '.mdi-arrow-down' aqui
       }
     }
   })

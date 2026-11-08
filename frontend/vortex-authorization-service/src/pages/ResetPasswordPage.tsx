@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Loader2, CheckCircle, XCircle, KeyRound } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router';
+import { Eye, EyeOff, Lock, LoaderCircle, CircleCheckBig, CircleX, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ResetPasswordRequest } from '@/types/auth';
 import { useTheme } from '@/hooks/useTheme';
@@ -17,7 +17,7 @@ const schema = yup.object({
     .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
     .matches(/[0-9]/, 'Password must contain at least one number')
-    .matches(/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/, 'Password must contain at least one special character'),
+    .matches(/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/, 'Password must contain at least one special character'),
   confirmPassword: yup
     .string()
     .required('Please confirm your password')
@@ -36,7 +36,7 @@ const passwordRequirements: PasswordRequirement[] = [
   { label: 'One uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
   { label: 'One lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
   { label: 'One number', test: (pwd) => /[0-9]/.test(pwd) },
-  { label: 'One special character', test: (pwd) => /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(pwd) },
+  { label: 'One special character', test: (pwd) => /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(pwd) },
 ];
 
 export function ResetPasswordPage() {
@@ -45,6 +45,10 @@ export function ResetPasswordPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Só vira true quando a API aceitou a nova senha. Não dá para usar o isSubmitSuccessful do
+  // react-hook-form: o onSubmit trata o erro (o AuthContext já o mostrou num toast), e com o erro
+  // tratado o react-hook-form conta o envio como sucesso.
+  const [resetSucceeded, setResetSucceeded] = useState(false);
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { resetPassword, isLoading } = useAuth();
@@ -52,20 +56,30 @@ export function ResetPasswordPage() {
   const {
     register,
     handleSubmit,
-    watch,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    control,
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
     mode: 'onChange',
   });
 
-  const watchedPassword = watch('password', '');
+  // useWatch no lugar de watch(): mesma atualização a cada tecla, sem o aviso de incompatibilidade do React Compiler
+  const watchedPassword = useWatch({ control, name: 'password', defaultValue: '' });
 
   useEffect(() => {
     if (!token) {
       navigate('/login');
     }
   }, [token, navigate]);
+
+  // Volta para o login 3 s depois da troca de senha; o timer morre se a página sair antes
+  useEffect(() => {
+    if (!resetSucceeded) return;
+    const timeoutId = setTimeout(() => {
+      navigate('/login');
+    }, 3000);
+    return () => clearTimeout(timeoutId);
+  }, [resetSucceeded, navigate]);
 
   const onSubmit = async (data: FormData) => {
     if (!token) return;
@@ -76,25 +90,23 @@ export function ResetPasswordPage() {
         password: data.password,
         confirmPassword: data.confirmPassword,
       } as ResetPasswordRequest);
-      
-      // Redirect to login after successful reset
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-    } catch (error) {
-      // Error handling is done in the AuthContext
+    } catch {
+      // A API recusou (token expirado ou já usado, por exemplo): o AuthContext mostrou o erro num
+      // toast e o formulário fica na tela, sem tela de sucesso e sem redirecionar
+      return;
     }
+    setResetSucceeded(true);
   };
 
   const loading = isLoading || isSubmitting;
 
-  if (isSubmitSuccessful) {
+  if (resetSucceeded) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex items-center-safe justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           <div className="bg-white shadow-lg rounded-lg p-8 text-center">
             <div className="mx-auto w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle className="w-8 h-8 text-white" />
+              <CircleCheckBig className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Password Reset Successful</h1>
             <p className="text-gray-600 mb-6">
@@ -116,7 +128,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex items-center-safe justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="text-center mb-8">
@@ -144,8 +156,8 @@ export function ResetPasswordPage() {
                   autoComplete="new-password"
                   {...register('password')}
                   className={`
-                    block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                    placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                    block w-full pl-10 pr-10 py-3 border rounded-lg shadow-xs 
+                    placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                     focus:border-primary-500 transition-colors
                     ${errors.password ? 'border-red-300' : 'border-gray-300'}
                   `}
@@ -174,9 +186,9 @@ export function ResetPasswordPage() {
                     return (
                       <div key={index} className="flex items-center text-xs">
                         {isValid ? (
-                          <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                          <CircleCheckBig className="h-3 w-3 text-green-500 mr-1" />
                         ) : (
-                          <XCircle className="h-3 w-3 text-red-500 mr-1" />
+                          <CircleX className="h-3 w-3 text-red-500 mr-1" />
                         )}
                         <span className={isValid ? 'text-green-600' : 'text-red-600'}>
                           {req.label}
@@ -206,8 +218,8 @@ export function ResetPasswordPage() {
                   autoComplete="new-password"
                   {...register('confirmPassword')}
                   className={`
-                    block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                    placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                    block w-full pl-10 pr-10 py-3 border rounded-lg shadow-xs 
+                    placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                     focus:border-primary-500 transition-colors
                     ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'}
                   `}
@@ -237,8 +249,8 @@ export function ResetPasswordPage() {
               disabled={loading}
               className="
                 w-full flex justify-center py-3 px-4 border border-transparent 
-                rounded-lg shadow-sm text-sm font-medium text-white 
-                bg-primary-600 hover:bg-primary-700 focus:outline-none 
+                rounded-lg shadow-xs text-sm font-medium text-white 
+                bg-primary-600 hover:bg-primary-700 focus:outline-hidden 
                 focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-colors
@@ -246,7 +258,7 @@ export function ResetPasswordPage() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                  <LoaderCircle className="animate-spin -ml-1 mr-3 h-5 w-5" />
                   Resetting password...
                 </>
               ) : (

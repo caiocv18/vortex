@@ -8,31 +8,22 @@
   padding: 0;
 }
 
-/* Garantir que o conteúdo use toda a largura */
-.v-main {
-  width: 100%;
-}
+/*
+ * Ajustes de componentes do Vuetify na camada vuetify-overrides: ganham dos estilos
+ * dos componentes e perdem para as classes utilitárias (pa-*, w-*, d-*...).
+ */
+@layer vuetify-overrides {
+  /* Garantir que o conteúdo use toda a largura */
+  .v-main {
+    width: 100%;
+  }
 
-.v-container--fluid {
-  max-width: 100% !important;
-}
+  .v-container--fluid {
+    max-width: 100% !important;
+  }
 
-/* Melhorar espaçamento das tabelas */
-.v-data-table {
-  width: 100%;
-}
-
-/* Links e cores tema */
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+  /* Melhorar espaçamento das tabelas */
+  .v-data-table {
+    width: 100%;
   }
 }

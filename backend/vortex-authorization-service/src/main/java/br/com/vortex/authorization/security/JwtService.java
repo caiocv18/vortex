@@ -57,4 +57,8 @@ public class JwtService {
     public long getAccessTokenExpirationSeconds() {
         return accessTokenExpiration.getSeconds();
     }
+
+    public Duration getRefreshTokenExpiration() {
+        return refreshTokenExpiration;
+    }
 }

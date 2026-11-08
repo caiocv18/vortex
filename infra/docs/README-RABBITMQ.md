@@ -39,7 +39,7 @@ O RabbitMQ é executado via Docker Compose:
 # infra/docker/docker-compose.rabbitmq.yml
 services:
   rabbitmq:
-    image: rabbitmq:3.12-management
+    image: rabbitmq:4.4.0-management-alpine
     container_name: vortex-rabbitmq
     ports:
       - "5672:5672"     # AMQP port
@@ -48,7 +48,12 @@ services:
       RABBITMQ_DEFAULT_USER: vortex
       RABBITMQ_DEFAULT_PASS: vortex123
       RABBITMQ_DEFAULT_VHOST: vortex-vhost
+    volumes:
+      - ../rabbitmq/20-vortex.conf:/etc/rabbitmq/conf.d/20-vortex.conf:ro
+    mem_limit: 256m
 ```
+
+O `infra/rabbitmq/20-vortex.conf` fixa o alarme de memória em 160 MiB (o RabbitMQ mede a RAM do host, não o `mem_limit` do container) e baixa o `disk_free_limit` de 2 GB para 256 MB, que travava os publishers num disco de WSL com pouco espaço livre. O antigo `RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS` com `log_levels` saiu: o RabbitMQ 4.x não lê mais essa chave, e o nível de log de conexão foi para o mesmo arquivo.
 
 ### 2. Configuração Spring Boot
 
@@ -71,7 +76,8 @@ spring.rabbitmq.listener.simple.concurrency=3
 spring.rabbitmq.listener.simple.max-concurrency=10
 spring.rabbitmq.listener.simple.acknowledge-mode=manual
 spring.rabbitmq.listener.simple.retry.enabled=true
-spring.rabbitmq.listener.simple.retry.max-attempts=3
+# Boot 4: max-attempts virou max-retries (só as novas tentativas; 2 = 3 entregas no total)
+spring.rabbitmq.listener.simple.retry.max-retries=2
 ```
 
 ### 3. Configuração do Factory Pattern
@@ -134,7 +140,13 @@ if ("rabbitmq".equals(brokerType)) {
 
 # 3. Modo não interativo
 ./start-vortex.sh --no-interaction -e dev -m rabbitmq
+
+# 4. Ambiente prd (backend no Docker), com um JWT_SECRET forte
+export JWT_SECRET="$(openssl rand -base64 48)"
+./start-vortex.sh -e prd -m rabbitmq
 ```
+
+No `-e prd`, o backend roda no container `vortex-app` (`infra/docker/docker-compose.yml`). Ele entra na rede `vortex-rabbitmq-network` do `docker-compose.rabbitmq.yml` e recebe `RABBITMQ_HOST=vortex-rabbitmq`, porta 5672, usuário `vortex`, senha `vortex123` e vhost `vortex-vhost`; o launcher liga a integração com `RABBITMQ_ENABLED=true` junto do perfil `prd,rabbitmq`. Sem `-m rabbitmq`, `RABBITMQ_ENABLED` fica `false` e o backend não tenta o broker.
 
 ### Acessar Management UI
 
@@ -149,7 +161,7 @@ Virtual Host: vortex-vhost
 
 1. **Criar um Produto**:
 ```bash
-curl -X POST http://localhost:8081/api/produtos \
+curl -X POST http://localhost:8080/api/produtos \
   -H "Content-Type: application/json" \
   -d '{
     "descricao": "Produto Teste RabbitMQ",
@@ -166,7 +178,7 @@ curl -X POST http://localhost:8081/api/produtos \
 
 3. **Fazer uma Movimentação**:
 ```bash
-curl -X POST http://localhost:8081/api/movimentos \
+curl -X POST http://localhost:8080/api/movimentos \
   -H "Content-Type: application/json" \
   -d '{
     "produtoId": 1,
@@ -271,8 +283,8 @@ docker logs vortex-rabbitmq
 lsof -i :5672
 lsof -i :15672
 
-# Limpar dados corrompidos
-docker-compose -f infra/docker/docker-compose.rabbitmq.yml down -v
+# Limpar dados corrompidos (atenção: -v apaga as filas persistidas)
+docker compose -f infra/docker/docker-compose.rabbitmq.yml down -v
 ```
 
 #### 2. Aplicação não conecta

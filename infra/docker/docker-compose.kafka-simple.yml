@@ -1,72 +1,74 @@
-version: '3.8'
+# Kafka usado pelo start-vortex.sh (-m kafka): broker nativo (GraalVM) em KRaft de nó único.
+# Sem ZooKeeper: o mesmo processo é broker e controller.
+#   Clientes no host (backends do launcher): localhost:9092
+#   Containers na rede vortex-simple:        kafka:19092
+# Os dados ficam na camada do container (/tmp/kraft-combined-logs): somem no "down", como no
+# launcher antigo (que fazia "down -v" a cada subida). Os tópicos da aplicação são recriados
+# pelo próprio backend (KafkaConfig) e o auto-create está ligado.
+# Kafka UI só sobe com o profile ui:
+#   docker compose -f infra/docker/docker-compose.kafka-simple.yml --profile ui up -d kafka-ui
+name: vortex-kafka-simple
 
 services:
-  # ================================
-  # ZOOKEEPER
-  # ================================
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    hostname: zookeeper
-    container_name: vortex-zookeeper-simple
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - vortex-simple
-    restart: unless-stopped
-
-  # ================================
-  # KAFKA BROKER
-  # ================================
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
+    image: apache/kafka-native:4.4.0
     hostname: kafka
     container_name: vortex-kafka-simple
-    depends_on:
-      - zookeeper
     ports:
       - "9092:9092"
-      - "9101:9101"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      # Com qualquer KAFKA_* definido a imagem ignora o server.properties padrão:
+      # o conjunto abaixo é o completo para um nó único.
+      CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://:19092,PLAINTEXT_HOST://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Nó único: todo fator de replicação e ISR mínimo em 1 (inclui o tópico de estado
+      # do share coordinator do Kafka 4.x)
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_JMX_PORT: 9101
-      KAFKA_JMX_HOSTNAME: localhost
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_DELETE_TOPIC_ENABLE: 'true'
-      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
-      # Configurações para limpeza automática
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       KAFKA_LOG_CLEANUP_POLICY: delete
       KAFKA_LOG_RETENTION_HOURS: 24
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
-    volumes:
-      - kafka-simple-data:/var/lib/kafka/data
+      # Heap do binário nativo (o padrão seria 80% do mem_limit)
+      KAFKA_OPTS: "-Xmx256m"
+    # Os dois VOLUMEs da imagem viram tmpfs vazios: sem isso cada "up" deixaria dois volumes
+    # anônimos órfãos depois do "down"
+    tmpfs:
+      - /mnt/shared/config
+      - /etc/kafka/secrets
+    mem_limit: 384m
+    restart: "no"
     networks:
       - vortex-simple
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      # A imagem nativa não traz as ferramentas de linha de comando do Kafka: o teste é a
+      # porta do listener aberta (o broker só abre os listeners depois de pronto)
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9092' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
 
-  # ================================
-  # KAFKA UI PARA MONITORAMENTO
-  # ================================
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: kafbat/kafka-ui:v1.5.0
     container_name: vortex-kafka-ui-simple
+    profiles: ["ui"]
     depends_on:
       kafka:
         condition: service_healthy
@@ -74,24 +76,15 @@ services:
       - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: vortex-simple
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-      DYNAMIC_CONFIG_ENABLED: 'true'
-      AUTH_TYPE: "DISABLED"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+      DYNAMIC_CONFIG_ENABLED: "true"
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -XX:MaxRAMPercentage=50"
+    mem_limit: 384m
+    restart: "no"
     networks:
       - vortex-simple
-    restart: unless-stopped
 
-# ================================
-# VOLUMES
-# ================================
-volumes:
-  kafka-simple-data:
-    driver: local
-
-# ================================
-# NETWORKS
-# ================================
 networks:
+  # Criada pelo start-vortex.sh (ensure_docker_networks) e compartilhada com os backends em container
   vortex-simple:
-    external: true 
+    external: true

@@ -1,30 +1,39 @@
-version: '3.8'
+# Stack prd completa sem mensageria integrada: Oracle Free + backend + frontend principal (nginx).
+#   Backend:  http://localhost:8080
+#   Frontend: http://localhost:3000 (nginx do container escuta na 80)
+# O Kafka, quando usado (KAFKA_ENABLED=true), é o do docker-compose.kafka-simple.yml (rede vortex-simple).
+# JWT_SECRET é obrigatório (export JWT_SECRET="$(openssl rand -base64 48)"), inclusive para o
+# "down": o Compose interpola o arquivo inteiro. A chave pública do serviço de autorização
+# (src/main/resources/jwt/publicKey.pem do módulo) precisa existir; o start-vortex.sh gera o par.
+name: vortex-full
 
 services:
-  # Oracle Database
   db:
-    image: container-registry.oracle.com/database/enterprise:latest
+    image: gvenzl/oracle-free:23.26.3-slim-faststart
     container_name: vortex-db
     environment:
-      ORACLE_SID: ORCLCDB
-      ORACLE_PDB: ORCLPDB1
-      ORACLE_PWD: Oracle_1234
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle_1234}
+      APP_USER: vortex_user
+      APP_USER_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
     ports:
       - "1521:1521"
-      - "5500:5500"
     volumes:
       - oracle-data:/opt/oracle/oradata
-      - ../oracle/init:/opt/oracle/scripts/startup
+      - ../oracle/init:/container-entrypoint-initdb.d:ro
+    # O teto de 2 GB do Oracle Free cobre só SGA + PGA: folga para processos de fundo e listener
+    mem_limit: 3g
+    restart: "no"
     healthcheck:
-      test: ["CMD", "lsnrctl", "status"]
-      interval: 30s
-      retries: 10
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - vortex-net
 
-  # Backend Spring Boot
   backend:
-    build: 
+    build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
     container_name: vortex-app
@@ -32,42 +41,59 @@ services:
       db:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prd,kafka
-      DB_HOST: db
-      DB_PORT: 1521
-      DB_SID: ORCLCDB
-      DB_SERVICE: ORCLPDB1
-      DB_USER: system
-      DB_PASSWORD: Oracle_1234
-      # Configurações Kafka para Docker
-      KAFKA_ENABLED: true
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_KAFKA_CONSUMER_GROUP_ID: vortex-inventory-group
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd}
+      ORACLE_DB_URL: jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1
+      ORACLE_DB_USERNAME: vortex_user
+      ORACLE_DB_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
+      JWT_SECRET: "${JWT_SECRET:?defina JWT_SECRET (32+ caracteres aleatórios, ex. openssl rand -base64 48) para o backend no perfil prd}"
+      KAFKA_ENABLED: ${KAFKA_ENABLED:-false}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:19092}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://host.docker.internal:8081}
+      # Chave pública do auth para o fallback do AuthServiceClient (montada abaixo)
+      AUTH_JWT_PUBLIC_KEY_LOCATION: /app/keys/auth-public-key.pem
+      AUTH_JWT_ISSUER: ${JWT_ISSUER:-vortex-auth-service}
+    volumes:
+      - type: bind
+        source: ../../backend/vortex-authorization-service/src/main/resources/jwt/publicKey.pem
+        target: /app/keys/auth-public-key.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:8080"
+    mem_limit: 768m
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - vortex-net
       - vortex-simple
-    external_links:
-      - vortex-kafka-simple:kafka
-      - vortex-zookeeper-simple:zookeeper
 
-  # Frontend Vue.js
   frontend:
-    build: 
-      context: ./frontend/vortex-application-service
+    build:
+      context: ../../frontend/vortex-application-service
     container_name: vortex-frontend
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:80"
+    mem_limit: 32m
+    restart: "no"
     networks:
       - vortex-net
 
 volumes:
   oracle-data:
+    name: vortex-oracle-data
 
 networks:
   vortex-net:
   vortex-simple:
-    external: true 
+    external: true

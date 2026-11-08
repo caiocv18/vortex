@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail, User, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Link } from 'react-router';
+import { Eye, EyeOff, Lock, Mail, User, LoaderCircle, CircleCheckBig, CircleX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegisterRequest } from '@/types/auth';
 
@@ -26,7 +26,7 @@ const schema = yup.object({
     .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
     .matches(/[0-9]/, 'Password must contain at least one number')
-    .matches(/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/, 'Password must contain at least one special character'),
+    .matches(/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/, 'Password must contain at least one special character'),
   confirmPassword: yup
     .string()
     .required('Please confirm your password')
@@ -45,7 +45,7 @@ const passwordRequirements: PasswordRequirement[] = [
   { label: 'One uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
   { label: 'One lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
   { label: 'One number', test: (pwd) => /[0-9]/.test(pwd) },
-  { label: 'One special character', test: (pwd) => /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(pwd) },
+  { label: 'One special character', test: (pwd) => /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(pwd) },
 ];
 
 export function RegisterForm() {
@@ -56,19 +56,20 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
     mode: 'onChange',
   });
 
-  const watchedPassword = watch('password', '');
+  // useWatch no lugar de watch(): mesma atualização a cada tecla, sem o aviso de incompatibilidade do React Compiler
+  const watchedPassword = useWatch({ control, name: 'password', defaultValue: '' });
 
   const onSubmit = async (data: FormData) => {
     try {
       await registerUser(data as RegisterRequest);
-    } catch (error) {
+    } catch {
       // Error handling is done in the AuthContext
     }
   };
@@ -101,8 +102,8 @@ export function RegisterForm() {
                 autoComplete="email"
                 {...register('email')}
                 className={`
-                  block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  block w-full pl-10 pr-3 py-3 border rounded-lg shadow-xs 
+                  placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                   focus:border-primary-500 transition-colors
                   ${errors.email ? 'border-red-300' : 'border-gray-300'}
                 `}
@@ -129,8 +130,8 @@ export function RegisterForm() {
                 autoComplete="username"
                 {...register('username')}
                 className={`
-                  block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  block w-full pl-10 pr-3 py-3 border rounded-lg shadow-xs 
+                  placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                   focus:border-primary-500 transition-colors
                   ${errors.username ? 'border-red-300' : 'border-gray-300'}
                 `}
@@ -157,8 +158,8 @@ export function RegisterForm() {
                 autoComplete="new-password"
                 {...register('password')}
                 className={`
-                  block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  block w-full pl-10 pr-10 py-3 border rounded-lg shadow-xs 
+                  placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                   focus:border-primary-500 transition-colors
                   ${errors.password ? 'border-red-300' : 'border-gray-300'}
                 `}
@@ -187,9 +188,9 @@ export function RegisterForm() {
                   return (
                     <div key={index} className="flex items-center text-xs">
                       {isValid ? (
-                        <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                        <CircleCheckBig className="h-3 w-3 text-green-500 mr-1" />
                       ) : (
-                        <XCircle className="h-3 w-3 text-red-500 mr-1" />
+                        <CircleX className="h-3 w-3 text-red-500 mr-1" />
                       )}
                       <span className={isValid ? 'text-green-600' : 'text-red-600'}>
                         {req.label}
@@ -219,8 +220,8 @@ export function RegisterForm() {
                 autoComplete="new-password"
                 {...register('confirmPassword')}
                 className={`
-                  block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm 
-                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 
+                  block w-full pl-10 pr-10 py-3 border rounded-lg shadow-xs 
+                  placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-primary-500 
                   focus:border-primary-500 transition-colors
                   ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'}
                 `}
@@ -250,8 +251,8 @@ export function RegisterForm() {
             disabled={loading}
             className="
               w-full flex justify-center py-3 px-4 border border-transparent 
-              rounded-lg shadow-sm text-sm font-medium text-white 
-              bg-primary-600 hover:bg-primary-700 focus:outline-none 
+              rounded-lg shadow-xs text-sm font-medium text-white 
+              bg-primary-600 hover:bg-primary-700 focus:outline-hidden 
               focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors
@@ -259,7 +260,7 @@ export function RegisterForm() {
           >
             {loading ? (
               <>
-                <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                <LoaderCircle className="animate-spin -ml-1 mr-3 h-5 w-5" />
                 Creating account...
               </>
             ) : (

@@ -1,0 +1,30 @@
+# Modo leve do start-vortex.sh (--modo leve): um nginx só serve os dois frontends já compilados.
+#   http://localhost:5173 -> frontend/vortex-application-service/dist
+#   http://localhost:3001 -> frontend/vortex-authorization-service/dist
+# Sem proxy: o navegador fala direto com os backends em 8080 e 8081 (ver nginx/static.conf).
+name: vortex-leve
+
+services:
+  vortex-static:
+    image: nginx:1.30.6-alpine
+    container_name: vortex-static
+    ports:
+      - "5173:5173"
+      - "3001:3001"
+    volumes:
+      - ./nginx/static.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../frontend/vortex-application-service/dist:/srv/app:ro
+      - ../../frontend/vortex-authorization-service/dist:/srv/auth:ro
+    environment:
+      # Um worker só: o script de entrada da imagem ajusta worker_processes ao limite de CPU
+      NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE: "1"
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    cpus: 1.0
+    mem_limit: 32m
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ && wget -q -O /dev/null http://127.0.0.1:3001/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 2s

@@ -16,11 +16,20 @@ export default defineConfigWithVueTs(
     files: ['**/*.{ts,mts,tsx,vue}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  // src/api/generated: cliente gerado pelo openapi-generator (npm run generate-api), não editar à mão
+  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**', 'src/api/generated/**']),
 
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
-  
+
+  {
+    name: 'app/vuetify-slots',
+    rules: {
+      // Slots do VDataTable têm ponto no nome (v-slot:item.actions); allowModifiers é a opção do plugin para isso
+      'vue/valid-v-slot': ['error', { allowModifiers: true }],
+    },
+  },
+
   {
     ...pluginVitest.configs.recommended,
     files: ['src/**/__tests__/*'],

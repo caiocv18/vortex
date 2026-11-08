@@ -1,61 +1,52 @@
 <template>
   <v-card>
     <v-card-title>
-      <v-icon left>mdi-account-circle</v-icon>
+      <v-icon start>mdi-account-circle</v-icon>
       Informações do Usuário
     </v-card-title>
-    
+
     <v-card-text v-if="authStore.user">
-      <v-list dense>
+      <!-- v-list-item-content era do Vuetify 2: título e subtítulo vão direto no v-list-item -->
+      <v-list density="compact">
         <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Nome</v-list-item-title>
-            <v-list-item-subtitle>{{ authStore.user.username }}</v-list-item-subtitle>
-          </v-list-item-content>
+          <v-list-item-title>Nome</v-list-item-title>
+          <v-list-item-subtitle>{{ authStore.user.username }}</v-list-item-subtitle>
         </v-list-item>
-        
+
         <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Email</v-list-item-title>
-            <v-list-item-subtitle>{{ authStore.user.email }}</v-list-item-subtitle>
-          </v-list-item-content>
+          <v-list-item-title>Email</v-list-item-title>
+          <v-list-item-subtitle>{{ authStore.user.email }}</v-list-item-subtitle>
         </v-list-item>
-        
+
         <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Provedor</v-list-item-title>
-            <v-list-item-subtitle>Local</v-list-item-subtitle>
-          </v-list-item-content>
+          <v-list-item-title>Provedor</v-list-item-title>
+          <v-list-item-subtitle>Local</v-list-item-subtitle>
         </v-list-item>
-        
+
         <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Perfis</v-list-item-title>
-            <v-list-item-subtitle>
-              <v-chip
-                v-for="role in authStore.user.roles"
-                :key="role"
-                small
-                class="ma-1"
-                color="primary"
-              >
-                {{ role }}
-              </v-chip>
-            </v-list-item-subtitle>
-          </v-list-item-content>
+          <v-list-item-title>Perfis</v-list-item-title>
+          <v-list-item-subtitle>
+            <v-chip
+              v-for="role in authStore.user.roles"
+              :key="role"
+              size="small"
+              class="ma-1"
+              color="primary"
+            >
+              {{ role }}
+            </v-chip>
+          </v-list-item-subtitle>
         </v-list-item>
-        
+
         <v-list-item v-if="authStore.user.lastLogin">
-          <v-list-item-content>
-            <v-list-item-title>Último Login</v-list-item-title>
-            <v-list-item-subtitle>
-              {{ formatDate(authStore.user.lastLogin) }}
-            </v-list-item-subtitle>
-          </v-list-item-content>
+          <v-list-item-title>Último Login</v-list-item-title>
+          <v-list-item-subtitle>
+            {{ formatDate(authStore.user.lastLogin) }}
+          </v-list-item-subtitle>
         </v-list-item>
       </v-list>
     </v-card-text>
-    
+
     <v-card-actions>
       <v-spacer></v-spacer>
       <v-btn
@@ -63,7 +54,7 @@
         variant="text"
         @click="handleLogout"
       >
-        <v-icon left>mdi-logout</v-icon>
+        <v-icon start>mdi-logout</v-icon>
         Sair
       </v-btn>
     </v-card-actions>

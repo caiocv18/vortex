@@ -1,25 +1,24 @@
 package br.com.vortex.application.service;
 
 import br.com.vortex.application.dto.MovimentoEstoqueMessageDTO;
+import io.awspring.cloud.sqs.operations.SqsOperations;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.aws.messaging.core.QueueMessagingTemplate;
-import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * Serviço responsável por enviar mensagens para filas Amazon SQS.
  * Centraliza a lógica de produção de mensagens para diferentes tipos de operações.
+ * Registrado por {@code SqsConfig}, só com {@code sqs.enabled=true}.
  */
 @Slf4j
-@Service
 public class SqsProducerService {
 
-    private final QueueMessagingTemplate queueMessagingTemplate;
+    private final SqsOperations sqsOperations;
 
     @Value("${sqs.queue.movimento-estoque}")
     private String movimentoEstoqueQueue;
@@ -30,9 +29,8 @@ public class SqsProducerService {
     @Value("${sqs.queue.auditoria}")
     private String auditoriaQueue;
 
-    @Autowired
-    public SqsProducerService(QueueMessagingTemplate queueMessagingTemplate) {
-        this.queueMessagingTemplate = queueMessagingTemplate;
+    public SqsProducerService(SqsOperations sqsOperations) {
+        this.sqsOperations = sqsOperations;
     }
 
     /**
@@ -46,21 +44,21 @@ public class SqsProducerService {
             if (message.getOperationId() == null) {
                 message.setOperationId(UUID.randomUUID().toString());
             }
-            
+
             // Define timestamp se não existir
             if (message.getTimestamp() == null) {
                 message.setTimestamp(LocalDateTime.now());
             }
 
-            log.info("Enviando mensagem de movimento de estoque para SQS. OperationId: {}, Produto: {}, Tipo: {}", 
+            log.info("Enviando mensagem de movimento de estoque para SQS. OperationId: {}, Produto: {}, Tipo: {}",
                     message.getOperationId(), message.getProdutoId(), message.getTipoMovimentacao());
 
-            queueMessagingTemplate.convertAndSend(movimentoEstoqueQueue, message);
-            
+            sqsOperations.send(to -> to.queue(movimentoEstoqueQueue).payload(message));
+
             log.info("Mensagem enviada com sucesso para fila: {}", movimentoEstoqueQueue);
-            
+
         } catch (Exception e) {
-            log.error("Erro ao enviar mensagem para SQS. OperationId: {}, Erro: {}", 
+            log.error("Erro ao enviar mensagem para SQS. OperationId: {}, Erro: {}",
                     message.getOperationId(), e.getMessage(), e);
             throw new RuntimeException("Falha ao enviar mensagem para SQS", e);
         }
@@ -75,20 +73,19 @@ public class SqsProducerService {
      */
     public void enviarNotificacaoEstoqueBaixo(Long produtoId, Integer quantidadeAtual, Integer quantidadeMinima) {
         try {
-            var notificacao = MessageBuilder.withPayload(
-                    String.format("Estoque baixo - Produto ID: %d, Quantidade atual: %d, Mínima: %d", 
-                            produtoId, quantidadeAtual, quantidadeMinima))
-                    .setHeader("produtoId", produtoId)
-                    .setHeader("tipo", "ESTOQUE_BAIXO")
-                    .setHeader("timestamp", LocalDateTime.now().toString())
-                    .build();
+            String notificacao = String.format("Estoque baixo - Produto ID: %d, Quantidade atual: %d, Mínima: %d",
+                    produtoId, quantidadeAtual, quantidadeMinima);
+            Map<String, Object> headers = new HashMap<>();
+            putIfNotNull(headers, "produtoId", produtoId);
+            headers.put("tipo", "ESTOQUE_BAIXO");
+            headers.put("timestamp", LocalDateTime.now().toString());
 
             log.info("Enviando notificação de estoque baixo para produto ID: {}", produtoId);
-            
-            queueMessagingTemplate.send(notificacaoEstoqueQueue, notificacao);
-            
+
+            sqsOperations.send(to -> to.queue(notificacaoEstoqueQueue).payload(notificacao).headers(headers));
+
         } catch (Exception e) {
-            log.error("Erro ao enviar notificação de estoque baixo para produto ID: {}, Erro: {}", 
+            log.error("Erro ao enviar notificação de estoque baixo para produto ID: {}, Erro: {}",
                     produtoId, e.getMessage(), e);
         }
     }
@@ -102,24 +99,30 @@ public class SqsProducerService {
      * @param usuarioId ID do usuário
      * @param detalhes Detalhes da operação
      */
-    public void enviarAuditoria(String operacao, String entidade, Long entidadeId, 
+    public void enviarAuditoria(String operacao, String entidade, Long entidadeId,
                                String usuarioId, String detalhes) {
         try {
-            var auditoria = MessageBuilder.withPayload(detalhes)
-                    .setHeader("operacao", operacao)
-                    .setHeader("entidade", entidade)
-                    .setHeader("entidadeId", entidadeId)
-                    .setHeader("usuarioId", usuarioId)
-                    .setHeader("timestamp", LocalDateTime.now().toString())
-                    .build();
+            // Atributos de mensagem SQS não aceitam valor nulo: cabeçalho nulo é omitido
+            Map<String, Object> headers = new HashMap<>();
+            putIfNotNull(headers, "operacao", operacao);
+            putIfNotNull(headers, "entidade", entidade);
+            putIfNotNull(headers, "entidadeId", entidadeId);
+            putIfNotNull(headers, "usuarioId", usuarioId);
+            headers.put("timestamp", LocalDateTime.now().toString());
 
             log.debug("Enviando mensagem de auditoria: {} - {} ID: {}", operacao, entidade, entidadeId);
-            
-            queueMessagingTemplate.send(auditoriaQueue, auditoria);
-            
+
+            sqsOperations.send(to -> to.queue(auditoriaQueue).payload(detalhes).headers(headers));
+
         } catch (Exception e) {
-            log.error("Erro ao enviar mensagem de auditoria. Operação: {}, Entidade: {}, ID: {}, Erro: {}", 
+            log.error("Erro ao enviar mensagem de auditoria. Operação: {}, Entidade: {}, ID: {}, Erro: {}",
                     operacao, entidade, entidadeId, e.getMessage(), e);
         }
     }
-} 
+
+    private static void putIfNotNull(Map<String, Object> headers, String name, Object value) {
+        if (value != null) {
+            headers.put(name, value);
+        }
+    }
+}

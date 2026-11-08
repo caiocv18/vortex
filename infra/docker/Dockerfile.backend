@@ -1,26 +1,31 @@
-# 1) Build: JDK 24 + Maven
-FROM eclipse-temurin:24-jdk AS build
+# Backend principal (Spring Boot 4, Java 27) para as stacks prd de infra/docker.
+# Contexto do build: a raiz do repositório (context: ../.. nos docker-compose*.yml).
 
-# instala o Maven
-RUN apt-get update && \
-    apt-get install -y maven && \
-    rm -rf /var/lib/apt/lists/*
+# 1) Build: JDK 27 + o Maven Wrapper do módulo (Maven 3.10.0, mesmo do desenvolvimento)
+FROM eclipse-temurin:27-jdk AS build
 
 WORKDIR /app
 
-# só pom.xml para cache de dependências
-COPY ../../backend/vortex-application-service/pom.xml .
-RUN mvn dependency:go-offline -B
+# Só o wrapper e o pom.xml primeiro, para cachear as dependências
+COPY backend/vortex-application-service/mvnw ./
+COPY backend/vortex-application-service/.mvn ./.mvn
+COPY backend/vortex-application-service/pom.xml ./
+RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
 
-# código-fonte e empacota
-COPY ../../backend/vortex-application-service/src ./src
-RUN mvn clean package -DskipTests
+# Código-fonte e empacota
+COPY backend/vortex-application-service/src ./src
+RUN ./mvnw -B -q clean package -DskipTests
 
-# 2) Runtime: JDK 24 Alpine, só com o jar
-FROM amazoncorretto:24-alpine3.21-jdk AS runtime
+# 2) Runtime: só a JRE 27 (Alpine), com o jar
+FROM eclipse-temurin:27-jre-alpine AS runtime
 
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
+# Flags do modo leve como padrão (sobrescreva JAVA_OPTS no compose para mudar):
+# SerialGC explícito porque o JDK 27 escolhe G1 mesmo com pouca RAM
+ENV MALLOC_ARENA_MAX=2 \
+    JAVA_OPTS="-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m -Xmx320m"
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"] 
+ENTRYPOINT ["/bin/sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar \"$@\"", "--"]

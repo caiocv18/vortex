@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useTheme } from 'vuetify'
 import { useReportStore } from '@/stores/report'
 import { useProductTypeStore } from '@/stores/productType'
+import { chartThemeColors, foldTail } from '@/themes/chartPalette'
 import { Bar, Pie } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -23,81 +25,99 @@ const selectedTypeId = ref<number | null>(null)
 const loadingProductsByType = ref(false)
 const loadingProfitByProduct = ref(false)
 
+// Cores dos gráficos a partir do tema ativo do Vuetify (ver themes/chartPalette.ts). A store de
+// tema troca o tema por theme.change(); theme.current muda, os computeds abaixo recalculam e o
+// vue-chartjs redesenha os gráficos com as cores novas.
+const theme = useTheme()
+const chartTheme = computed(() => chartThemeColors(theme.current.value))
+
 // Dados para o gráfico de produtos por tipo
 const productsByTypeChartData = computed(() => {
   const labels = reportStore.productsByType.map(p => p.descricao || '')
   const stockData = reportStore.productsByType.map(p => p.quantidadeEmEstoque || 0)
   const salesData = reportStore.productsByType.map(p => p.totalSaidas || 0)
+  const [stockColor, salesColor] = chartTheme.value.series
 
   return {
     labels,
     datasets: [
       {
         label: 'Estoque Atual',
-        backgroundColor: '#59cb9b',
+        backgroundColor: stockColor,
         data: stockData
       },
       {
         label: 'Total de Saídas',
-        backgroundColor: '#00262c',
+        backgroundColor: salesColor,
         data: salesData
       }
     ]
   }
 })
 
-// Dados para o gráfico de lucro por produto
+// Dados para o gráfico de lucro por produto: uma cor por fatia, sem repetir; passando das cores
+// da paleta, os produtos de menor lucro viram uma fatia "Outros" (a tabela ao lado lista todos)
 const profitByProductChartData = computed(() => {
   const sortedProducts = [...reportStore.profitByProduct].sort((a, b) => (b.lucroTotal || 0) - (a.lucroTotal || 0))
-  const top10 = sortedProducts.slice(0, 10)
-  
-  const labels = top10.map(p => p.descricao || '')
-  const data = top10.map(p => p.lucroTotal || 0)
+  const slices = foldTail(sortedProducts.map(p => ({ label: p.descricao || '', value: p.lucroTotal || 0 })))
+  const { series, other, surface } = chartTheme.value
 
   return {
-    labels,
+    labels: slices.map(s => s.label),
     datasets: [{
       label: 'Lucro Total (R$)',
-      backgroundColor: [
-        '#59cb9b',
-        '#00262c',
-        '#f5ffff',
-        '#4CAF50',
-        '#FF9800',
-        '#2196F3',
-        '#9C27B0',
-        '#F44336',
-        '#795548',
-        '#607D8B'
-      ],
-      data
+      backgroundColor: slices.map((s, i) => (s.other ? other : series[i])),
+      // Contorno na cor do card: separa as fatias sem o traço branco padrão do Chart.js,
+      // que aparecia como linha clara no tema escuro
+      borderColor: surface,
+      borderWidth: 2,
+      data: slices.map(s => s.value)
     }]
   }
 })
 
-// Opções dos gráficos
-const chartOptions = {
+// Opções dos gráficos: legenda, rótulos e grade na cor de texto do tema (no tema escuro o cinza
+// padrão do Chart.js ficava quase ilegível sobre o card)
+const legendLabels = computed(() => ({ color: chartTheme.value.text }))
+
+const barChartOptions = computed(() => {
+  const axis = {
+    ticks: { color: chartTheme.value.text },
+    grid: { color: chartTheme.value.grid },
+    border: { color: chartTheme.value.grid }
+  }
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: legendLabels.value
+      },
+      title: {
+        display: false
+      }
+    },
+    scales: {
+      x: axis,
+      y: axis
+    }
+  }
+})
+
+const pieChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'top' as const,
+      position: 'right' as const,
+      labels: legendLabels.value
     },
     title: {
       display: false
     }
   }
-}
-
-const pieChartOptions = {
-  ...chartOptions,
-  plugins: {
-    ...chartOptions.plugins,
-    legend: {
-      position: 'right' as const,
-    }
-  }
-}
+}))
 
 onMounted(async () => {
   await productTypeStore.fetchProductTypes()
@@ -156,10 +176,12 @@ const profitMargin = computed(() => {
 </script>
 
 <template>
+  <!-- Espaçamento vertical: só o gap do grid do Vuetify 4 (24px entre linhas); sem margem no
+       título nem mt-* nas linhas, que davam 48px num lugar e 16px no outro -->
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-6">Relatórios</h1>
+        <h1 class="text-headline-large">Relatórios</h1>
       </v-col>
     </v-row>
 
@@ -168,42 +190,43 @@ const profitMargin = computed(() => {
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Receita Total</div>
-            <div class="text-h5 font-weight-bold">{{ formatCurrency(totalRevenue) }}</div>
+            <div class="text-label-medium">Receita Total</div>
+            <div class="text-headline-small font-weight-bold">{{ formatCurrency(totalRevenue) }}</div>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Custo Total</div>
-            <div class="text-h5 font-weight-bold">{{ formatCurrency(totalCost) }}</div>
+            <div class="text-label-medium">Custo Total</div>
+            <div class="text-headline-small font-weight-bold">{{ formatCurrency(totalCost) }}</div>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Lucro Total</div>
-            <div class="text-h5 font-weight-bold text-success">{{ formatCurrency(reportStore.totalProfit) }}</div>
+            <div class="text-label-medium">Lucro Total</div>
+            <div class="text-headline-small font-weight-bold text-success">{{ formatCurrency(reportStore.totalProfit) }}</div>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card>
           <v-card-text>
-            <div class="text-overline">Margem de Lucro</div>
-            <div class="text-h5 font-weight-bold">{{ profitMargin.toFixed(1) }}%</div>
+            <div class="text-label-medium">Margem de Lucro</div>
+            <div class="text-headline-small font-weight-bold">{{ profitMargin.toFixed(1) }}%</div>
           </v-card-text>
         </v-card>
       </v-col>
     </v-row>
 
     <!-- Relatório de Produtos por Tipo -->
-    <v-row class="mt-4">
+    <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>
+          <!-- text-wrap: no celular o título quebra em vez de cortar -->
+          <v-card-title class="text-wrap">
             <v-icon class="mr-2">mdi-package-variant</v-icon>
             Relatório de Produtos por Tipo
           </v-card-title>
@@ -233,7 +256,7 @@ const profitMargin = computed(() => {
                   <div style="height: 400px;">
                     <Bar
                       :data="productsByTypeChartData"
-                      :options="chartOptions"
+                      :options="barChartOptions"
                     />
                   </div>
                 </v-col>
@@ -267,10 +290,10 @@ const profitMargin = computed(() => {
     </v-row>
 
     <!-- Relatório de Lucro por Produto -->
-    <v-row class="mt-4">
+    <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>
+          <v-card-title class="text-wrap">
             <v-icon class="mr-2">mdi-cash-multiple</v-icon>
             Relatório de Lucro por Produto
           </v-card-title>

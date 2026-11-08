@@ -236,7 +236,28 @@ Obrigatório:
 - **Algorithm**: RS256 (RSA with SHA-256)
 - **Access Token TTL**: 1 hora
 - **Refresh Token TTL**: 7 dias
-- **Keys**: RSA 2048-bit (privateKey.pem / publicKey.pem)
+- **Keys**: RSA 2048-bit (privateKey.pem / publicKey.pem), ver [Chaves RSA do JWT](#chaves-rsa-do-jwt)
+
+### Chaves RSA do JWT
+
+O serviço assina os tokens com `src/main/resources/jwt/privateKey.pem` e os confere com `src/main/resources/jwt/publicKey.pem`. No `application.properties` são `smallrye.jwt.sign.key.location=jwt/privateKey.pem` e `mp.jwt.verify.publickey.location=jwt/publicKey.pem`, caminhos no classpath. Os dois arquivos ficam fora do git (`*.pem` no `.gitignore`) e entram no jar pelo `mvn package`, em `jwt/`.
+
+- O `start-vortex.sh` gera o par quando ele falta.
+- Para gerar à mão, de dentro de `backend/vortex-authorization-service`:
+
+```bash
+mkdir -p src/main/resources/jwt
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out src/main/resources/jwt/privateKey.pem
+openssl pkey -in src/main/resources/jwt/privateKey.pem -pubout -out src/main/resources/jwt/publicKey.pem
+```
+
+O `genpkey` grava a chave privada em PKCS#8 (`BEGIN PRIVATE KEY`), o formato que o SmallRye JWT lê. Trocar o par invalida todos os tokens já emitidos, inclusive os refresh tokens.
+
+**Checkout antigo.** Até a atualização de novembro de 2026 as chaves ficavam em `src/main/resources/META-INF/resources/`, pasta que o Quarkus serve como arquivo estático: `GET /privateKey.pem` entregava a chave de assinatura. O git não move arquivo ignorado, então num checkout antigo mova os dois `.pem` para `src/main/resources/jwt/` e apague os de `META-INF/resources/`. Sem isso o serviço sobe e o `/q/health` fica verde, porque as chaves só são lidas no primeiro uso, mas todo login e todo cadastro falham com 500.
+
+Para usar chaves fora do classpath (montadas num container, por exemplo), sobrescreva os dois caminhos pelas variáveis `SMALLRYE_JWT_SIGN_KEY_LOCATION` e `MP_JWT_VERIFY_PUBLICKEY_LOCATION`, com o prefixo `file:` (`file:/run/secrets/privateKey.pem`).
+
+A suíte de testes não usa essas chaves: ela tem um par próprio, versionado, em `src/test/resources/jwt-test/`.
 
 ## 🧪 Testes
 
@@ -341,9 +362,16 @@ QUARKUS_DATASOURCE_USERNAME=vortex_auth
 QUARKUS_DATASOURCE_PASSWORD=secure_password
 QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://localhost:5432/vortex_auth
 
-# JWT
-JWT_PRIVATE_KEY_LOCATION=/path/to/privateKey.pem
-JWT_PUBLIC_KEY_LOCATION=/path/to/publicKey.pem
+# JWT (padrão: jwt/privateKey.pem e jwt/publicKey.pem no classpath)
+SMALLRYE_JWT_SIGN_KEY_LOCATION=file:/path/to/privateKey.pem
+MP_JWT_VERIFY_PUBLICKEY_LOCATION=file:/path/to/publicKey.pem
+
+# Proxy reverso: IPs ou CIDRs cujo X-Forwarded-For vale como IP do cliente.
+# Sem a variável, nenhum proxy é confiável e o cabeçalho é ignorado.
+TRUSTED_PROXIES=10.0.0.5
+
+# Eventos de autenticação (precisa do perfil kafka ou rabbitmq)
+AUTH_EVENT_ENABLED=false
 
 # Password Policy
 AUTH_PASSWORD_MIN_LENGTH=8
@@ -353,11 +381,9 @@ AUTH_PASSWORD_REQUIRE_LOWERCASE=true
 AUTH_PASSWORD_REQUIRE_NUMBERS=true
 AUTH_PASSWORD_REQUIRE_SPECIAL_CHARS=true
 
-# Rate Limiting
-RATE_LIMIT_LOGIN_MAX_ATTEMPTS=5
-RATE_LIMIT_LOGIN_WINDOW_MINUTES=15
-RATE_LIMIT_REGISTER_MAX_ATTEMPTS=3
-RATE_LIMIT_REGISTER_WINDOW_MINUTES=60
+# Rate Limiting do login
+AUTH_RATE_LIMIT_LOGIN_ATTEMPTS=5
+AUTH_RATE_LIMIT_WINDOW_MINUTES=15
 ```
 
 ### Profiles Disponíveis
@@ -367,12 +393,20 @@ RATE_LIMIT_REGISTER_WINDOW_MINUTES=60
 - `prod` - PostgreSQL, configurações de produção
 
 ### Messaging Configuration
-```yaml
-# application.properties
-mp.messaging.outgoing.auth-events.connector=smallrye-kafka
-mp.messaging.outgoing.auth-events.topic=vortex.auth.events
-mp.messaging.outgoing.auth-events.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+Os eventos saem pelo canal `user-events` e ficam desligados por padrão. Para ligar: `AUTH_EVENT_ENABLED=true` e o perfil `kafka` (tópico `vortex-user-events`) ou `rabbitmq` (exchange `vortex.user.events`), por exemplo `-Dquarkus.profile=leve,kafka`.
+
+```properties
+# application.properties (perfil kafka)
+%kafka.mp.messaging.outgoing.user-events.connector=smallrye-kafka
+%kafka.mp.messaging.outgoing.user-events.topic=vortex-user-events
+# Produtor idempotente: o kafka-clients exige acks=all
+%kafka.kafka.acks=all
+%kafka.kafka.enable.idempotence=true
 ```
+
+- Um evento só sai depois do commit da transação que o gerou; no rollback ele é descartado.
+- Nenhum evento leva o refresh token. O `sessionId` de login e logout é o id da linha do refresh token, que identifica a sessão mas não a renova.
+- No modo dev o `AuthEventConsumer` de exemplo também lê o canal, junto com o conector (`@Broadcast` no emissor).
 
 ## 📊 Monitoring & Health
 
@@ -420,10 +454,13 @@ quarkus.log.category."br.com.vortex.authorization".level=DEBUG
 ## 🔒 Segurança
 
 ### Rate Limiting
-Implementado para prevenir ataques:
-- **Login**: 5 tentativas por 15 minutos
-- **Register**: 3 tentativas por hora  
-- **Password Reset**: 2 tentativas por hora
+O limite vale para o login e barra também o `forgot-password`. Por padrão são 5 falhas em 15 minutos (`AUTH_RATE_LIMIT_LOGIN_ATTEMPTS`, `AUTH_RATE_LIMIT_WINDOW_MINUTES`).
+
+- As falhas recentes contam por e-mail **ou** por IP: 5 falhas de um IP bloqueiam esse IP para qualquer conta, e 5 falhas numa conta a bloqueiam de qualquer IP.
+- A tentativa barrada pelo limite não conta como falha nova. O bloqueio acaba sozinho quando as falhas que o causaram saem da janela, mesmo que alguém continue tentando.
+- A falha é gravada no mesmo commit do login, na conexão que ele já usa: logins errados simultâneos não esgotam o pool.
+- O IP é o da conexão. O `X-Forwarded-For` só vale vindo de um endereço de `TRUSTED_PROXIES`, que por padrão não tem nenhum; um valor que não é IP literal é descartado. Atrás de um proxy, ele deve sobrescrever o cabeçalho (no nginx, `proxy_set_header X-Forwarded-For $remote_addr`), porque o Quarkus usa o primeiro valor da lista.
+- Login com falha interna (banco fora, pool esgotado, chave ausente) responde 500 com mensagem genérica, não 401.
 
 ### Auditoria
 Todos os eventos são auditados via messaging:
@@ -557,17 +594,7 @@ mvn quarkus:dev -Dquarkus.profile=dev
 ```
 
 #### JWT keys not found
-```bash
-# Gerar chaves RSA
-mkdir -p src/main/resources
-cd src/main/resources
-
-# Private key
-openssl genrsa -out privateKey.pem 2048
-
-# Public key
-openssl rsa -pubout -in privateKey.pem -out publicKey.pem
-```
+As chaves ficam em `src/main/resources/jwt/` (não na raiz de `src/main/resources` nem em `META-INF/resources`). Onde ficam, como gerar e como migrar um checkout antigo: [Chaves RSA do JWT](#chaves-rsa-do-jwt).
 
 #### Tests failing
 ```bash

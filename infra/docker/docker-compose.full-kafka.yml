@@ -1,69 +1,65 @@
-version: '3.8'
+# Stack prd completa com Kafka integrado: Kafka nativo (KRaft) + Oracle Free + backend + frontend.
+#   Backend:  http://localhost:8080
+#   Frontend: http://localhost:3000
+#   Kafka:    localhost:9092 (host) / kafka:19092 (rede vortex-network)
+# Kafka UI só com o profile ui:
+#   docker compose -f infra/docker/docker-compose.full-kafka.yml --profile ui up -d kafka-ui
+# JWT_SECRET é obrigatório (export JWT_SECRET="$(openssl rand -base64 48)"), inclusive para o
+# "down": o Compose interpola o arquivo inteiro. A chave pública do serviço de autorização
+# (src/main/resources/jwt/publicKey.pem do módulo) precisa existir; o start-vortex.sh gera o par.
+name: vortex-full-kafka
 
 services:
   # ================================
-  # APACHE KAFKA INFRASTRUCTURE
+  # APACHE KAFKA (KRaft, sem ZooKeeper)
   # ================================
-  
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    hostname: zookeeper
-    container_name: vortex-zookeeper
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-logs:/var/lib/zookeeper/log
-    networks:
-      - vortex-network
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
+    image: apache/kafka-native:4.4.0
     hostname: kafka
     container_name: vortex-kafka
-    depends_on:
-      zookeeper:
-        condition: service_healthy
     ports:
       - "9092:9092"
-      - "9101:9101"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://:19092,PLAINTEXT_HOST://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_JMX_PORT: 9101
-      KAFKA_JMX_HOSTNAME: localhost
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_DELETE_TOPIC_ENABLE: 'true'
-      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
-    volumes:
-      - kafka-data:/var/lib/kafka/data
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_OPTS: "-Xmx256m"
+    tmpfs:
+      - /mnt/shared/config
+      - /etc/kafka/secrets
+    mem_limit: 384m
+    restart: "no"
     networks:
       - vortex-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9092' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: kafbat/kafka-ui:v1.5.0
     container_name: vortex-kafka-ui
+    profiles: ["ui"]
     depends_on:
       kafka:
         condition: service_healthy
@@ -71,44 +67,46 @@ services:
       - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: vortex-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-      DYNAMIC_CONFIG_ENABLED: 'true'
-      AUTH_TYPE: "DISABLED"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+      DYNAMIC_CONFIG_ENABLED: "true"
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -XX:MaxRAMPercentage=50"
+    mem_limit: 384m
+    restart: "no"
     networks:
       - vortex-network
 
   # ================================
   # DATABASE
   # ================================
-  
   vortex-db:
-    image: container-registry.oracle.com/database/express:21.3.0-xe
+    image: gvenzl/oracle-free:23.26.3-slim-faststart
     container_name: vortex-db
     environment:
-      ORACLE_PWD: vortex123
-      ORACLE_CHARACTERSET: AL32UTF8
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle_1234}
+      APP_USER: vortex_user
+      APP_USER_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
     ports:
       - "1521:1521"
-      - "5500:5500"
     volumes:
       - oracle-data:/opt/oracle/oradata
-      - oracle-backup:/opt/oracle/backup
+      - ../oracle/init:/container-entrypoint-initdb.d:ro
+    # O teto de 2 GB do Oracle Free cobre só SGA + PGA: folga para processos de fundo e listener
+    mem_limit: 3g
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - vortex-network
-    healthcheck:
-      test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -s system/vortex123@localhost:1521/XE"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   # ================================
   # BACKEND APPLICATION
   # ================================
-  
   vortex-app:
-    build: 
+    build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
     container_name: vortex-app
@@ -119,34 +117,45 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd,kafka}
-      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@vortex-db:1521:XE
-      SPRING_DATASOURCE_USERNAME: system
-      SPRING_DATASOURCE_PASSWORD: vortex123
+      ORACLE_DB_URL: jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1
+      ORACLE_DB_USERNAME: vortex_user
+      ORACLE_DB_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
+      JWT_SECRET: "${JWT_SECRET:?defina JWT_SECRET (32+ caracteres aleatórios, ex. openssl rand -base64 48) para o backend no perfil prd}"
       KAFKA_ENABLED: ${KAFKA_ENABLED:-true}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_KAFKA_CONSUMER_GROUP_ID: vortex-inventory-group
-      # Configurações de logging
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://host.docker.internal:8081}
+      # Chave pública do auth para o fallback do AuthServiceClient (montada abaixo)
+      AUTH_JWT_PUBLIC_KEY_LOCATION: /app/keys/auth-public-key.pem
+      AUTH_JWT_ISSUER: ${JWT_ISSUER:-vortex-auth-service}
       LOGGING_LEVEL_BR_COM_VORTEX: DEBUG
       LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA: INFO
       LOGGING_LEVEL_ORG_APACHE_KAFKA: INFO
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "8081:8080"
+      - "8080:8080"
+    volumes:
+      - ../../backend/vortex-application-service/logs:/app/logs
+      - type: bind
+        source: ../../backend/vortex-authorization-service/src/main/resources/jwt/publicKey.pem
+        target: /app/keys/auth-public-key.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    mem_limit: 768m
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - vortex-network
-    volumes:
-              - ../../backend/vortex-application-service/logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
   # ================================
   # FRONTEND APPLICATION
   # ================================
-  
   vortex-frontend:
     build:
       context: ../../frontend/vortex-application-service
@@ -155,35 +164,19 @@ services:
     depends_on:
       vortex-app:
         condition: service_healthy
-    environment:
-      VITE_API_BASE_URL: http://localhost:8081
     ports:
-      - "3000:3000"
+      # O nginx do container escuta na 80
+      - "3000:80"
+    mem_limit: 32m
+    restart: "no"
     networks:
       - vortex-network
-    restart: unless-stopped
-
-# ================================
-# VOLUMES
-# ================================
 
 volumes:
   oracle-data:
-    driver: local
-  oracle-backup:
-    driver: local
-  zookeeper-data:
-    driver: local
-  zookeeper-logs:
-    driver: local
-  kafka-data:
-    driver: local
-
-# ================================
-# NETWORKS
-# ================================
+    name: vortex-oracle-data
 
 networks:
   vortex-network:
     driver: bridge
-    name: vortex-network 
+    name: vortex-network

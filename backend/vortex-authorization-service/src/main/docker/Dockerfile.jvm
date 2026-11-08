@@ -1,17 +1,24 @@
-FROM registry.access.redhat.com/ubi8/openjdk-17:1.18
+# Serviço de autorização (Quarkus, layout fast-jar de target/quarkus-app) numa JRE 27.
+# Não existe imagem UBI de OpenJDK 27 (a Red Hat publica só as LTS): a base é a Temurin JRE Alpine.
+# Build antes: ./mvnw -B package -DskipTests
+FROM eclipse-temurin:27-jre-alpine
 
 ENV LANGUAGE='en_US:en'
 
-# Copy the jar to the production image
-COPY target/quarkus-app/lib/ /deployments/lib/
-COPY target/quarkus-app/*.jar /deployments/
-COPY target/quarkus-app/app/ /deployments/app/
-COPY target/quarkus-app/quarkus/ /deployments/quarkus/
+WORKDIR /deployments
+
+# Copy the jar to the production image (mesmo layout do quarkus-app)
+COPY --chown=185 target/quarkus-app/lib/ /deployments/lib/
+COPY --chown=185 target/quarkus-app/*.jar /deployments/
+COPY --chown=185 target/quarkus-app/app/ /deployments/app/
+COPY --chown=185 target/quarkus-app/quarkus/ /deployments/quarkus/
 
 EXPOSE 8081
 USER 185
-ENV AB_JOLOKIA_OFF=""
-ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
-ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
 
-ENTRYPOINT [ "/opt/jboss/container/java/run/run-java.sh" ]
+# Flags do modo leve como padrão (sobrescreva JAVA_OPTS para mudar)
+ENV MALLOC_ARENA_MAX=2 \
+    JAVA_OPTS="-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m -Xmx224m" \
+    JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+
+ENTRYPOINT ["/bin/sh", "-c", "exec java $JAVA_OPTS $JAVA_OPTS_APPEND -jar /deployments/quarkus-run.jar \"$@\"", "--"]

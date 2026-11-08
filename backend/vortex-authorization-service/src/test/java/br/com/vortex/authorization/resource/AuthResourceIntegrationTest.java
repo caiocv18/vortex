@@ -3,6 +3,7 @@ package br.com.vortex.authorization.resource;
 import br.com.vortex.authorization.dto.*;
 import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.util.TestDataBuilder;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
@@ -13,6 +14,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.*;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
@@ -102,6 +105,12 @@ class AuthResourceIntegrationTest {
         assertNotNull(refreshToken);
     }
     
+    // A requisição HTTP roda em outra thread e outra transação: o usuário pré-existente precisa
+    // estar commitado antes dela, senão o register não o enxerga (e trava no índice único).
+    private static void persistCommitted(User user) {
+        QuarkusTransaction.requiringNew().run(user::persist);
+    }
+
     @Test
     @Order(2)
     @DisplayName("POST /register - Should fail with duplicate email")
@@ -109,7 +118,7 @@ class AuthResourceIntegrationTest {
     void testRegisterDuplicateEmail() {
         // Create existing user
         User existingUser = TestDataBuilder.createTestUser();
-        existingUser.persist();
+        persistCommitted(existingUser);
         
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
         request.email = existingUser.email;
@@ -134,7 +143,7 @@ class AuthResourceIntegrationTest {
     void testRegisterDuplicateUsername() {
         // Create existing user
         User existingUser = TestDataBuilder.createTestUser();
-        existingUser.persist();
+        persistCommitted(existingUser);
         
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
         request.username = existingUser.username;
@@ -571,7 +580,9 @@ class AuthResourceIntegrationTest {
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
-            .body("isValid", is(true))
+            // ValidateTokenResponse.isValid() serializa como "valid": é o campo que o
+            // AuthServiceClient do application-service lê e o que o README documenta
+            .body("valid", is(true))
             .body("username", is(registerRequest.username))
             .body("email", is(registerRequest.email))
             .body("roles", hasItem("USER"));
@@ -592,7 +603,7 @@ class AuthResourceIntegrationTest {
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
-            .body("isValid", is(false))
+            .body("valid", is(false))
             .body("username", nullValue())
             .body("email", nullValue())
             .body("roles", nullValue());
@@ -621,5 +632,41 @@ class AuthResourceIntegrationTest {
             .body("data.user.email", is(request.email))
             .body("data.user.username", is(request.username))
             .body("data.user.roles", hasItem("USER"));
+    }
+
+    @Test
+    @Order(21)
+    @DisplayName("POST /validate-token - Should answer 200 with valid=false for a token with a forged payload")
+    void testValidateTokenForgedPayload() {
+        RegisterRequest registerRequest = TestDataBuilder.createValidRegisterRequest();
+        String accessToken = given()
+            .contentType(ContentType.JSON)
+            .body(registerRequest)
+            .when()
+            .post("/register")
+            .then()
+            .statusCode(201)
+            .extract()
+            .path("data.accessToken");
+
+        // Troca o e-mail no payload e mantém a assinatura original: o contrato segue o mesmo
+        // (HTTP 200, campo valid), mas a assinatura agora é conferida e o token é recusado
+        String[] parts = accessToken.split("\\.");
+        String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8)
+            .replace(registerRequest.email, "attacker@evil.example");
+        String forged = parts[0] + "."
+            + Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8))
+            + "." + parts[2];
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(TestDataBuilder.createValidateTokenRequest(forged))
+            .when()
+            .post("/validate-token")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+            .body("valid", is(false))
+            .body("email", nullValue());
     }
 }

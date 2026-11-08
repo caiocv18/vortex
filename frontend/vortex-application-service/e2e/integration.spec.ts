@@ -57,7 +57,7 @@ test.describe('Application Integration Tests', () => {
       { path: '/reports', name: 'Relatórios' }
     ]
 
-    for (const { path, name } of pages) {
+    for (const { path } of pages) {
       await page.goto(path)
       
       // Pega o tema inicial
@@ -120,7 +120,7 @@ test.describe('Application Integration Tests', () => {
       { path: '/reports', name: 'Relatórios' }
     ]
 
-    for (const { path, name } of pages) {
+    for (const { path } of pages) {
       await page.goto(path)
       
       // Verifica se o sidebar está visível
@@ -146,31 +146,33 @@ test.describe('Application Integration Tests', () => {
   })
 
   test('search functionality works on data pages', async ({ page }) => {
+    // Campo pelo rótulo: o input do Vuetify não tem atributo label, então o antigo
+    // 'input[label="..."]' nunca era encontrado e o teste pulava a pesquisa sem testar nada
     const searchPages = [
-      { path: '/product-types', searchField: 'input[label="Pesquisar"]' },
-      { path: '/products', searchField: 'input[label="Pesquisar"]' },
-      { path: '/movements', searchField: 'input[label="Pesquisar por produto"]' }
+      { path: '/product-types', searchLabel: 'Pesquisar' },
+      { path: '/products', searchLabel: 'Pesquisar' },
+      { path: '/movements', searchLabel: 'Pesquisar por produto' }
     ]
 
-    for (const { path, searchField } of searchPages) {
+    for (const { path, searchLabel } of searchPages) {
       await page.goto(path)
-      
+
       // Aguarda a tabela carregar
       await page.waitForSelector('.v-data-table', { timeout: 10000 })
-      
+
       // Verifica se o campo de pesquisa existe
-      const searchInput = page.locator(searchField)
-      if (await searchInput.isVisible()) {
-        // Preenche o campo de pesquisa
-        await searchInput.fill('teste')
-        await page.waitForTimeout(1000)
-        
-        // Verifica se o valor foi preenchido
-        await expect(searchInput).toHaveValue('teste')
-        
-        // Limpa o campo
-        await searchInput.fill('')
-      }
+      const searchInput = page.getByLabel(searchLabel)
+      await expect(searchInput).toBeVisible()
+
+      // Preenche o campo de pesquisa
+      await searchInput.fill('teste')
+      await page.waitForTimeout(1000)
+
+      // Verifica se o valor foi preenchido
+      await expect(searchInput).toHaveValue('teste')
+
+      // Limpa o campo
+      await searchInput.fill('')
     }
   })
 
@@ -206,13 +208,14 @@ test.describe('Application Integration Tests', () => {
         
         // Verifica se o diálogo foi aberto
         await expect(page.locator('.v-dialog .v-card')).toBeVisible()
-        await expect(page.locator(`text=${dialogTitle}`)).toBeVisible()
+        // Título dentro do diálogo (o botão que abre o diálogo tem o mesmo texto)
+        await expect(page.getByRole('dialog').getByText(dialogTitle)).toBeVisible()
         
         // Fecha o diálogo
         await page.click('button:has-text("Cancelar")')
         
         // Verifica se o diálogo foi fechado
-        await expect(page.locator('.v-dialog .v-card')).not.toBeVisible()
+        await expect(page.locator('.v-dialog .v-card')).toBeHidden()
       }
     }
   })
@@ -242,7 +245,8 @@ test.describe('Application Integration Tests', () => {
 
   test('responsive design works on all pages', async ({ page }) => {
     const pages = [
-      { path: '/', key: 'h1' },
+      // A Home não tem h1 (o título é o card de boas-vindas, como em accessibility.spec.ts)
+      { path: '/', key: 'text=Bem-vindo ao Sistema de Estoque' },
       { path: '/product-types', key: 'h1:has-text("Tipos de Produto")' },
       { path: '/products', key: 'h1:has-text("Produtos")' },
       { path: '/movements', key: 'h1:has-text("Movimentação de Estoque")' },
@@ -264,9 +268,8 @@ test.describe('Application Integration Tests', () => {
         // Verifica se o elemento principal está visível
         await expect(page.locator(key)).toBeVisible()
         
-        // Verifica se o sidebar está presente (pode estar oculto em mobile)
-        const sidebar = page.locator('.v-navigation-drawer')
-        // Em mobile, o sidebar pode estar oculto, então não falhamos se não estiver visível
+        // Sidebar ('.v-navigation-drawer'): em mobile pode estar oculto, então não falhamos
+        // se não estiver visível (sem asserção aqui)
       }
     }
   })

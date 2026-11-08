@@ -9,8 +9,12 @@ import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import br.com.vortex.application.repository.MovimentoEstoqueRepository;
 import br.com.vortex.application.repository.ProdutoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,21 +31,25 @@ public class MovimentoEstoqueService {
 
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
+    // Nulo quando o SQS está desligado (sqs.enabled=false)
     private final SqsProducerService sqsProducerService;
     private final MessageBrokerService messageBrokerService;
+    private final boolean processamentoAssincronoEnabled;
 
-    @Value("${sqs.processamento.assincrono.enabled:false}")
-    private boolean processamentoAssincronoEnabled;
-
-    @Autowired
     public MovimentoEstoqueService(MovimentoEstoqueRepository movimentoEstoqueRepository,
                                   ProdutoRepository produtoRepository,
-                                  SqsProducerService sqsProducerService,
-                                  MessageBrokerService messageBrokerService) {
+                                  ObjectProvider<SqsProducerService> sqsProducerService,
+                                  MessageBrokerService messageBrokerService,
+                                  @Value("${sqs.processamento.assincrono.enabled:false}") boolean processamentoAssincronoEnabled) {
         this.movimentoEstoqueRepository = movimentoEstoqueRepository;
         this.produtoRepository = produtoRepository;
-        this.sqsProducerService = sqsProducerService;
+        this.sqsProducerService = sqsProducerService.getIfAvailable();
         this.messageBrokerService = messageBrokerService;
+        this.processamentoAssincronoEnabled = processamentoAssincronoEnabled;
+        if (processamentoAssincronoEnabled && this.sqsProducerService == null) {
+            throw new IllegalStateException(
+                    "sqs.processamento.assincrono.enabled=true exige o SQS ligado (sqs.enabled=true, perfil sqs)");
+        }
     }
 
     /**
@@ -209,13 +217,29 @@ public class MovimentoEstoqueService {
     }
 
     /**
-     * Busca todos os movimentos de estoque.
+     * Busca todos os movimentos de estoque com paginação.
      *
-     * @return Lista de DTOs dos movimentos de estoque
+     * @param pageable Configurações de paginação
+     * @return Página de DTOs dos movimentos de estoque
      */
     @Transactional(readOnly = true)
+    public Page<MovimentoEstoqueDTO> buscarTodos(Pageable pageable) {
+        Page<MovimentoEstoque> movimentos = movimentoEstoqueRepository.findAll(pageable);
+        
+        return movimentos.map(this::mapToDTO);
+    }
+
+    /**
+     * Busca todos os movimentos de estoque (método legado sem paginação - use com cuidado).
+     * 
+     * @deprecated Use buscarTodos(Pageable) para melhor performance
+     * @return Lista de DTOs dos movimentos de estoque (limitada a 1000 itens, ordenada por data)
+     */
+    @Deprecated
+    @Transactional(readOnly = true)
     public List<MovimentoEstoqueDTO> buscarTodos() {
-        List<MovimentoEstoque> movimentos = movimentoEstoqueRepository.findAll();
+        Pageable pageable = PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "dataMovimento"));
+        Page<MovimentoEstoque> movimentos = movimentoEstoqueRepository.findAll(pageable);
         
         return movimentos.stream()
                 .map(this::mapToDTO)

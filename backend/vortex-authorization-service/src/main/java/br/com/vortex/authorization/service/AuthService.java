@@ -5,9 +5,12 @@ import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.event.*;
 import br.com.vortex.authorization.security.JwtService;
 import br.com.vortex.authorization.security.PasswordService;
+import io.smallrye.jwt.auth.principal.JWTParser;
+import io.smallrye.jwt.auth.principal.ParseException;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.json.JsonString;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
@@ -15,6 +18,7 @@ import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -31,6 +35,9 @@ public class AuthService {
     JwtService jwtService;
 
     @Inject
+    JWTParser jwtParser;
+
+    @Inject
     PasswordService passwordService;
 
     @Inject
@@ -40,28 +47,42 @@ public class AuthService {
     EventPublisher eventPublisher;
 
     @Inject
+    EmailService emailService;
+
+    @Inject
     EntityManager entityManager;
 
-    @Transactional
+    /**
+     * Login com senha. A falha (401) e o bloqueio por rate limit (400, que o resource devolve como 401)
+     * saem como exceção, e mesmo assim a transação faz commit (dontRollbackOn): a falha gravada pelo
+     * RateLimitService entra no mesmo commit, na mesma conexão do pool que a contagem já usou.
+     *
+     * Antes a falha ia numa transação REQUIRES_NEW, que pedia uma segunda conexão com a primeira presa
+     * pela transação suspensa do login. Com logins errados simultâneos no tamanho do pool (5 no modo
+     * leve) ninguém conseguia a segunda, tudo esperava o acquisition-timeout e a falha não era gravada.
+     * Nenhum dos dois caminhos de exceção grava outra coisa além da falha, então o commit é seguro.
+     */
+    @Transactional(dontRollbackOn = {NotAuthorizedException.class, BadRequestException.class})
     public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
-        // Check rate limiting
+        // Tentativa barrada pelo limite não conta como falha nova: o bloqueio acaba sozinho quando as
+        // falhas que o causaram saem da janela (auth.rate-limit.window-minutes). Gravada, cada tentativa
+        // barrada empurrava o desbloqueio, e uma requisição a cada 3 minutos travava a conta de vez.
         if (!rateLimitService.isAllowed(request.identifier, ipAddress)) {
-            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
             throw new BadRequestException("Too many failed login attempts. Please try again later.");
         }
 
         // Find user
         User user = User.findByEmailOrUsername(request.identifier);
         if (user == null || !user.isActiveAndVerified()) {
-            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
-            throw new NotAuthorizedException("Invalid credentials");
+            rateLimitService.recordFailedAttempt(request.identifier, ipAddress);
+            throw unauthorized("Invalid credentials");
         }
 
         // Verify password
         Credential credential = Credential.findByUserId(user.id);
         if (credential == null || !passwordService.verifyPassword(request.password, credential.passwordHash)) {
-            LoginAttempt.recordAttempt(request.identifier, ipAddress, false);
-            throw new NotAuthorizedException("Invalid credentials");
+            rateLimitService.recordFailedAttempt(request.identifier, ipAddress);
+            throw unauthorized("Invalid credentials");
         }
 
         // Record successful login
@@ -79,7 +100,7 @@ public class AuthService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.user = user;
         refreshToken.token = refreshTokenValue;
-        refreshToken.expiresAt = OffsetDateTime.now().plusDays(7); // TODO: Make configurable
+        refreshToken.expiresAt = OffsetDateTime.now().plus(jwtService.getRefreshTokenExpiration());
         refreshToken.persist();
 
         // Create response
@@ -94,16 +115,18 @@ public class AuthService {
             Map.of("method", "password", "ipAddress", ipAddress), 
             ipAddress, userAgent);
 
-        // Publish login event
+        // Publish login event (o EventPublisher só envia depois do commit). O sessionId é o id da linha
+        // do refresh token: identifica a sessão sem autenticar nada. O próprio token é credencial de 7
+        // dias, e no evento ia para o tópico do broker e para o log de quem lesse o payload.
         try {
             UserLoggedInEvent loginEvent = new UserLoggedInEvent(
                 user.id,
                 user.email,
                 user.username,
-                user.roles.stream().map(role -> role.name).collect(Collectors.toSet()),
+                roleNames(user),
                 "password",
                 user.lastLogin,
-                refreshTokenValue, // Using refresh token as session ID
+                sessionId(refreshToken),
                 ipAddress,
                 userAgent
             );
@@ -165,29 +188,9 @@ public class AuthService {
         user.persist();
 
         // Log audit event
-        AuditLog.log(user, "USER_CREATED", 
-            Map.of("method", "registration", "ipAddress", ipAddress), 
+        AuditLog.log(user, "USER_CREATED",
+            Map.of("method", "registration", "ipAddress", ipAddress),
             ipAddress, userAgent);
-
-        // Publish user created event
-        try {
-            Set<String> roleNames = user.roles != null ? 
-                user.roles.stream().map(role -> role.name).collect(Collectors.toSet()) : 
-                Set.of();
-            UserCreatedEvent userCreatedEvent = new UserCreatedEvent(
-                user.id,
-                user.email,
-                user.username,
-                roleNames,
-                user.isVerified,
-                "registration",
-                ipAddress,
-                userAgent
-            );
-            eventPublisher.publishEvent(userCreatedEvent);
-        } catch (Exception e) {
-            LOGGER.warn("Failed to publish user created event for user: {}", user.email, e);
-        }
 
         // For now, auto-verify user (in production, send verification email)
         user.isVerified = true;
@@ -211,6 +214,25 @@ public class AuthService {
         response.expiresIn = jwtService.getAccessTokenExpirationSeconds();
         response.user = mapToUserResponse(user);
 
+        // Publish user created event: montado depois da verificação automática, com o estado final do
+        // usuário (antes saía com isVerified=false). O EventPublisher só envia depois do commit, então
+        // um cadastro que falha no commit (e-mail duplicado em corrida) não anuncia usuário nenhum.
+        try {
+            UserCreatedEvent userCreatedEvent = new UserCreatedEvent(
+                user.id,
+                user.email,
+                user.username,
+                roleNames(user),
+                user.isVerified,
+                "registration",
+                ipAddress,
+                userAgent
+            );
+            eventPublisher.publishEvent(userCreatedEvent);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to publish user created event for user: {}", user.email, e);
+        }
+
         return response;
     }
 
@@ -218,12 +240,12 @@ public class AuthService {
     public LoginResponse refreshToken(RefreshTokenRequest request) {
         RefreshToken refreshToken = RefreshToken.findValidToken(request.refreshToken);
         if (refreshToken == null) {
-            throw new NotAuthorizedException("Invalid or expired refresh token");
+            throw unauthorized("Invalid or expired refresh token");
         }
 
         User user = refreshToken.user;
         if (!user.isActiveAndVerified()) {
-            throw new NotAuthorizedException("User account is not active");
+            throw unauthorized("User account is not active");
         }
 
         // Generate new access token
@@ -257,7 +279,7 @@ public class AuthService {
                     user.id,
                     user.email,
                     user.username,
-                    refreshTokenValue,
+                    sessionId(refreshToken),
                     "user_initiated",
                     ipAddress,
                     userAgent
@@ -314,8 +336,13 @@ public class AuthService {
             LOGGER.warn("Failed to publish password reset requested event for user: {}", user.email, e);
         }
 
-        // TODO: Send email with reset link
-        // emailService.sendPasswordResetEmail(user.email, resetToken.token);
+        // Send password reset email asynchronously
+        emailService.sendPasswordResetEmail(user.email, resetToken.token)
+                .subscribe()
+                .with(
+                    unused -> LOGGER.info("Password reset email sent successfully to: {}", user.email),
+                    throwable -> LOGGER.error("Failed to send password reset email to: {}", user.email, throwable)
+                );
     }
 
     @Transactional
@@ -340,6 +367,12 @@ public class AuthService {
         User user = resetToken.user;
         if (!user.isActive) {
             throw new BadRequestException("User account is not active");
+        }
+
+        // Consome o token numa única instrução condicional, antes de trocar a senha: com duas
+        // requisições concorrentes usando o mesmo token, só uma consegue marcá-lo como usado.
+        if (!PasswordResetToken.consume(resetToken.id)) {
+            throw new BadRequestException("Invalid or expired reset token");
         }
 
         // Update password
@@ -377,64 +410,73 @@ public class AuthService {
     }
 
     public ValidateTokenResponse validateToken(ValidateTokenRequest request) {
+        JsonWebToken jwt;
         try {
-            // Parse JWT without verifying signature first to get claims
-            String[] tokenParts = request.getToken().split("\\.");
-            if (tokenParts.length != 3) {
-                return new ValidateTokenResponse(false, null, null, null, null);
-            }
-
-            // Decode payload
-            String payload = new String(java.util.Base64.getUrlDecoder().decode(tokenParts[1]));
-            
-            // Parse JSON claims manually (simple approach)
-            Map<String, Object> claims = parseJsonClaims(payload);
-            
-            String subject = (String) claims.get("sub");
-            String email = (String) claims.get("email");
-            String username = (String) claims.get("username");
-            
-            if (subject == null || email == null) {
-                return new ValidateTokenResponse(false, null, null, null, null);
-            }
-
-            // Check if user exists and is active
-            User user = User.findById(UUID.fromString(subject));
-            if (user == null || !user.isActive) {
-                return new ValidateTokenResponse(false, null, null, null, null);
-            }
-
-            // Get user roles
-            java.util.List<String> roles = user.roles != null ? 
-                user.roles.stream().map(role -> role.name).collect(java.util.stream.Collectors.toList()) :
-                java.util.List.of();
-
-            return new ValidateTokenResponse(true, username, email, roles, subject);
-            
-        } catch (Exception e) {
+            // Verifica assinatura (mp.jwt.verify.publickey.location), emissor (mp.jwt.verify.issuer)
+            // e expiração. Antes o payload era só decodificado em Base64, sem conferir a assinatura:
+            // qualquer token montado à mão com o sub e o email de um usuário passava como válido.
+            jwt = jwtParser.parse(request.getToken());
+        } catch (ParseException e) {
             LOGGER.debug("Token validation failed: {}", e.getMessage());
-            return new ValidateTokenResponse(false, null, null, null, null);
+            return invalidToken();
         }
+
+        String subject = jwt.getSubject();
+        String email = stringClaim(jwt, "email");
+        String username = stringClaim(jwt, "username");
+
+        // O refresh token não leva email: só o access token serve para autenticar
+        if (subject == null || email == null) {
+            return invalidToken();
+        }
+
+        // Check if user exists and is active
+        User user;
+        try {
+            user = User.findById(UUID.fromString(subject));
+        } catch (IllegalArgumentException e) {
+            return invalidToken();
+        }
+        if (user == null || !Boolean.TRUE.equals(user.isActive)) {
+            return invalidToken();
+        }
+
+        return new ValidateTokenResponse(true, username, email, List.copyOf(roleNames(user)), subject);
     }
 
-    private Map<String, Object> parseJsonClaims(String json) {
-        // Simple JSON parsing for JWT claims
-        Map<String, Object> claims = new java.util.HashMap<>();
-        
-        // Remove braces and split by comma
-        json = json.trim().substring(1, json.length() - 1);
-        String[] pairs = json.split(",");
-        
-        for (String pair : pairs) {
-            String[] keyValue = pair.split(":", 2);
-            if (keyValue.length == 2) {
-                String key = keyValue[0].trim().replace("\"", "");
-                String value = keyValue[1].trim().replace("\"", "");
-                claims.put(key, value);
-            }
+    private static ValidateTokenResponse invalidToken() {
+        return new ValidateTokenResponse(false, null, null, null, null);
+    }
+
+    private static String stringClaim(JsonWebToken jwt, String name) {
+        Object value = jwt.getClaim(name);
+        if (value instanceof JsonString jsonString) {
+            return jsonString.getString();
         }
-        
-        return claims;
+        return value != null ? value.toString() : null;
+    }
+
+    // NotAuthorizedException(Object, Object...) recebe o challenge do WWW-Authenticate, não a mensagem:
+    // com new NotAuthorizedException("Invalid credentials") o getMessage() virava "HTTP 401 Unauthorized"
+    // e era isso que chegava no corpo de erro da API.
+    private static NotAuthorizedException unauthorized(String message) {
+        return new NotAuthorizedException(message, "Bearer");
+    }
+
+    // Identificador de sessão dos eventos: o id (UUID) da linha do refresh token, já atribuído no
+    // persist(). Não serve para renovar a sessão; o valor do token, que serve, nunca vai para evento.
+    private static String sessionId(RefreshToken refreshToken) {
+        return refreshToken.id != null ? refreshToken.id.toString() : null;
+    }
+
+    // Usuário sem papel atribuído tem roles == null enquanto a entidade não volta do banco.
+    private static Set<String> roleNames(User user) {
+        if (user.roles == null) {
+            return Set.of();
+        }
+        return user.roles.stream()
+            .map(role -> role.name)
+            .collect(Collectors.toSet());
     }
 
     private LoginResponse.UserResponse mapToUserResponse(User user) {
@@ -442,9 +484,7 @@ public class AuthService {
         userResponse.id = user.id.toString();
         userResponse.email = user.email;
         userResponse.username = user.username;
-        userResponse.roles = user.roles.stream()
-            .map(role -> role.name)
-            .collect(Collectors.toSet());
+        userResponse.roles = roleNames(user);
         userResponse.lastLogin = user.lastLogin;
         userResponse.isActive = user.isActive;
         userResponse.isVerified = user.isVerified;

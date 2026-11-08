@@ -1,8 +1,10 @@
--- Script de inicialização para Oracle
--- Conectar ao PDB (Pluggable Database)
-ALTER SESSION SET CONTAINER = ORCLPDB1;
+-- Script de inicialização para Oracle Database Free (gvenzl/oracle-free)
+-- Roda uma vez, na primeira inicialização do volume, como SYS no CDB (/container-entrypoint-initdb.d).
+-- Conectar ao PDB (Pluggable Database) padrão do Oracle Free
+ALTER SESSION SET CONTAINER = FREEPDB1;
 
--- Criar usuário para a aplicação (caso não exista)
+-- Criar usuário para a aplicação (caso não exista; com APP_USER=vortex_user no compose a imagem já
+-- o cria, e o ORA-01920 abaixo é ignorado)
 BEGIN
    EXECUTE IMMEDIATE 'CREATE USER vortex_user IDENTIFIED BY vortex_password';
 EXCEPTION

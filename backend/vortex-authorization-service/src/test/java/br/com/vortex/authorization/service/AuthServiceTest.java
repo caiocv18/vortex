@@ -7,17 +7,27 @@ import br.com.vortex.authorization.security.JwtService;
 import br.com.vortex.authorization.security.PasswordService;
 import br.com.vortex.authorization.util.TestDataBuilder;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectMock;
+import io.quarkus.test.junit.mockito.InjectSpy;
+import io.quarkus.test.InjectMock;
+import io.quarkus.test.TestTransaction;
+import io.smallrye.jwt.build.Jwt;
+import io.smallrye.jwt.build.JwtClaimsBuilder;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,9 +42,15 @@ class AuthServiceTest {
     @Inject
     AuthService authService;
     
-    @InjectMock
+    // Spy, não mock: login e registro fixam os tokens com doReturn, e os testes de validate-token
+    // usam a geração real, assinada com a chave de teste (src/test/resources/jwt-test)
+    @InjectSpy
     JwtService jwtService;
-    
+
+    @Inject
+    @ConfigProperty(name = "mp.jwt.verify.issuer")
+    String expectedIssuer;
+
     @InjectMock
     PasswordService passwordService;
     
@@ -52,24 +68,30 @@ class AuthServiceTest {
     private static final String TEST_ACCESS_TOKEN = "test.access.token";
     private static final String TEST_REFRESH_TOKEN = "test.refresh.token";
     
+    // Os testes usam @TestTransaction (rollback ao fim de cada um): com @Transactional os dados
+    // ficavam commitados e o mesmo refresh token "test.refresh.token" violava a unique constraint
+    // no teste seguinte.
     @BeforeEach
     void setUp() {
         Mockito.reset(jwtService, passwordService, rateLimitService, eventPublisher);
+        // Mock de boolean devolve false: sem este stub o login e o forgot-password eram barrados
+        // pelo rate limit. O teste de bloqueio sobrescreve com os argumentos dele.
+        when(rateLimitService.isAllowed(anyString(), anyString())).thenReturn(true);
     }
     
     @Test
     @Order(1)
     @DisplayName("Should successfully register a new user with valid data")
-    @Transactional
+    @TestTransaction
     void testRegisterSuccess() {
         // Arrange
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
         
         when(passwordService.isValidPassword(request.password)).thenReturn(true);
         when(passwordService.hashPassword(request.password)).thenReturn("hashedPassword");
-        when(jwtService.generateAccessToken(any(User.class))).thenReturn(TEST_ACCESS_TOKEN);
-        when(jwtService.generateRefreshToken(any(User.class))).thenReturn(TEST_REFRESH_TOKEN);
-        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(3600L);
+        doReturn(TEST_ACCESS_TOKEN).when(jwtService).generateAccessToken(any(User.class));
+        doReturn(TEST_REFRESH_TOKEN).when(jwtService).generateRefreshToken(any(User.class));
+        doReturn(3600L).when(jwtService).getAccessTokenExpirationSeconds();
         
         // Act
         LoginResponse response = authService.register(request, TEST_IP, TEST_USER_AGENT);
@@ -93,7 +115,9 @@ class AuthServiceTest {
         assertEquals(request.username, event.username);
         assertEquals("registration", event.registrationMethod);
         assertEquals(TEST_IP, event.ipAddress);
-        
+        // O evento é montado depois da verificação automática: sai com o estado final do usuário
+        assertTrue(event.isVerified, "user.created não pode sair com isVerified=false de um usuário já verificado");
+
         // Verify password was hashed
         verify(passwordService).hashPassword(request.password);
         
@@ -148,7 +172,7 @@ class AuthServiceTest {
     @Test
     @Order(4)
     @DisplayName("Should fail registration when email already exists")
-    @Transactional
+    @TestTransaction
     void testRegisterDuplicateEmail() {
         // Arrange
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
@@ -175,7 +199,7 @@ class AuthServiceTest {
     @Test
     @Order(5)
     @DisplayName("Should fail registration when username already exists")
-    @Transactional
+    @TestTransaction
     void testRegisterDuplicateUsername() {
         // Arrange
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
@@ -203,7 +227,7 @@ class AuthServiceTest {
     @Test
     @Order(6)
     @DisplayName("Should successfully login with valid credentials")
-    @Transactional
+    @TestTransaction
     void testLoginSuccess() {
         // Arrange
         String password = "Test@Password123";
@@ -219,9 +243,9 @@ class AuthServiceTest {
         
         when(rateLimitService.isAllowed(request.identifier, TEST_IP)).thenReturn(true);
         when(passwordService.verifyPassword(password, hashedPassword)).thenReturn(true);
-        when(jwtService.generateAccessToken(any(User.class))).thenReturn(TEST_ACCESS_TOKEN);
-        when(jwtService.generateRefreshToken(any(User.class))).thenReturn(TEST_REFRESH_TOKEN);
-        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(3600L);
+        doReturn(TEST_ACCESS_TOKEN).when(jwtService).generateAccessToken(any(User.class));
+        doReturn(TEST_REFRESH_TOKEN).when(jwtService).generateRefreshToken(any(User.class));
+        doReturn(3600L).when(jwtService).getAccessTokenExpirationSeconds();
         
         // Act
         LoginResponse response = authService.login(request, TEST_IP, TEST_USER_AGENT);
@@ -242,7 +266,13 @@ class AuthServiceTest {
         assertEquals(user.email, event.userEmail);
         assertEquals("password", event.loginMethod);
         assertEquals(TEST_IP, event.ipAddress);
-        
+
+        // O sessionId é o id da linha do refresh token, nunca o token (credencial de 7 dias)
+        RefreshToken stored = RefreshToken.findByToken(TEST_REFRESH_TOKEN);
+        assertEquals(stored.id.toString(), event.sessionId);
+        assertNotEquals(TEST_REFRESH_TOKEN, event.sessionId);
+        assertFalse(event.details.containsValue(TEST_REFRESH_TOKEN), "details também não pode levar o token");
+
         // Verify rate limiting was checked
         verify(rateLimitService).isAllowed(request.identifier, TEST_IP);
     }
@@ -250,7 +280,7 @@ class AuthServiceTest {
     @Test
     @Order(7)
     @DisplayName("Should fail login with invalid password")
-    @Transactional
+    @TestTransaction
     void testLoginInvalidPassword() {
         // Arrange
         String password = "Test@Password123";
@@ -304,7 +334,7 @@ class AuthServiceTest {
     @Test
     @Order(9)
     @DisplayName("Should fail login when user is inactive")
-    @Transactional
+    @TestTransaction
     void testLoginInactiveUser() {
         // Arrange
         User user = TestDataBuilder.createInactiveUser();
@@ -350,7 +380,7 @@ class AuthServiceTest {
     @Test
     @Order(11)
     @DisplayName("Should successfully refresh token with valid refresh token")
-    @Transactional
+    @TestTransaction
     void testRefreshTokenSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -361,8 +391,8 @@ class AuthServiceTest {
         
         RefreshTokenRequest request = TestDataBuilder.createRefreshTokenRequest(TEST_REFRESH_TOKEN);
         
-        when(jwtService.generateAccessToken(any(User.class))).thenReturn(TEST_ACCESS_TOKEN);
-        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(3600L);
+        doReturn(TEST_ACCESS_TOKEN).when(jwtService).generateAccessToken(any(User.class));
+        doReturn(3600L).when(jwtService).getAccessTokenExpirationSeconds();
         
         // Act
         LoginResponse response = authService.refreshToken(request);
@@ -395,7 +425,7 @@ class AuthServiceTest {
     @Test
     @Order(13)
     @DisplayName("Should successfully logout and revoke refresh token")
-    @Transactional
+    @TestTransaction
     void testLogoutSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -414,7 +444,9 @@ class AuthServiceTest {
         assertEquals(user.email, event.userEmail);
         assertEquals("user_initiated", event.logoutReason);
         assertEquals(TEST_IP, event.ipAddress);
-        
+        assertEquals(refreshToken.id.toString(), event.sessionId);
+        assertNotEquals(TEST_REFRESH_TOKEN, event.sessionId);
+
         // Verify token was revoked
         entityManager.flush();
         entityManager.clear();
@@ -425,7 +457,7 @@ class AuthServiceTest {
     @Test
     @Order(14)
     @DisplayName("Should handle forgot password request successfully")
-    @Transactional
+    @TestTransaction
     void testForgotPasswordSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -465,7 +497,7 @@ class AuthServiceTest {
     @Test
     @Order(16)
     @DisplayName("Should successfully reset password with valid token")
-    @Transactional
+    @TestTransaction
     void testResetPasswordSuccess() {
         // Arrange
         User user = TestDataBuilder.createTestUser();
@@ -529,24 +561,33 @@ class AuthServiceTest {
     @Test
     @Order(18)
     @DisplayName("Should validate token and return user information")
+    @TestTransaction
     void testValidateTokenSuccess() {
         // Arrange
-        String userId = UUID.randomUUID().toString();
         String email = "user@test.com";
         String username = "testuser";
-        String tokenString = createMockJwtToken(userId, email, username);
-        
+
+        // O id é @GeneratedValue: persiste primeiro e monta o token com o id gerado
+        // (atribuir um UUID antes do persist faz o Hibernate tratar a entidade como detached).
         User user = TestDataBuilder.createTestUser();
-        user.id = UUID.fromString(userId);
         user.email = email;
         user.username = username;
-        user.persist();
-        
-        Role userRole = TestDataBuilder.createUserRole();
-        userRole.persist();
+
+        // roles.name é único e o papel USER já vem do import.sql (ou de outro teste)
+        Role userRole = Role.findUserRole();
+        if (userRole == null) {
+            userRole = TestDataBuilder.createUserRole();
+            userRole.persist();
+        }
         user.roles = Set.of(userRole);
         user.persist();
-        
+
+        String userId = user.id.toString();
+        // Token emitido pelo próprio JwtService (spy sem stub = método real), assinado com a chave
+        // de teste. O token montado à mão que ficava aqui tinha assinatura de mentira e só passava
+        // porque o validateToken não conferia a assinatura (ver testValidateTokenRejectsForgedSignature).
+        String tokenString = jwtService.generateAccessToken(user);
+
         ValidateTokenRequest request = TestDataBuilder.createValidateTokenRequest(tokenString);
         
         // Act
@@ -577,7 +618,115 @@ class AuthServiceTest {
         assertNull(response.getUserId());
         assertNull(response.getRoles());
     }
-    
+
+    @Test
+    @Order(20)
+    @DisplayName("Should reject tokens not signed with the service key")
+    @TestTransaction
+    void testValidateTokenRejectsForgedSignature() throws Exception {
+        User user = persistActiveUserWithUserRole();
+        String userId = user.id.toString();
+
+        // O token legítimo passa: o que muda nos casos abaixo é só a assinatura
+        String genuine = jwtService.generateAccessToken(user);
+        assertTrue(validate(genuine).isValid());
+
+        // 1. Token montado à mão com assinatura de mentira (o que o validateToken antigo aceitava)
+        assertInvalid(createMockJwtToken(userId, user.email, user.username));
+
+        // 2. Mesmas claims e emissor certo, assinado com outra chave RSA
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        PrivateKey foreignKey = generator.generateKeyPair().getPrivate();
+        assertInvalid(accessTokenClaims(user, expectedIssuer)
+            .expiresAt(Instant.now().plus(10, ChronoUnit.MINUTES))
+            .sign(foreignKey));
+
+        // 3. Token legítimo com o payload adulterado (outro e-mail) e a assinatura original
+        String[] parts = genuine.split("\\.");
+        String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8)
+            .replace(user.email, "attacker@evil.example");
+        String tampered = parts[0] + "."
+            + Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8))
+            + "." + parts[2];
+        assertInvalid(tampered);
+    }
+
+    @Test
+    @Order(21)
+    @DisplayName("Should reject an expired token signed with the service key")
+    @TestTransaction
+    void testValidateTokenRejectsExpiredToken() {
+        User user = persistActiveUserWithUserRole();
+
+        // Assinatura e emissor corretos; venceu há 1 hora (bem além da tolerância de relógio)
+        String expired = accessTokenClaims(user, expectedIssuer)
+            .issuedAt(Instant.now().minus(2, ChronoUnit.HOURS))
+            .expiresAt(Instant.now().minus(1, ChronoUnit.HOURS))
+            .sign();
+
+        assertInvalid(expired);
+    }
+
+    @Test
+    @Order(22)
+    @DisplayName("Should reject a token from another issuer signed with the service key")
+    @TestTransaction
+    void testValidateTokenRejectsWrongIssuer() {
+        User user = persistActiveUserWithUserRole();
+        Instant expiresAt = Instant.now().plus(10, ChronoUnit.MINUTES);
+
+        // Controle: as mesmas claims com o emissor configurado passam
+        assertTrue(validate(accessTokenClaims(user, expectedIssuer).expiresAt(expiresAt).sign()).isValid());
+
+        assertInvalid(accessTokenClaims(user, "https://attacker.example").expiresAt(expiresAt).sign());
+    }
+
+    @Test
+    @Order(23)
+    @DisplayName("Should reject a refresh token: only access tokens authenticate")
+    @TestTransaction
+    void testValidateTokenRejectsRefreshToken() {
+        User user = persistActiveUserWithUserRole();
+
+        assertInvalid(jwtService.generateRefreshToken(user));
+    }
+
+    private User persistActiveUserWithUserRole() {
+        User user = TestDataBuilder.createTestUser();
+        Role userRole = Role.findUserRole();
+        if (userRole == null) {
+            userRole = TestDataBuilder.createUserRole();
+            userRole.persist();
+        }
+        user.roles = Set.of(userRole);
+        user.persist();
+        return user;
+    }
+
+    // Mesmas claims que o JwtService.generateAccessToken grava, com o emissor escolhido pelo teste
+    private JwtClaimsBuilder accessTokenClaims(User user, String issuer) {
+        return Jwt.issuer(issuer)
+            .upn(user.email)
+            .subject(user.id.toString())
+            .claim("username", user.username)
+            .claim("email", user.email)
+            .claim("roles", Set.of("USER"));
+    }
+
+    private ValidateTokenResponse validate(String token) {
+        return authService.validateToken(TestDataBuilder.createValidateTokenRequest(token));
+    }
+
+    private void assertInvalid(String token) {
+        ValidateTokenResponse response = validate(token);
+        assertFalse(response.isValid());
+        assertNull(response.getUsername());
+        assertNull(response.getEmail());
+        assertNull(response.getUserId());
+        assertNull(response.getRoles());
+    }
+
     private String createMockJwtToken(String userId, String email, String username) {
         // Create a simple mock JWT token structure (header.payload.signature)
         String header = java.util.Base64.getUrlEncoder().encodeToString("{}".getBytes());

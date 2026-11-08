@@ -30,3 +30,5 @@ coverage
 
 test-results/
 playwright-report/
+# storageState com tokens, gerado pelo e2e/auth.setup.ts
+/playwright/.auth/

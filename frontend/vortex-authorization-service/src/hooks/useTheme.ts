@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { getAuthThemeByName, defaultAuthTheme, type AuthColorTheme } from '@/themes/colorThemes'
+import { getAuthThemeByName, defaultAuthTheme } from '@/themes/colorThemes'
 
 // Hook para gerenciar tema de cores no frontend de autorização
 export function useTheme() {
@@ -39,13 +39,14 @@ export function useTheme() {
         '0 0 0'
     }
     
-    // Aplicar variáveis CSS para Tailwind
+    // Aplicar variáveis CSS para Tailwind (lidas pelo @theme inline de src/index.css).
+    // Prefixo --vx-: o --tw- é reservado às variáveis internas do Tailwind 4.
     Object.entries(primary).forEach(([key, value]) => {
-      root.style.setProperty(`--tw-color-primary-${key}`, hexToRgb(value))
+      root.style.setProperty(`--vx-primary-${key}`, hexToRgb(value))
     })
-    
+
     Object.entries(secondary).forEach(([key, value]) => {
-      root.style.setProperty(`--tw-color-secondary-${key}`, hexToRgb(value))
+      root.style.setProperty(`--vx-secondary-${key}`, hexToRgb(value))
     })
     
     console.log(`🎨 [Auth Theme] Applied ${themeConfig.displayName} theme (${selectedTheme})`)

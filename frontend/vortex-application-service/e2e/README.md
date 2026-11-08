@@ -57,9 +57,20 @@ Este diretório contém todos os testes end-to-end (E2E) para a aplicação Sist
 
 ### Pré-requisitos
 
-1. Certifique-se de que o backend está rodando na porta 8080
+1. Certifique-se de que o backend está rodando na porta 8080 e o serviço de autorização na 8081
+   (por exemplo `./start-vortex.sh --modo leve -e dev -m none`, que também serve os dois
+   frontends compilados nas portas 5173 e 3001)
 2. Instale as dependências do frontend: `npm install`
 3. Instale os browsers do Playwright: `npx playwright install`
+
+### Autenticação
+
+Todas as rotas exigem login. O projeto `setup` (`auth.setup.ts`) roda antes dos projetos de
+browser: cadastra um usuário novo em `POST /api/auth/register`, faz login em `/api/auth/login` e
+grava `playwright/.auth/user.json` (fora do git) com as chaves de localStorage que o app lê:
+`accessToken`, `refreshToken` e `vortex_user`. O `auth.spec.ts` roda sem sessão e prova que a
+visita é redirecionada para o app de login. URLs: `PLAYWRIGHT_AUTH_API_URL` (padrão
+`http://localhost:8081`) e `PLAYWRIGHT_AUTH_APP_URL` (padrão `http://localhost:3001`).
 
 ### Comandos de Execução
 
@@ -81,7 +92,15 @@ npx playwright test --project=chromium
 
 # Executar testes em modo debug
 npx playwright test --debug
+
+# Testar o container do docker compose (porta 3000), que precisa já estar de pé
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
+
+Com `PLAYWRIGHT_BASE_URL` definida, o Playwright testa essa URL como está e não sobe servidor
+nenhum: se o container não responder, o projeto `setup` falha no primeiro `page.goto`. Sem a
+variável, o alvo é `http://localhost:5173` e o Playwright reaproveita o que já responde na porta
+(dev server ou o modo leve) ou sobe o dev server do Vite.
 
 ### Relatórios
 
@@ -100,7 +119,8 @@ A configuração dos testes está em `playwright.config.ts`:
 
 - **Timeout**: 30 segundos por teste
 - **Browsers**: Chromium, Firefox, WebKit
-- **Base URL**: http://localhost:5173 (dev) / http://localhost:4173 (preview)
+- **Base URL**: http://localhost:5173 (dev server; no CI, `vite preview` na mesma porta), ou a
+  URL de `PLAYWRIGHT_BASE_URL`, já no ar, sem servidor subido pelo Playwright
 - **Retry**: 2 tentativas em CI
 - **Traces**: Capturados em caso de falha
 

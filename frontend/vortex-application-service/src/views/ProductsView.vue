@@ -132,10 +132,11 @@ const getProductTypeName = (typeId: number | undefined) => {
 </script>
 
 <template>
+  <!-- Sem margem no título: o gap do grid do Vuetify 4 (24px) já separa o título do card -->
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-6">Produtos</h1>
+        <h1 class="text-headline-large">Produtos</h1>
       </v-col>
     </v-row>
 
@@ -143,7 +144,7 @@ const getProductTypeName = (typeId: number | undefined) => {
       <v-col cols="12">
         <v-card>
           <v-card-title>
-            <v-row align="center">
+            <v-row class="align-center">
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="search"
@@ -218,7 +219,7 @@ const getProductTypeName = (typeId: number | undefined) => {
     <v-dialog v-model="dialog" max-width="600px">
       <v-card>
         <v-card-title>
-          <span class="text-h5">{{ editMode ? 'Editar' : 'Novo' }} Produto</span>
+          <span class="text-headline-small">{{ editMode ? 'Editar' : 'Novo' }} Produto</span>
         </v-card-title>
         <v-card-text>
           <v-form @submit.prevent="onSubmit">
@@ -280,7 +281,7 @@ const getProductTypeName = (typeId: number | undefined) => {
     <!-- Dialog de confirmação de exclusão -->
     <v-dialog v-model="deleteDialog" max-width="400px">
       <v-card>
-        <v-card-title class="text-h5">Confirmar Exclusão</v-card-title>
+        <v-card-title class="text-headline-small">Confirmar Exclusão</v-card-title>
         <v-card-text>
           Tem certeza que deseja excluir o produto "{{ selectedProduct?.descricao }}"?
           <v-alert type="warning" variant="tonal" class="mt-3">

@@ -51,6 +51,16 @@ public class PasswordResetToken extends PanacheEntityBase {
                    token, OffsetDateTime.now()).firstResult();
     }
 
+    /**
+     * Marca o token como usado só se ele ainda estiver válido, numa única instrução UPDATE.
+     * O banco serializa as atualizações concorrentes da mesma linha, então só uma transação
+     * recebe 1 linha afetada; as demais recebem 0 e devem tratar o token como inválido.
+     */
+    public static boolean consume(UUID tokenId) {
+        return update("used = true WHERE id = ?1 AND used = false AND expiresAt > ?2",
+                      tokenId, OffsetDateTime.now()) == 1;
+    }
+
     @Transactional
     public static void expireAllUserTokens(UUID userId) {
         List<PasswordResetToken> tokens = list("user.id = ?1 AND used = false", userId);

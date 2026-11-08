@@ -15,17 +15,25 @@ test.describe('Reports Page', () => {
     // Aguarda os cards de estatísticas carregarem
     await page.waitForSelector('.v-card', { timeout: 10000 })
     
+    // Card de estatística pelo rótulo exato. O relatório de lucro por produto também tem a
+    // coluna "Lucro Total" na tabela, então o card de estatística é o que não contém tabela.
+    const statCard = (label: string) =>
+      page
+        .locator('.v-card')
+        .filter({ has: page.getByText(label, { exact: true }) })
+        .filter({ hasNot: page.getByRole('table') })
+
     // Verifica se os cards de estatísticas estão presentes
-    await expect(page.locator('text=Receita Total')).toBeVisible()
-    await expect(page.locator('text=Custo Total')).toBeVisible()
-    await expect(page.locator('text=Lucro Total')).toBeVisible()
-    await expect(page.locator('text=Margem de Lucro')).toBeVisible()
-    
+    await expect(statCard('Receita Total').getByText('Receita Total')).toBeVisible()
+    await expect(statCard('Custo Total').getByText('Custo Total')).toBeVisible()
+    await expect(statCard('Lucro Total').getByText('Lucro Total')).toBeVisible()
+    await expect(statCard('Margem de Lucro').getByText('Margem de Lucro')).toBeVisible()
+
     // Verifica se os valores estão formatados corretamente
-    const revenueCard = page.locator('.v-card:has-text("Receita Total")')
-    const costCard = page.locator('.v-card:has-text("Custo Total")')
-    const profitCard = page.locator('.v-card:has-text("Lucro Total")')
-    const marginCard = page.locator('.v-card:has-text("Margem de Lucro")')
+    const revenueCard = statCard('Receita Total')
+    const costCard = statCard('Custo Total')
+    const profitCard = statCard('Lucro Total')
+    const marginCard = statCard('Margem de Lucro')
     
     await expect(revenueCard).toBeVisible()
     await expect(costCard).toBeVisible()
@@ -95,38 +103,29 @@ test.describe('Reports Page', () => {
   })
 
   test('displays products by type chart when type is selected', async ({ page }) => {
-    // Aguarda a página carregar
-    await page.waitForTimeout(3000)
-    
-    // Procura por um select de tipo de produto
-    const typeSelect = page.locator('.v-select')
-    
-    if (await typeSelect.count() > 0) {
-      // Clica no select
-      await typeSelect.first().click()
-      await page.waitForTimeout(1000)
-      
-      // Seleciona a primeira opção se houver
-      const firstOption = page.locator('.v-list-item').first()
-      if (await firstOption.isVisible()) {
-        await firstOption.click()
-        
-        // Procura por botão para carregar relatório
-        const loadButton = page.locator('button:has-text("Carregar"), button:has-text("Gerar")')
-        if (await loadButton.isVisible()) {
-          await loadButton.click()
-          
-          // Aguarda o gráfico carregar
-          await page.waitForTimeout(3000)
-          
-          // Verifica se o gráfico apareceu
-          const chartCanvas = page.locator('canvas')
-          if (await chartCanvas.count() > 0) {
-            await expect(chartCanvas.first()).toBeVisible()
-          }
-        }
-      }
-    }
+    // O relatório carrega ao escolher o tipo (@update:model-value); não há botão de carregar.
+    // O canvas é procurado só neste card: o relatório de lucro tem o próprio gráfico (pizza).
+    const typeReport = page
+      .locator('.v-card')
+      .filter({ has: page.getByText('Relatório de Produtos por Tipo') })
+    const barChart = typeReport.locator('canvas')
+    await expect(typeReport).toBeVisible()
+    await expect(barChart).toHaveCount(0)
+
+    // Abre o select pelo campo (combobox externo do v-select) e escolhe o primeiro tipo
+    await typeReport
+      .getByRole('combobox')
+      .filter({ has: page.getByRole('combobox', { name: 'Selecione um tipo de produto' }) })
+      .click()
+    const firstOption = page.getByRole('listbox').getByRole('option').first()
+    await expect(firstOption).toBeVisible()
+    await firstOption.click()
+
+    // O gráfico de barras aparece e tem tamanho de verdade
+    await expect(barChart).toBeVisible()
+    const box = await barChart.boundingBox()
+    expect(box?.width ?? 0).toBeGreaterThan(0)
+    expect(box?.height ?? 0).toBeGreaterThan(0)
   })
 
   test('charts are responsive', async ({ page }) => {
@@ -175,7 +174,8 @@ test.describe('Reports Page', () => {
     await page.waitForTimeout(5000)
     
     // Verifica se os cards não mostram valores padrão/zero
-    const statisticsCards = page.locator('.v-card .text-h5')
+    // Vuetify 4 (tipografia MD3): text-h5 virou text-headline-small
+    const statisticsCards = page.locator('.v-card .text-headline-small')
     
     if (await statisticsCards.count() > 0) {
       for (let i = 0; i < await statisticsCards.count(); i++) {
@@ -252,7 +252,7 @@ test.describe('Reports Page', () => {
     await page.waitForTimeout(5000)
     
     // Pega o valor inicial de um dos cards
-    const profitCard = page.locator('.v-card:has-text("Lucro Total") .text-h5')
+    const profitCard = page.locator('.v-card:has-text("Lucro Total") .text-headline-small')
     let initialValue = ''
     
     if (await profitCard.isVisible()) {

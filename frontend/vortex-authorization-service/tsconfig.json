@@ -20,8 +20,8 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path mapping */
-    "baseUrl": ".",
+    /* Path mapping: relativo a este tsconfig, sem baseUrl (depreciado no TS 6, removido no TS 7).
+       O alias de runtime fica em vite.config.ts (resolve.alias). */
     "paths": {
       "@/*": ["./src/*"]
     }
