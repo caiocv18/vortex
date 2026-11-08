@@ -1,3 +1,7 @@
+// Tem que ser o primeiro import: grava a sessão que o app de login devolve na URL e limpa a URL
+// antes de ./router ser avaliado (ver authCallbackEntry.ts)
+import './authCallbackEntry'
+
 // Vuetify 4: a ordem das @layer é declarada em public/layers.css (linkado no index.html).
 // 'vuetify/styles' continua antes do CSS da app. Componentes e diretivas entram sob
 // demanda pelo vite-plugin-vuetify (autoImport), sem import * de tudo.
@@ -11,7 +15,6 @@ import { createVuetify } from 'vuetify'
 
 import App from './App.vue'
 import router from './router'
-import { handleAuthCallback } from './utils/authCallback'
 
 // Import test utilities (for debugging)
 import './test-api'
@@ -54,9 +57,6 @@ const vuetify = createVuetify({
 
 // Tornar vuetify acessível globalmente para o tema (tipado em env.d.ts)
 window.vuetify = vuetify
-
-// Handle auth callback before app initialization
-handleAuthCallback()
 
 const app = createApp(App)
 

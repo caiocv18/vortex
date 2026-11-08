@@ -7,32 +7,15 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import { apiClient } from '@/api/config'
-import { AUTH_REFRESH_URL, redirectToLoginPage } from '@/api/authService'
+import { AUTH_REFRESH_URL, AUTH_REQUEST_TIMEOUT_MS, redirectToLoginPage } from '@/api/authService'
+import { createMemoryStorage } from '@/__tests__/memoryStorage'
+import { hangingAuthService, refreshResponse } from '@/__tests__/authServiceFakes'
 
 // O redirecionamento real troca window.location (o jsdom não navega): substitui só essa função
 vi.mock('@/api/authService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/authService')>()
   return { ...actual, redirectToLoginPage: vi.fn() }
 })
-
-// localStorage em memória (o interceptor e a store de auth leem os tokens de lá)
-function createMemoryStorage(): Storage {
-  const data = new Map<string, string>()
-  return {
-    get length() {
-      return data.size
-    },
-    clear: () => data.clear(),
-    getItem: (key: string) => data.get(key) ?? null,
-    key: (index: number) => [...data.keys()][index] ?? null,
-    removeItem: (key: string) => {
-      data.delete(key)
-    },
-    setItem: (key: string, value: string) => {
-      data.set(key, String(value))
-    },
-  }
-}
 
 // Backend da aplicação simulado: responde conforme o Authorization recebido e registra cada chamada
 function createBackend(statusFor: (authorization: string) => number) {
@@ -63,34 +46,6 @@ function createBackend(statusFor: (authorization: string) => number) {
   return { adapter, seen }
 }
 
-// Resposta do POST /api/auth/refresh no formato do serviço de autorização
-function refreshResponse(accessToken: string, refreshToken: string) {
-  return {
-    data: {
-      success: true,
-      message: 'Token refreshed successfully',
-      data: {
-        accessToken,
-        refreshToken,
-        tokenType: 'Bearer',
-        expiresIn: 900,
-        user: {
-          id: '1',
-          email: 'ana@vortex.dev',
-          username: 'ana',
-          roles: ['USER'],
-          isActive: true,
-          isVerified: true,
-        },
-      },
-    },
-    status: 200,
-    statusText: 'OK',
-    headers: {},
-    config: {},
-  }
-}
-
 const NEW_TOKEN_OK = (authorization: string) => (authorization === 'Bearer access-new' ? 200 : 401)
 
 describe('apiClient session refresh on 401', () => {
@@ -116,6 +71,7 @@ describe('apiClient session refresh on 401', () => {
 
   afterEach(() => {
     apiClient.defaults.adapter = originalAdapter
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
@@ -130,7 +86,11 @@ describe('apiClient session refresh on 401', () => {
     expect(response.status).toBe(200)
     expect(response.data).toEqual({ ok: true })
     expect(postSpy).toHaveBeenCalledTimes(1)
-    expect(postSpy).toHaveBeenCalledWith(AUTH_REFRESH_URL, { refreshToken: 'refresh-1' })
+    expect(postSpy).toHaveBeenCalledWith(
+      AUTH_REFRESH_URL,
+      { refreshToken: 'refresh-1' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
     expect(backend.seen).toEqual(['Bearer access-old', 'Bearer access-new'])
     expect(storage.getItem('accessToken')).toBe('access-new')
     expect(storage.getItem('refreshToken')).toBe('refresh-2')
@@ -193,6 +153,37 @@ describe('apiClient session refresh on 401', () => {
 
     expect(postSpy).toHaveBeenCalledTimes(1)
     expect(backend.seen).toEqual(['Bearer access-old', 'Bearer access-new'])
+    expect(storage.getItem('accessToken')).toBeNull()
+    expect(storage.getItem('refreshToken')).toBeNull()
+    expect(redirectToLoginPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('ends the session when the auth service never answers the refresh', async () => {
+    // Só os timers: promises e o adapter falso continuam reais
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const backend = createBackend(() => 401)
+    apiClient.defaults.adapter = backend.adapter
+    const authService = hangingAuthService()
+    postSpy.mockImplementation(authService.post)
+
+    const outcome = apiClient.get('/produtos').then(
+      () => 'resolved',
+      (error: AxiosError) => error.response?.status,
+    )
+
+    // Até o prazo, a requisição espera a renovação e ninguém é deslogado
+    await vi.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS - 1)
+    expect(postSpy).toHaveBeenCalledTimes(1)
+    expect(authService.signals).toHaveLength(1)
+    expect(authService.signals[0]!.aborted).toBe(false)
+    expect(storage.getItem('accessToken')).toBe('access-old')
+    expect(redirectToLoginPage).not.toHaveBeenCalled()
+
+    // No prazo: aborta a chamada e cai no caminho de refresh com falha (limpa e vai para o login)
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(outcome).resolves.toBe(401)
+    expect(authService.signals[0]!.aborted).toBe(true)
+    expect(backend.seen).toEqual(['Bearer access-old'])
     expect(storage.getItem('accessToken')).toBeNull()
     expect(storage.getItem('refreshToken')).toBeNull()
     expect(redirectToLoginPage).toHaveBeenCalledTimes(1)

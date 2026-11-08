@@ -1,7 +1,13 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import axios from 'axios'
-import { AUTH_FRONTEND_URL, AUTH_LOGOUT_URL, AUTH_REFRESH_URL } from '@/api/authService'
+import axios, { type AxiosResponse } from 'axios'
+import {
+  AUTH_LOGOUT_URL,
+  AUTH_REFRESH_URL,
+  AUTH_REQUEST_TIMEOUT_MS,
+  redirectToAuthPage,
+  type AuthPage,
+} from '@/api/authService'
 import { createLogger } from '@/utils/logger'
 
 export interface User {
@@ -27,6 +33,27 @@ interface AuthServiceResponse<T> {
   success: boolean
   message?: string
   data?: T
+}
+
+// POST ao backend do serviço de autorização que sempre termina em até AUTH_REQUEST_TIMEOUT_MS.
+// O axios global não tem timeout (o `timeout` de api/config.ts vale só para o apiClient), e o
+// refresh é single-flight: uma chamada pendurada deixava todo 401 esperando a mesma promise,
+// sem erro e sem redirecionamento. O timer rejeita a chamada mesmo que o transporte ignore o
+// abort; o abort cancela a requisição de verdade no browser.
+async function postToAuthService<T>(url: string, body: unknown): Promise<AxiosResponse<T>> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Auth service did not answer within ${AUTH_REQUEST_TIMEOUT_MS} ms: ${url}`))
+      controller.abort()
+    }, AUTH_REQUEST_TIMEOUT_MS)
+  })
+  try {
+    return await Promise.race([axios.post<T>(url, body, { signal: controller.signal }), timedOut])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -56,15 +83,11 @@ export const useAuthStore = defineStore('auth', () => {
   // Note: apiClient interceptors are already set up in api/config.ts
   // No need to duplicate them here
 
-  function redirectToAuth(action: 'login' | 'register' = 'login'): void {
+  function redirectToAuth(action: AuthPage = 'login'): void {
     logger.userAction(`Redirecting to auth service: ${action}`)
-    // Save current URL to return after authentication
-    const returnUrl = window.location.href
-    sessionStorage.setItem('vortex_return_url', returnUrl)
-    logger.debug('Return URL saved for post-auth redirect', { returnUrl })
-    
-    // Redirect to React auth frontend
-    window.location.href = `${AUTH_FRONTEND_URL}/${action}`
+    // A página atual vai em ?returnUrl= (ver buildAuthPageUrl). O sessionStorage não serve para
+    // isso: é por origem, e o app de login (outra origem) nunca enxergava o que era gravado aqui.
+    redirectToAuthPage(action)
   }
 
 
@@ -75,7 +98,8 @@ export const useAuthStore = defineStore('auth', () => {
       // Call logout endpoint if refresh token exists
       if (refreshToken.value) {
         logger.apiCall('POST', '/api/auth/logout')
-        await axios.post(AUTH_LOGOUT_URL, {
+        // Com prazo: um serviço de autorização que não responde não pode prender o usuário logado
+        await postToAuthService(AUTH_LOGOUT_URL, {
           refreshToken: refreshToken.value
         })
         logger.info('Server logout successful')
@@ -94,8 +118,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('vortex_user')
-      sessionStorage.removeItem('vortex_return_url')
-      
+
       logger.debug('All authentication data cleared from storage')
       
       // Redirect to React auth login
@@ -149,6 +172,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Single-flight: guard de rota, checkAuth e o interceptor 401 de api/config.ts
   // compartilham a mesma chamada a POST /api/auth/refresh enquanto ela estiver em andamento.
+  // A chamada termina em até AUTH_REQUEST_TIMEOUT_MS (postToAuthService), então a promise
+  // compartilhada sempre se resolve e a próxima renovação começa do zero.
   function attemptTokenRefresh(): Promise<boolean> {
     if (!refreshInFlight) {
       refreshInFlight = refreshTokens().finally(() => {
@@ -167,7 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       logger.debug('Initiating token refresh')
-      const response = await axios.post<AuthServiceResponse<LoginResponse>>(AUTH_REFRESH_URL, {
+      const response = await postToAuthService<AuthServiceResponse<LoginResponse>>(AUTH_REFRESH_URL, {
         refreshToken: storedRefreshToken
       })
 

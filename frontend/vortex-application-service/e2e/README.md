@@ -92,7 +92,15 @@ npx playwright test --project=chromium
 
 # Executar testes em modo debug
 npx playwright test --debug
+
+# Testar o container do docker compose (porta 3000), que precisa já estar de pé
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
+
+Com `PLAYWRIGHT_BASE_URL` definida, o Playwright testa essa URL como está e não sobe servidor
+nenhum: se o container não responder, o projeto `setup` falha no primeiro `page.goto`. Sem a
+variável, o alvo é `http://localhost:5173` e o Playwright reaproveita o que já responde na porta
+(dev server ou o modo leve) ou sobe o dev server do Vite.
 
 ### Relatórios
 
@@ -111,7 +119,8 @@ A configuração dos testes está em `playwright.config.ts`:
 
 - **Timeout**: 30 segundos por teste
 - **Browsers**: Chromium, Firefox, WebKit
-- **Base URL**: http://localhost:5173 (dev) / http://localhost:4173 (preview)
+- **Base URL**: http://localhost:5173 (dev server; no CI, `vite preview` na mesma porta), ou a
+  URL de `PLAYWRIGHT_BASE_URL`, já no ar, sem servidor subido pelo Playwright
 - **Retry**: 2 tentativas em CI
 - **Traces**: Capturados em caso de falha
 

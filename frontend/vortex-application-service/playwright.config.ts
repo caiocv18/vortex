@@ -3,11 +3,18 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * URL da aplicação sob teste. Padrão: dev server do Vite.
- * Ex.: PLAYWRIGHT_BASE_URL=http://localhost:3000 para testar o container.
+ * Aplicação sob teste.
+ * - Padrão: http://localhost:5173. Se a porta já responde (dev server aberto, ou o modo leve do
+ *   start-vortex.sh servindo o build), o Playwright reaproveita; senão sobe o dev server do Vite
+ *   (no CI, o `vite preview` do build).
+ * - PLAYWRIGHT_BASE_URL=<url>: testa uma aplicação que já está no ar e NÃO sobe servidor nenhum.
+ *   Ex.: PLAYWRIGHT_BASE_URL=http://localhost:3000 testa o container do docker compose. Se ele não
+ *   estiver de pé, o projeto setup falha no primeiro page.goto, em vez de a suíte cair calada num
+ *   dev server aberto na mesma porta.
  */
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
-const port = new URL(baseURL).port || '80'
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL
+const LOCAL_PORT = 5173
+const baseURL = externalBaseURL || `http://localhost:${LOCAL_PORT}`
 
 /**
  * Sessão autenticada gravada pelo projeto "setup" (e2e/auth.setup.ts, mesmo caminho de
@@ -117,18 +124,22 @@ export default defineConfig({
   /* Folder for test artifacts such as screenshots, videos, traces, etc. */
   // outputDir: 'test-results/',
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    /**
-     * Use the dev server by default for faster feedback loop.
-     * Use the preview server on CI for more realistic testing.
-     * Os dois sobem na porta da baseURL, então definir CI não muda mais a porta.
-     * Playwright will re-use the local server if there is already a dev-server running.
-     */
-    command: process.env.CI
-      ? `npm run preview -- --port ${port} --strictPort`
-      : `npm run dev -- --port ${port} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-  },
+  /* Run your local dev server before starting the tests (só no alvo local; ver baseURL acima) */
+  ...(externalBaseURL
+    ? {}
+    : {
+        webServer: {
+          /**
+           * Use the dev server by default for faster feedback loop.
+           * Use the preview server on CI for more realistic testing.
+           * Os dois sobem na porta local fixa, então definir CI não muda a porta.
+           * Playwright will re-use the local server if there is already a dev-server running.
+           */
+          command: process.env.CI
+            ? `npm run preview -- --port ${LOCAL_PORT} --strictPort`
+            : `npm run dev -- --port ${LOCAL_PORT} --strictPort`,
+          url: baseURL,
+          reuseExistingServer: !process.env.CI,
+        },
+      }),
 })

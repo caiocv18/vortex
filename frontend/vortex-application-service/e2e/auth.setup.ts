@@ -6,7 +6,7 @@ import { AUTH_API_URL, AUTH_STATE_FILE, AUTH_STORAGE_KEYS } from './support/auth
 // Projeto "setup" (ver playwright.config.ts): roda uma vez antes dos projetos de browser.
 // Cadastra um usuário novo pela API do serviço de autorização, faz login e grava um
 // storageState com exatamente as chaves de localStorage que o app lê (as mesmas que
-// src/utils/authCallback.ts grava quando o app de login devolve ?authData=...).
+// src/utils/authCallback.ts grava quando o app de login devolve #authData=...).
 
 interface AuthPayload {
   accessToken: string
