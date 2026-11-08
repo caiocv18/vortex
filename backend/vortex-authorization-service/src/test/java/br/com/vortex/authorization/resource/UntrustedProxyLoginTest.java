@@ -1,11 +1,9 @@
 package br.com.vortex.authorization.resource;
 
-import br.com.vortex.authorization.UntrustedProxyTestProfile;
 import br.com.vortex.authorization.dto.RegisterRequest;
 import br.com.vortex.authorization.entity.LoginAttempt;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
@@ -21,12 +19,17 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Cliente fora da lista de proxies confiáveis (UntrustedProxyTestProfile) mandando X-Forwarded-For
- * forjado: o cabeçalho é ignorado e o rate limit conta contra o endereço real da conexão.
- * Antes da correção o AuthResource lia o cabeçalho direto e bastava trocá-lo a cada tentativa.
+ * Cliente fora da lista de proxies confiáveis mandando X-Forwarded-For forjado: o cabeçalho é ignorado e
+ * o rate limit conta contra o endereço real da conexão. Antes da correção o AuthResource lia o cabeçalho
+ * direto e bastava trocá-lo a cada tentativa.
+ *
+ * Roda na configuração entregue, sem TRUSTED_PROXIES: nenhum proxy é confiável, nem o loopback. Nos
+ * modos do projeto o navegador fala direto com a porta 8081 (por loopback no leve e no dev, pelo gateway
+ * da bridge no compose), e confiar nesses endereços, como o padrão anterior fazia, deixava qualquer
+ * cliente escolher o próprio IP. O cliente de teste conecta por loopback, como o navegador. Com
+ * TRUSTED_PROXIES declarando o loopback o cabeçalho passa a valer: ver o LoginRateLimitTest.
  */
 @QuarkusTest
-@TestProfile(UntrustedProxyTestProfile.class)
 @TestHTTPEndpoint(AuthResource.class)
 class UntrustedProxyLoginTest {
 
@@ -48,7 +51,7 @@ class UntrustedProxyLoginTest {
     }
 
     @Test
-    @DisplayName("A spoofed X-Forwarded-For from an untrusted client is ignored: the real address is recorded")
+    @DisplayName("By default a spoofed X-Forwarded-For, even from loopback, is ignored: the real address is recorded")
     void spoofedForwardedForIsIgnored() throws Exception {
         RegisterRequest user = registerUser();
 

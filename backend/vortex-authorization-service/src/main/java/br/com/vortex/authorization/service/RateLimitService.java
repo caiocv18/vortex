@@ -20,11 +20,14 @@ public class RateLimitService {
     int lockoutMinutes;
 
     /**
-     * Grava a tentativa de login falha numa transação própria. O login lança 401 (ou 400 no
-     * bloqueio) logo depois e a transação dele faz rollback: gravada nela, a falha sumia junto
-     * e o limite de tentativas nunca era atingido.
+     * Grava a tentativa de login falha na transação de quem chama (MANDATORY: sem transação, falha).
+     *
+     * O AuthService.login lança 401 logo depois e faz commit mesmo assim (dontRollbackOn), então a
+     * falha sobrevive ao 401 sem precisar de transação própria. A versão anterior usava REQUIRES_NEW:
+     * a transação do login, suspensa, continuava com a conexão dela, e a nova pedia uma segunda ao pool.
+     * Com logins errados simultâneos no tamanho do pool, todos esperavam a segunda até o timeout.
      */
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    @Transactional(Transactional.TxType.MANDATORY)
     public void recordFailedAttempt(String identifier, String ipAddress) {
         LoginAttempt.recordAttempt(identifier, ipAddress, false);
     }

@@ -17,12 +17,22 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Authentication", description = "Authentication and authorization endpoints")
 public class AuthResource {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthResource.class);
+
+    // Maior IP literal aceito: IPv6 com IPv4 embutido, colchetes e escopo cabem com folga
+    static final int MAX_IP_LITERAL_LENGTH = 64;
 
     // Nos endpoints abaixo, corpo vazio chega como null e o @Valid sozinho não rejeita null:
     // sem o @NotNull a requisição caía em NullPointerException (500) em vez de responder 400.
@@ -49,9 +59,17 @@ public class AuthResource {
         try {
             LoginResponse response = authService.login(request, ipAddress, userAgent);
             return Response.ok(ApiResponse.success("Login successful", response)).build();
-        } catch (Exception e) {
+        } catch (NotAuthorizedException | BadRequestException e) {
+            // Credencial inválida ou rate limit: a mensagem é de negócio e vai para o cliente
             return Response.status(Response.Status.UNAUTHORIZED)
                 .entity(ApiResponse.error(e.getMessage()))
+                .build();
+        } catch (RuntimeException e) {
+            // Falha interna (banco, pool esgotado, chave do JWT ausente) não é credencial inválida.
+            // Antes virava 401 com o texto da exceção ("Unable to acquire JDBC Connection ...").
+            LOGGER.error("Unexpected error during login", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(ApiResponse.error("Login is temporarily unavailable. Please try again later."))
                 .build();
         }
     }
@@ -149,16 +167,41 @@ public class AuthResource {
 
     private String getClientIpAddress() {
         // Só o endereço remoto da requisição. Com quarkus.http.proxy.* o Quarkus já o troca pelo
-        // cliente do X-Forwarded-For quando a conexão vem de um proxy confiável (trusted-proxies).
-        // Ler os cabeçalhos aqui deixava qualquer cliente escolher o próprio IP e fugir do rate limit.
-        SocketAddress remoteAddress = httpServerRequest.remoteAddress();
-        if (remoteAddress != null) {
-            String host = remoteAddress.hostAddress() != null ? remoteAddress.hostAddress() : remoteAddress.host();
-            if (host != null && !host.isEmpty()) {
-                return host;
-            }
+        // cliente do X-Forwarded-For quando a conexão vem de um proxy de TRUSTED_PROXIES (por padrão,
+        // nenhum). Ler os cabeçalhos aqui deixava qualquer cliente escolher o próprio IP e fugir do
+        // rate limit.
+        String ip = ipLiteral(httpServerRequest.remoteAddress());
+        if (ip == null && httpServerRequest.connection() != null) {
+            // O Quarkus não valida o X-Forwarded-For: de um proxy confiável pode chegar um nome de host,
+            // lixo ou um valor maior que ip_address (varchar 255), que derrubava o insert da falha e
+            // anulava até o limite por e-mail. Nesse caso vale o par real da conexão (o proxy).
+            ip = ipLiteral(httpServerRequest.connection().remoteAddress());
         }
-        return "unknown";
+        return ip != null ? ip : "unknown";
+    }
+
+    private static String ipLiteral(SocketAddress address) {
+        if (address == null) {
+            return null;
+        }
+        return normalizeIpLiteral(address.hostAddress() != null ? address.hostAddress() : address.host());
+    }
+
+    /**
+     * Forma canônica (InetAddress.getHostAddress, sem escopo de IPv6) de um IP literal, ou null quando o
+     * valor não é IP literal. Nunca resolve nome (InetAddress.ofLiteral não consulta DNS), e o IPv4
+     * mapeado em IPv6 vira o IPv4: o mesmo cliente conta sempre com o mesmo texto.
+     */
+    static String normalizeIpLiteral(String value) {
+        if (value == null || value.isEmpty() || value.length() > MAX_IP_LITERAL_LENGTH) {
+            return null;
+        }
+        try {
+            InetAddress address = InetAddress.ofLiteral(value);
+            return InetAddress.getByAddress(address.getAddress()).getHostAddress();
+        } catch (IllegalArgumentException | UnknownHostException e) {
+            return null;
+        }
     }
 
     private String getUserAgent() {

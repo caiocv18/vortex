@@ -115,7 +115,9 @@ class AuthServiceTest {
         assertEquals(request.username, event.username);
         assertEquals("registration", event.registrationMethod);
         assertEquals(TEST_IP, event.ipAddress);
-        
+        // O evento é montado depois da verificação automática: sai com o estado final do usuário
+        assertTrue(event.isVerified, "user.created não pode sair com isVerified=false de um usuário já verificado");
+
         // Verify password was hashed
         verify(passwordService).hashPassword(request.password);
         
@@ -264,7 +266,13 @@ class AuthServiceTest {
         assertEquals(user.email, event.userEmail);
         assertEquals("password", event.loginMethod);
         assertEquals(TEST_IP, event.ipAddress);
-        
+
+        // O sessionId é o id da linha do refresh token, nunca o token (credencial de 7 dias)
+        RefreshToken stored = RefreshToken.findByToken(TEST_REFRESH_TOKEN);
+        assertEquals(stored.id.toString(), event.sessionId);
+        assertNotEquals(TEST_REFRESH_TOKEN, event.sessionId);
+        assertFalse(event.details.containsValue(TEST_REFRESH_TOKEN), "details também não pode levar o token");
+
         // Verify rate limiting was checked
         verify(rateLimitService).isAllowed(request.identifier, TEST_IP);
     }
@@ -436,7 +444,9 @@ class AuthServiceTest {
         assertEquals(user.email, event.userEmail);
         assertEquals("user_initiated", event.logoutReason);
         assertEquals(TEST_IP, event.ipAddress);
-        
+        assertEquals(refreshToken.id.toString(), event.sessionId);
+        assertNotEquals(TEST_REFRESH_TOKEN, event.sessionId);
+
         // Verify token was revoked
         entityManager.flush();
         entityManager.clear();

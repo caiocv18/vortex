@@ -1,11 +1,13 @@
 package br.com.vortex.authorization.resource;
 
+import br.com.vortex.authorization.TrustedLoopbackProxyTestProfile;
 import br.com.vortex.authorization.dto.RegisterRequest;
 import br.com.vortex.authorization.entity.LoginAttempt;
 import br.com.vortex.authorization.util.TestDataBuilder;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
@@ -29,11 +31,12 @@ import static org.junit.jupiter.api.Assertions.*;
  * e a janela (auth.rate-limit.window-minutes) vêm do application.properties de teste, com os mesmos
  * valores do padrão de produção. A janela é provada com tentativas gravadas no passado, sem esperar.
  *
- * O cliente de teste conecta por loopback, que é proxy confiável no padrão
- * (quarkus.http.proxy.trusted-proxies): por isso o X-Forwarded-For destes testes vale como IP do
- * cliente. O caso de proxy NÃO confiável, com cabeçalho forjado, está no UntrustedProxyLoginTest.
+ * Roda com TRUSTED_PROXIES declarando o loopback (TrustedLoopbackProxyTestProfile), como faria um operador
+ * atrás de um proxy reverso: por isso o X-Forwarded-For destes testes vale como IP do cliente. Sem
+ * TRUSTED_PROXIES, o padrão, o cabeçalho é ignorado (UntrustedProxyLoginTest).
  */
 @QuarkusTest
+@TestProfile(TrustedLoopbackProxyTestProfile.class)
 @TestHTTPEndpoint(AuthResource.class)
 class LoginRateLimitTest {
 
@@ -45,6 +48,7 @@ class LoginRateLimitTest {
     private static final String IP_B = "198.51.100.20";
     private static final String IP_C = "198.51.100.30";
     private static final String IP_D = "198.51.100.40";
+    private static final String IP_E = "198.51.100.50";
 
     @Inject
     @ConfigProperty(name = "auth.rate-limit.login-attempts")
@@ -54,7 +58,7 @@ class LoginRateLimitTest {
     @ConfigProperty(name = "auth.rate-limit.window-minutes")
     int windowMinutes;
 
-    // As falhas agora ficam commitadas (é isso que este teste prova): limpa antes e depois para
+    // As falhas ficam commitadas (é isso que este teste prova): limpa antes e depois para
     // não herdar tentativas de outras classes nem deixar IPs e contas bloqueados para elas
     @BeforeEach
     void clearAttemptsBefore() {
@@ -74,7 +78,7 @@ class LoginRateLimitTest {
 
         failLogins(victim.email, IP_A, maxAttempts);
 
-        // As falhas sobreviveram ao rollback do 401: a senha certa já não entra a partir deste IP
+        // As falhas sobreviveram ao 401: a senha certa já não entra a partir deste IP
         login(victim.email, victim.password, IP_A).statusCode(401).body("message", is(TOO_MANY));
         // O bloqueio é do IP, não só da conta atacada
         login(other.email, other.password, IP_A).statusCode(401).body("message", is(TOO_MANY));
@@ -106,6 +110,28 @@ class LoginRateLimitTest {
     }
 
     @Test
+    @DisplayName("Attempts rejected by the limit are not recorded, so the lockout ends when the window passes")
+    void blockedAttemptsAreNotRecordedAndTheLockoutExpires() {
+        RegisterRequest user = registerUser();
+
+        failLogins(user.email, IP_E, maxAttempts);
+        // As falhas reais ficam a 1 minuto de sair da janela
+        shiftAttempts(user.email, windowMinutes - 1L);
+
+        // Quem insiste durante o bloqueio, até com a senha certa, é barrado e não grava falha nova.
+        // Antes cada tentativa barrada virava falha e empurrava o desbloqueio para frente.
+        for (int i = 0; i < maxAttempts; i++) {
+            login(user.email, user.password, IP_E).statusCode(401).body("message", is(TOO_MANY));
+        }
+        assertEquals(maxAttempts, recordedAttempts(user.email).size(),
+            "tentativa barrada pelo rate limit não pode virar falha nova");
+
+        // Passam 2 minutos: as falhas originais saem da janela e o bloqueio acaba sozinho
+        shiftAttempts(user.email, 2);
+        login(user.email, user.password, IP_E).statusCode(200).body("success", is(true));
+    }
+
+    @Test
     @DisplayName("Without proxy headers the failed attempt is recorded with the socket address, not 'unknown'")
     void withoutProxyHeadersTheSocketAddressIsRecorded() throws Exception {
         RegisterRequest user = registerUser();
@@ -122,7 +148,7 @@ class LoginRateLimitTest {
     }
 
     @Test
-    @DisplayName("X-Forwarded-For sent by a trusted proxy (loopback, by default) is the recorded client IP")
+    @DisplayName("X-Forwarded-For from a proxy listed in TRUSTED_PROXIES is the recorded client IP")
     void forwardedClientIpFromATrustedProxyIsRecorded() {
         RegisterRequest user = registerUser();
 
@@ -131,6 +157,25 @@ class LoginRateLimitTest {
         List<LoginAttempt> attempts = recordedAttempts(user.email);
         assertEquals(1, attempts.size());
         assertEquals(IP_D, attempts.get(0).ipAddress);
+    }
+
+    @Test
+    @DisplayName("A forwarded value that is not an IP literal, or is oversized, is never stored: the connection peer is")
+    void invalidForwardedValueFromATrustedProxyIsNotStored() throws Exception {
+        RegisterRequest user = registerUser();
+        // ip_address é varchar(255): gravado como veio, o valor de 300 caracteres derrubava o insert
+        // e a falha sumia (nem o limite por e-mail contava). Nome de host também não vale (pediria DNS).
+        String oversized = "1".repeat(300);
+
+        login(user.email, WRONG_PASSWORD, oversized).statusCode(401).body("message", is("Invalid credentials"));
+        login(user.email, WRONG_PASSWORD, "attacker.example").statusCode(401).body("message", is("Invalid credentials"));
+
+        List<LoginAttempt> attempts = recordedAttempts(user.email);
+        assertEquals(2, attempts.size(), "as duas falhas precisam ficar gravadas");
+        for (LoginAttempt attempt : attempts) {
+            assertTrue(InetAddress.getByName(attempt.ipAddress).isLoopbackAddress(),
+                "esperado o par real da conexão (loopback), veio " + attempt.ipAddress);
+        }
     }
 
     @Test
@@ -146,7 +191,7 @@ class LoginRateLimitTest {
             "esperado o endereço do socket, veio " + attempts.get(0).ipAddress);
     }
 
-    // Auxiliares estáticos: o UntrustedProxyLoginTest (outro perfil, outra classe) usa os mesmos
+    // Auxiliares estáticos: as outras classes de login (outros perfis) usam os mesmos
 
     static RegisterRequest registerUser() {
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
@@ -186,6 +231,15 @@ class LoginRateLimitTest {
 
     static void clearAttempts() {
         QuarkusTransaction.requiringNew().run(() -> LoginAttempt.deleteAll());
+    }
+
+    // Simula a passagem do tempo: recua attempted_at de todas as tentativas da conta
+    private static void shiftAttempts(String email, long minutes) {
+        QuarkusTransaction.requiringNew().run(() -> {
+            for (LoginAttempt attempt : LoginAttempt.<LoginAttempt>list("email", email)) {
+                attempt.attemptedAt = attempt.attemptedAt.minusMinutes(minutes);
+            }
+        });
     }
 
     private static void recordFailures(String email, String ip, int times, OffsetDateTime attemptedAt) {

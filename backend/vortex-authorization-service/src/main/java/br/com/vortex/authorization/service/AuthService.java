@@ -52,11 +52,22 @@ public class AuthService {
     @Inject
     EntityManager entityManager;
 
-    @Transactional
+    /**
+     * Login com senha. A falha (401) e o bloqueio por rate limit (400, que o resource devolve como 401)
+     * saem como exceção, e mesmo assim a transação faz commit (dontRollbackOn): a falha gravada pelo
+     * RateLimitService entra no mesmo commit, na mesma conexão do pool que a contagem já usou.
+     *
+     * Antes a falha ia numa transação REQUIRES_NEW, que pedia uma segunda conexão com a primeira presa
+     * pela transação suspensa do login. Com logins errados simultâneos no tamanho do pool (5 no modo
+     * leve) ninguém conseguia a segunda, tudo esperava o acquisition-timeout e a falha não era gravada.
+     * Nenhum dos dois caminhos de exceção grava outra coisa além da falha, então o commit é seguro.
+     */
+    @Transactional(dontRollbackOn = {NotAuthorizedException.class, BadRequestException.class})
     public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
-        // Check rate limiting
+        // Tentativa barrada pelo limite não conta como falha nova: o bloqueio acaba sozinho quando as
+        // falhas que o causaram saem da janela (auth.rate-limit.window-minutes). Gravada, cada tentativa
+        // barrada empurrava o desbloqueio, e uma requisição a cada 3 minutos travava a conta de vez.
         if (!rateLimitService.isAllowed(request.identifier, ipAddress)) {
-            rateLimitService.recordFailedAttempt(request.identifier, ipAddress);
             throw new BadRequestException("Too many failed login attempts. Please try again later.");
         }
 
@@ -104,7 +115,9 @@ public class AuthService {
             Map.of("method", "password", "ipAddress", ipAddress), 
             ipAddress, userAgent);
 
-        // Publish login event
+        // Publish login event (o EventPublisher só envia depois do commit). O sessionId é o id da linha
+        // do refresh token: identifica a sessão sem autenticar nada. O próprio token é credencial de 7
+        // dias, e no evento ia para o tópico do broker e para o log de quem lesse o payload.
         try {
             UserLoggedInEvent loginEvent = new UserLoggedInEvent(
                 user.id,
@@ -113,7 +126,7 @@ public class AuthService {
                 roleNames(user),
                 "password",
                 user.lastLogin,
-                refreshTokenValue, // Using refresh token as session ID
+                sessionId(refreshToken),
                 ipAddress,
                 userAgent
             );
@@ -175,26 +188,9 @@ public class AuthService {
         user.persist();
 
         // Log audit event
-        AuditLog.log(user, "USER_CREATED", 
-            Map.of("method", "registration", "ipAddress", ipAddress), 
+        AuditLog.log(user, "USER_CREATED",
+            Map.of("method", "registration", "ipAddress", ipAddress),
             ipAddress, userAgent);
-
-        // Publish user created event
-        try {
-            UserCreatedEvent userCreatedEvent = new UserCreatedEvent(
-                user.id,
-                user.email,
-                user.username,
-                roleNames(user),
-                user.isVerified,
-                "registration",
-                ipAddress,
-                userAgent
-            );
-            eventPublisher.publishEvent(userCreatedEvent);
-        } catch (Exception e) {
-            LOGGER.warn("Failed to publish user created event for user: {}", user.email, e);
-        }
 
         // For now, auto-verify user (in production, send verification email)
         user.isVerified = true;
@@ -217,6 +213,25 @@ public class AuthService {
         response.refreshToken = refreshTokenValue;
         response.expiresIn = jwtService.getAccessTokenExpirationSeconds();
         response.user = mapToUserResponse(user);
+
+        // Publish user created event: montado depois da verificação automática, com o estado final do
+        // usuário (antes saía com isVerified=false). O EventPublisher só envia depois do commit, então
+        // um cadastro que falha no commit (e-mail duplicado em corrida) não anuncia usuário nenhum.
+        try {
+            UserCreatedEvent userCreatedEvent = new UserCreatedEvent(
+                user.id,
+                user.email,
+                user.username,
+                roleNames(user),
+                user.isVerified,
+                "registration",
+                ipAddress,
+                userAgent
+            );
+            eventPublisher.publishEvent(userCreatedEvent);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to publish user created event for user: {}", user.email, e);
+        }
 
         return response;
     }
@@ -264,7 +279,7 @@ public class AuthService {
                     user.id,
                     user.email,
                     user.username,
-                    refreshTokenValue,
+                    sessionId(refreshToken),
                     "user_initiated",
                     ipAddress,
                     userAgent
@@ -446,6 +461,12 @@ public class AuthService {
     // e era isso que chegava no corpo de erro da API.
     private static NotAuthorizedException unauthorized(String message) {
         return new NotAuthorizedException(message, "Bearer");
+    }
+
+    // Identificador de sessão dos eventos: o id (UUID) da linha do refresh token, já atribuído no
+    // persist(). Não serve para renovar a sessão; o valor do token, que serve, nunca vai para evento.
+    private static String sessionId(RefreshToken refreshToken) {
+        return refreshToken.id != null ? refreshToken.id.toString() : null;
     }
 
     // Usuário sem papel atribuído tem roles == null enquanto a entidade não volta do banco.
