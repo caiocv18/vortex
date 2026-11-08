@@ -45,6 +45,10 @@ export function ResetPasswordPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Só vira true quando a API aceitou a nova senha. Não dá para usar o isSubmitSuccessful do
+  // react-hook-form: o onSubmit trata o erro (o AuthContext já o mostrou num toast), e com o erro
+  // tratado o react-hook-form conta o envio como sucesso.
+  const [resetSucceeded, setResetSucceeded] = useState(false);
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { resetPassword, isLoading } = useAuth();
@@ -53,7 +57,7 @@ export function ResetPasswordPage() {
     register,
     handleSubmit,
     control,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
     mode: 'onChange',
@@ -68,6 +72,15 @@ export function ResetPasswordPage() {
     }
   }, [token, navigate]);
 
+  // Volta para o login 3 s depois da troca de senha; o timer morre se a página sair antes
+  useEffect(() => {
+    if (!resetSucceeded) return;
+    const timeoutId = setTimeout(() => {
+      navigate('/login');
+    }, 3000);
+    return () => clearTimeout(timeoutId);
+  }, [resetSucceeded, navigate]);
+
   const onSubmit = async (data: FormData) => {
     if (!token) return;
 
@@ -77,19 +90,17 @@ export function ResetPasswordPage() {
         password: data.password,
         confirmPassword: data.confirmPassword,
       } as ResetPasswordRequest);
-      
-      // Redirect to login after successful reset
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
     } catch {
-      // Error handling is done in the AuthContext
+      // A API recusou (token expirado ou já usado, por exemplo): o AuthContext mostrou o erro num
+      // toast e o formulário fica na tela, sem tela de sucesso e sem redirecionar
+      return;
     }
+    setResetSucceeded(true);
   };
 
   const loading = isLoading || isSubmitting;
 
-  if (isSubmitSuccessful) {
+  if (resetSucceeded) {
     return (
       <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">

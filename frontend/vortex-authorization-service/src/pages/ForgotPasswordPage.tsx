@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -21,11 +22,15 @@ export function ForgotPasswordPage() {
   useTheme();
   
   const { forgotPassword, isLoading } = useAuth();
+  // Só vira true quando a API aceitou o pedido. Não dá para usar o isSubmitSuccessful do
+  // react-hook-form: o onSubmit trata o erro (o AuthContext já o mostrou num toast), e com o erro
+  // tratado o react-hook-form conta o envio como sucesso.
+  const [emailSent, setEmailSent] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(schema),
   });
@@ -34,13 +39,16 @@ export function ForgotPasswordPage() {
     try {
       await forgotPassword(data as ForgotPasswordRequest);
     } catch {
-      // Error handling is done in the AuthContext
+      // A API recusou (limite de tentativas, por exemplo): o AuthContext mostrou o erro num toast
+      // e o formulário fica na tela para nova tentativa
+      return;
     }
+    setEmailSent(true);
   };
 
   const loading = isLoading || isSubmitting;
 
-  if (isSubmitSuccessful) {
+  if (emailSent) {
     return (
       <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
