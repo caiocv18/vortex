@@ -13,6 +13,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.function.Function;
 
+/**
+ * Tokens HS256 assinados com o {@code jwt.secret} desta aplicação. Não serve para os tokens do serviço de
+ * autorização, que são RS256: esses se conferem localmente pelo {@link AuthTokenVerifier}.
+ */
 @Service
 @Slf4j
 public class JwtService {

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -24,23 +25,25 @@ public class AuthServiceClient {
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(5);
     private static final ParameterizedTypeReference<Map<String, Object>> JSON_OBJECT =
             new ParameterizedTypeReference<>() { };
+    private static final String LOCAL_VALIDATION = "local-validation";
+    private static final String LOCAL_TOKEN_EXTRACTION = "local-token-extraction";
 
     private final RestClient restClient;
-    private final JwtService jwtService;
+    private final AuthTokenVerifier authTokenVerifier;
     private final String authServiceUrl;
 
     /**
      * @param restClientBuilder builder auto-configurado pelo Boot (conversores com o JsonMapper da aplicação)
-     * @param jwtService validação local usada nos fallbacks
+     * @param authTokenVerifier validação local usada nos fallbacks (chave pública RS256 do serviço de autorização)
      * @param authServiceUrl URL base do serviço de autorização
      */
-    public AuthServiceClient(RestClient.Builder restClientBuilder, JwtService jwtService,
+    public AuthServiceClient(RestClient.Builder restClientBuilder, AuthTokenVerifier authTokenVerifier,
                              @Value("${auth.service.url:http://localhost:8081}") String authServiceUrl) {
         this.restClient = restClientBuilder
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect()
                         .build(HttpClientSettings.defaults().withTimeouts(CONNECT_TIMEOUT, READ_TIMEOUT)))
                 .build();
-        this.jwtService = jwtService;
+        this.authTokenVerifier = authTokenVerifier;
         this.authServiceUrl = authServiceUrl;
     }
 
@@ -70,29 +73,28 @@ public class AuthServiceClient {
         });
     }
 
+    /**
+     * Fallback do validate-token (erro de transporte, 4xx/5xx, timeout ou circuito aberto): confere o token
+     * localmente com a chave pública RS256 do serviço de autorização ({@link AuthTokenVerifier}). Responde
+     * no mesmo formato do validate-token ({@code username}, {@code email}, {@code roles}, {@code userId}).
+     * Sem chave configurada, ou com qualquer erro, o token é inválido.
+     */
     public CompletableFuture<Map<String, Object>> validateTokenFallback(String token, Exception ex) {
-        log.warn("Auth service circuit breaker activated, using local validation for token. Error: {}", ex.getMessage());
+        log.warn("Auth service unavailable, validating the token locally with the auth public key. Error: {}",
+                ex.getMessage());
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Local JWT validation as fallback
-                if (jwtService.validateToken(token)) {
-                    String username = jwtService.extractUsername(token);
-                    String role = jwtService.extractRole(token);
-                    String userId = jwtService.extractUserId(token);
-
-                    return Map.of(
-                        "valid", true,
-                        "username", username != null ? username : "unknown",
-                        "role", role != null ? role : "USER",
-                        "userId", userId != null ? userId : "0",
-                        "source", "local-validation"
-                    );
-                }
-                return Map.of("valid", false, "source", "local-validation");
+                return authTokenVerifier.verify(token)
+                        .map(verified -> {
+                            Map<String, Object> response = userFields(verified, LOCAL_VALIDATION);
+                            response.put("valid", true);
+                            return response;
+                        })
+                        .orElseGet(() -> Map.of("valid", false, "source", LOCAL_VALIDATION));
             } catch (Exception e) {
                 log.error("Local token validation failed: {}", e.getMessage());
-                return Map.of("valid", false, "error", e.getMessage(), "source", "local-validation");
+                return Map.of("valid", false, "source", LOCAL_VALIDATION);
             }
         });
     }
@@ -121,29 +123,33 @@ public class AuthServiceClient {
         });
     }
 
+    /** Fallback do userinfo: os dados vêm do próprio token, conferido como em {@link #validateTokenFallback}. */
     public CompletableFuture<Map<String, Object>> getUserInfoFallback(String token, Exception ex) {
-        log.warn("Auth service circuit breaker activated for getUserInfo, using local token data. Error: {}", ex.getMessage());
+        log.warn("Auth service unavailable for getUserInfo, using the locally verified token. Error: {}",
+                ex.getMessage());
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Extract info from token as fallback
-                if (jwtService.validateToken(token)) {
-                    String username = jwtService.extractUsername(token);
-                    String role = jwtService.extractRole(token);
-                    String userId = jwtService.extractUserId(token);
-
-                    return Map.of(
-                        "username", username != null ? username : "unknown",
-                        "role", role != null ? role : "USER",
-                        "userId", userId != null ? userId : "0",
-                        "source", "local-token-extraction"
-                    );
-                }
-                return Map.of("error", "Invalid token", "source", "local-token-extraction");
+                return authTokenVerifier.verify(token)
+                        .map(verified -> userFields(verified, LOCAL_TOKEN_EXTRACTION))
+                        .orElseGet(() -> Map.of("error", "Invalid token", "source", LOCAL_TOKEN_EXTRACTION));
             } catch (Exception e) {
                 log.error("Local token extraction failed: {}", e.getMessage());
-                return Map.of("error", e.getMessage(), "source", "local-token-extraction");
+                return Map.of("error", "Invalid token", "source", LOCAL_TOKEN_EXTRACTION);
             }
         });
+    }
+
+    /** Campos do usuário no formato do validate-token; o filtro usa o email quando falta o username. */
+    private static Map<String, Object> userFields(AuthTokenVerifier.VerifiedToken verified, String source) {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        if (verified.username() != null) {
+            fields.put("username", verified.username());
+        }
+        fields.put("email", verified.email());
+        fields.put("roles", verified.roles());
+        fields.put("userId", verified.userId());
+        fields.put("source", source);
+        return fields;
     }
 }

@@ -12,24 +12,27 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Contrato HTTP do {@link AuthServiceClient} (RestClient) contra um serviço de autorização falso:
  * caminhos, corpo e cabeçalhos enviados e leitura da resposta. Sem proxy Spring, então sem os
- * fallbacks do Resilience4j: um erro HTTP aparece como falha do future.
+ * fallbacks do Resilience4j: um erro HTTP aparece como falha do future, e os fallbacks são
+ * chamados direto (a ligação pelo Resilience4j está em AuthServiceFallbackIntegrationTest).
  */
 class AuthServiceClientTest {
 
+    private static final KeyPair AUTH_KEYS = AuthTokens.newRsaKeyPair();
     private static final String VALIDATE_RESPONSE =
             "{\"valid\":true,\"username\":\"ana\",\"email\":\"ana@vortex.dev\",\"roles\":[\"USER\",\"ADMIN\"],\"userId\":\"42\"}";
 
@@ -57,7 +60,11 @@ class AuthServiceClientTest {
             respond(exchange, 200, "{\"username\":\"ana\",\"email\":\"ana@vortex.dev\"}");
         });
         server.start();
-        client = new AuthServiceClient(RestClient.builder(), mock(JwtService.class),
+        client = clientWith(new AuthTokenVerifier(AUTH_KEYS.getPublic(), AuthTokenVerifier.DEFAULT_ISSUER));
+    }
+
+    private AuthServiceClient clientWith(AuthTokenVerifier verifier) {
+        return new AuthServiceClient(RestClient.builder(), verifier,
                 "http://127.0.0.1:" + server.getAddress().getPort());
     }
 
@@ -94,6 +101,62 @@ class AuthServiceClientTest {
 
         assertEquals("ana", response.get("username"));
         assertEquals("Bearer abc.def.ghi", userInfoAuthorization.get());
+    }
+
+    @Test
+    void validateTokenFallbackAcceptsAnAuthServiceTokenCheckedWithThePublicKey() {
+        Map<String, Object> response = client
+                .validateTokenFallback(AuthTokens.authServiceToken(AUTH_KEYS), new RuntimeException("auth fora"))
+                .join();
+
+        // Mesmo formato do validate-token, que é o que o JwtAuthenticationFilter lê
+        assertEquals(Boolean.TRUE, response.get("valid"));
+        assertEquals(AuthTokens.USERNAME, response.get("username"));
+        assertEquals(AuthTokens.EMAIL, response.get("email"));
+        assertEquals(AuthTokens.ROLES, response.get("roles"));
+        assertEquals(AuthTokens.USER_ID, response.get("userId"));
+        assertEquals("local-validation", response.get("source"));
+    }
+
+    @Test
+    void validateTokenFallbackRejectsAnHs256TokenForgedWithTheApplicationSecret() {
+        Map<String, Object> response = client
+                .validateTokenFallback(AuthTokens.forgedHs256Token(), new RuntimeException("auth fora"))
+                .join();
+
+        assertEquals(Boolean.FALSE, response.get("valid"));
+        assertFalse(response.containsKey("username"));
+    }
+
+    @Test
+    void validateTokenFallbackRejectsEveryTokenWithoutAPublicKey() {
+        AuthServiceClient withoutKey = clientWith(new AuthTokenVerifier(null, AuthTokenVerifier.DEFAULT_ISSUER));
+
+        Map<String, Object> genuine = withoutKey
+                .validateTokenFallback(AuthTokens.authServiceToken(AUTH_KEYS), new RuntimeException("auth fora"))
+                .join();
+        Map<String, Object> forged = withoutKey
+                .validateTokenFallback(AuthTokens.forgedHs256Token(), new RuntimeException("auth fora"))
+                .join();
+
+        assertEquals(Boolean.FALSE, genuine.get("valid"));
+        assertEquals(Boolean.FALSE, forged.get("valid"));
+    }
+
+    @Test
+    void getUserInfoFallbackReadsOnlyAVerifiedToken() {
+        Map<String, Object> genuine = client
+                .getUserInfoFallback(AuthTokens.authServiceToken(AUTH_KEYS), new RuntimeException("auth fora"))
+                .join();
+        Map<String, Object> forged = client
+                .getUserInfoFallback(AuthTokens.forgedHs256Token(), new RuntimeException("auth fora"))
+                .join();
+
+        assertEquals(AuthTokens.USERNAME, genuine.get("username"));
+        assertEquals(AuthTokens.ROLES, genuine.get("roles"));
+        assertEquals(AuthTokens.USER_ID, genuine.get("userId"));
+        assertEquals("Invalid token", forged.get("error"));
+        assertFalse(forged.containsKey("username"));
     }
 
     private static void respond(HttpExchange exchange, int status, String json) throws IOException {
