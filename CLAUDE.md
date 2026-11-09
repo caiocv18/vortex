@@ -26,7 +26,7 @@ cd backend/vortex-application-service && ./mvnw spring-boot:run
 cd frontend/vortex-application-service && npm ci && npm run dev
 ```
 
-Toolchain: Java 27 via SDKMAN (`sdk use java 27.0.1-tem`), Node.js 26 via nvm (`nvm use 26`), Docker Engine with Compose v2 (`docker compose`, never the v1 `docker-compose`). Both backends ship `./mvnw` (Maven 3.10.0). The launcher loads SDKMAN and nvm itself, because `.bashrc` returns early in non-interactive shells.
+Toolchain: Java 27 via SDKMAN (`sdk use java 27.0.1-tem`), Node.js 26 via nvm (`nvm use 26`), Docker Engine with Compose v2 (`docker compose`, never the v1 `docker-compose`). Both backends ship `./mvnw` (Maven 3.10.0), which checks the downloaded distribution against `distributionSha256Sum` in `.mvn/wrapper/maven-wrapper.properties`; bump the checksum together with the Maven version, or the wrapper refuses the download. The launcher loads SDKMAN and nvm itself, because `.bashrc` returns early in non-interactive shells.
 
 ### Build Commands
 ```bash
@@ -62,6 +62,8 @@ npm run test                  # Vitest unit tests
 cd backend/vortex-application-service
 ./mvnw test                   # All tests
 ./mvnw test -Dtest=*ControllerTest # Controller tests only
+./mvnw verify                 # Tests + JaCoCo report + line coverage gate (what CI runs)
+./mvnw verify -Djacoco.line.minimum=0.99 # Prove the gate fails
 
 # Backend - Authorization Service tests
 cd backend/vortex-authorization-service
@@ -270,10 +272,11 @@ npm run test:coverage         # Coverage report
 - **E2E Tests**: Playwright covering complete user workflows
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
-  - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16)
-  - Quality gates: 60% line coverage, 50% branch coverage
+  - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16) in both backends
+  - Quality gates: auth 60% line and 50% branch coverage; main app 31% line coverage (`jacoco.line.minimum`)
   - Reports in HTML, XML, and CSV formats
-  - Located in `coverage-reports/auth-registration/`
+  - Auth reports in `coverage-reports/auth-registration/`; main app reports in `backend/vortex-application-service/target/site/jacoco/`
+- **CI**: GitHub Actions, one workflow per service (see Code Coverage & Quality Assurance)
 - **Specialized Test Scripts**: 
   - `./scripts/run-auth-registration-tests.sh` - Focused on account creation flow (42 tests)
   - `./scripts/run-auth-password-recovery-tests.sh` - Focused on password recovery flow (56 tests)
@@ -334,10 +337,21 @@ npm run test:coverage         # Coverage report
 ### Code Coverage & Quality Assurance
 
 #### JaCoCo Integration
-- **Plugin Version**: jacoco-maven-plugin 0.8.16
-- **Quality Gates**: Minimum 60% line coverage, 50% branch coverage
+- **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
+- **Quality Gates**:
+  - Auth: minimum 60% line coverage, 50% branch coverage
+  - Main app: minimum 31% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-09 baseline of 31.27% (550/1759 lines) rounded down; override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
-- **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/`
+- **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
+- **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips
+
+#### CI (GitHub Actions)
+- **Workflows**: one file per service in `.github/workflows/`; today only `app-service.yml` (main backend). Check names: `changes` and `app-service`
+- **Triggers**: `pull_request` and `push` to `master`, never `paths` in `on:` (a required check whose workflow never starts stays pending forever). The `changes` job runs `dorny/paths-filter` and the build job runs only when its folder or its own workflow file changed
+- **Fail closed**: a skipped job reports success, so the build job's `if:` also runs it when `changes` did not succeed
+- **Build job**: Temurin 27 via `setup-java` with the Maven cache, `./mvnw -B -ntp verify`, then a guard that fails when `target/jacoco.exec` is missing
+- **Outputs**: the job summary table reads the report total (last `<counter>` of each type in `jacoco.xml`, the same number the gate compares; summing `jacoco.csv` double-counts lines shared with anonymous classes) and the `app-service-reports` artifact (JaCoCo site and surefire reports, 14 days)
+- **Conventions for new workflows**: third-party actions pinned by commit SHA with the version in a comment, `permissions: {}` at the top and minimal permissions per job, `shell: bash` (pipefail), action `path` inputs written from the repo root (`defaults.run.working-directory` applies to `run` steps only), concurrency per PR and per commit on `master`
 
 #### Coverage Commands
 ```bash
@@ -353,6 +367,7 @@ npm run test:coverage         # Coverage report
 
 # Manual Maven execution
 cd backend/vortex-authorization-service && ./mvnw test jacoco:report
+cd backend/vortex-application-service && ./mvnw verify   # report + gate
 
 # View HTML reports
 open coverage-reports/auth-registration/index.html
@@ -360,7 +375,7 @@ open coverage-reports/auth-password-recovery/index.html
 ```
 
 #### Coverage Configuration
-- **Exclusions**: DTOs, main application classes, test utilities
+- **Exclusions**: auth excludes DTOs, the main class and test utilities; the main app excludes nothing. Lombok (1.18.48) marks the code it generates with `@lombok.Generated` by default, and JaCoCo filters it, so no `lombok.config` is needed for that
 - **Integration**: Automatic with test execution via Maven lifecycle
 - **CI/CD Ready**: XML format for continuous integration pipelines
 - **Quality Control**: Build fails if coverage thresholds not met
