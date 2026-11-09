@@ -36,6 +36,10 @@
 		<oracle-database.version>23.26.4.0.0</oracle-database.version>
 		<!-- Vazio de propósito: o surefire usa @{argLine}, que um agente (ex.: JaCoCo) pode preencher -->
 		<argLine/>
+		<!-- Mesma versão do auth -->
+		<jacoco.version>0.8.16</jacoco.version>
+		<!-- Piso de cobertura de linhas do jacoco:check: linha de base de 09/11/2026 = 31,27% (550/1759), arredondada para baixo -->
+		<jacoco.line.minimum>0.3100</jacoco.line.minimum>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -220,6 +224,49 @@
 					<!-- Teto de memória do fork de testes (RAM apertada) -->
 					<argLine>@{argLine} -Xmx512m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:+EnableDynamicAgentLoading</argLine>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<!-- Preenche o argLine vazio com o agente -->
+						<id>default-prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<!-- Na fase test, como no auth: o ./mvnw test já gera o relatório -->
+						<id>default-report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<!-- Gate do verify; sobrescrever com -Djacoco.line.minimum=... -->
+						<id>default-check</id>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.line.minimum}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
