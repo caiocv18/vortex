@@ -1,0 +1,101 @@
+name: app-service
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions: {}
+
+concurrency:
+  # One group per PR (newer pushes cancel older runs); one group per commit on master (no push is ever cancelled)
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      # On pull_request the filter uses the API; on push it diffs against the previous commit with git
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            app:
+              - 'backend/vortex-application-service/**'
+              - '.github/workflows/app-service.yml'
+
+  app-service:
+    name: app-service
+    needs: changes
+    # Fail closed: a skipped job reports success, so if the filter itself breaks, build anyway
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.app == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: backend/vortex-application-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '27'
+          cache: maven
+          cache-dependency-path: backend/vortex-application-service/pom.xml
+      - name: Build, test and check coverage
+        # Shorter than the job timeout, so the summary and the reports still run after a hang
+        timeout-minutes: 15
+        run: |
+          ./mvnw -B -ntp verify
+          test -s target/jacoco.exec || { echo '::error::target/jacoco.exec is missing, so jacoco:check was skipped'; exit 1; }
+      - name: Write coverage summary
+        if: ${{ !cancelled() }}
+        run: |
+          # The last <counter> of each type in jacoco.xml is the report total, the same number jacoco:check compares
+          report=target/site/jacoco/jacoco.xml
+          floor=$(sed -n 's:.*<jacoco.line.minimum>\(.*\)</jacoco.line.minimum>.*:\1:p' pom.xml)
+          {
+            echo '### app-service coverage'
+            echo
+            if [ -f "$report" ]; then
+              echo '| Counter | Covered | Total | Ratio |'
+              echo '|---|---:|---:|---:|'
+              for pair in LINE:Lines BRANCH:Branches; do
+                grep -o "<counter type=\"${pair%%:*}\"[^>]*/>" "$report" | tail -n 1 |
+                  sed 's/.*missed="\([0-9]*\)" covered="\([0-9]*\)".*/\1 \2/' |
+                  awk -v label="${pair##*:}" '{ t = $1 + $2; printf "| %s | %d | %d | %.1f%% |\n", label, $2, t, t ? 100 * $2 / t : 0 }'
+              done
+              echo
+              awk -v f="$floor" 'BEGIN { printf "Line floor: %.0f%% (`jacoco.line.minimum` = %s)\n", 100 * f, f }'
+            else
+              echo 'No JaCoCo report: the build stopped before the tests finished.'
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage and test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-service-reports
+          # Action inputs do not inherit defaults.run.working-directory, so paths start at the repo root
+          path: |
+            backend/vortex-application-service/target/site/jacoco/
+            backend/vortex-application-service/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 14
