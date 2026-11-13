@@ -12,10 +12,13 @@
 	<artifactId>backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>backend</name>
-	<description>Aplicação para controle de estoque do desafio FullStack Vortex</description>
+	<description>Inventory control API of Vortex, the capstone project (TCC) of a PUCRS graduate program in full-stack development</description>
 	<url/>
 	<licenses>
-		<license/>
+		<license>
+			<name>Apache-2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0</url>
+		</license>
 	</licenses>
 	<developers>
 		<developer/>
