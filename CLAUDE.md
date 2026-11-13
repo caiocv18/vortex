@@ -279,7 +279,7 @@ npm run test:coverage         # Coverage report
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
   - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16) in both backends
-  - Quality gates: auth 60% line and 50% branch coverage; main app 43% line coverage (`jacoco.line.minimum`)
+  - Quality gates: auth 60% line and 50% branch coverage; main app 44% line coverage (`jacoco.line.minimum`)
   - Reports in HTML, XML, and CSV formats
   - Auth reports in `coverage-reports/auth-registration/`; main app reports in `backend/vortex-application-service/target/site/jacoco/`
 - **CI**: GitHub Actions, one workflow per service (see Code Coverage & Quality Assurance)
@@ -348,7 +348,7 @@ npm run test:coverage         # Coverage report
 - **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
 - **Quality Gates**:
   - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
-  - Main app: minimum 43% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 43.1% (759/1760 lines, after the role matrix tests) rounded down (it started at 31% on 2026-11-09); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
+  - Main app: minimum 44% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 44.6% (785/1760 lines, after the PostgreSQL profile tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips

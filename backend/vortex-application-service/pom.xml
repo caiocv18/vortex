@@ -39,7 +39,7 @@
 		<!-- Mesma versão do auth -->
 		<jacoco.version>0.8.16</jacoco.version>
 		<!-- Piso de cobertura de linhas do jacoco:check: linha de base de 13/11/2026 = 43,1% (759/1760), arredondada para baixo -->
-		<jacoco.line.minimum>0.4300</jacoco.line.minimum>
+		<jacoco.line.minimum>0.4400</jacoco.line.minimum>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
