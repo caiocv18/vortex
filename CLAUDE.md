@@ -137,9 +137,10 @@ npm run test:coverage         # Coverage report
   - Auth Frontend (React - Port 3001)
 - **Event-Driven**: Supports Kafka, RabbitMQ, and SQS messaging
 - **Multi-Database**: 
-  - Oracle (production) - Main application data
+  - H2 (development and tests) - Main application data, in memory
+  - PostgreSQL (`postgres` profile) - Main application data in the cloud, own database `vortex`, schema by Flyway
+  - Oracle (`prd` profile) - Main application data in the Docker production stack
   - PostgreSQL (auth service) - Authentication data
-  - H2 (development) - In-memory for testing
 - **Type-Safe**: Auto-generated API clients from OpenAPI specifications
 - **Security**: JWT-based authentication with refresh tokens; the main app authorizes by role (VIEWER, USER, MANAGER, ADMIN), matrix in `docs/security/roles.md`
 
@@ -207,11 +208,13 @@ npm run test:coverage         # Coverage report
 ### Configuration Management
 - **Profile-Based**: Environment-specific configuration files
 - **Key Files**:
-  - `application.properties` - Base configuration
+  - `application.properties` - Base configuration (H2, `spring.flyway.enabled=false`)
   - `application-dev.properties` - Development environment
-  - `application-prd.properties` - Production environment
+  - `application-prd.properties` - Production environment (Oracle)
+  - `application-postgres.properties` - PostgreSQL datasource, composed with others (`dev,postgres` in the WSL, `cloud,postgres,sqs` on the EC2)
   - `application-kafka.properties` - Kafka configuration
   - `application-rabbitmq.properties` - RabbitMQ configuration
+- **Profile order**: the last active profile wins a shared key, so `postgres` goes after `dev` (`postgres,dev` silently runs on H2). `PostgresProfilePropertiesTest` fails when `dev` sets a datasource, JPA, `sql.init`, cache or H2 key that `postgres` does not override
 
 ## API Structure
 
@@ -249,7 +252,7 @@ npm run test:coverage         # Coverage report
 ## Development Workflow
 
 ### Local Development
-1. **Main Backend**: Spring Boot on port 8080 with H2 database
+1. **Main Backend**: Spring Boot on port 8080 with H2 database (or PostgreSQL with `SPRING_PROFILES_ACTIVE=dev,postgres` and `VORTEX_DB_URL`, `VORTEX_DB_USERNAME`, `VORTEX_DB_PASSWORD`)
 2. **Auth Backend**: Quarkus on port 8081 with PostgreSQL 18 (`vortex-auth-db`, port 5432, volume `vortex-auth-db-data-pg18`)
 3. **Main Frontend**: Vue.js on port 5173 (Vite dev server in dev mode, nginx `vortex-static` in light mode)
 4. **Auth Frontend**: React on port 3001 (same split)
@@ -269,13 +272,14 @@ npm run test:coverage         # Coverage report
   - Vitest for React auth frontend
 - **Integration Tests**: 
   - Spring Boot Test with H2 database
+  - Testcontainers PostgreSQL 18 (`postgres:18.6-alpine`, one container per test JVM in `PostgresContainerSupport`) for the `postgres` profile; it needs Docker and fails without it, never skips. It feeds the container through `VORTEX_DB_*`, not `@ServiceConnection`, so the profile's own driver and placeholders are what the test exercises
   - REST Assured for Quarkus service
   - Jakarta Bean Validation tests for DTO validation
 - **E2E Tests**: Playwright covering complete user workflows
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
   - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16) in both backends
-  - Quality gates: auth 60% line and 50% branch coverage; main app 43% line coverage (`jacoco.line.minimum`)
+  - Quality gates: auth 60% line and 50% branch coverage; main app 44% line coverage (`jacoco.line.minimum`)
   - Reports in HTML, XML, and CSV formats
   - Auth reports in `coverage-reports/auth-registration/`; main app reports in `backend/vortex-application-service/target/site/jacoco/`
 - **CI**: GitHub Actions, one workflow per service (see Code Coverage & Quality Assurance)
@@ -294,11 +298,13 @@ npm run test:coverage         # Coverage report
 
 ### Database Configuration
 - **Development**: H2 in-memory database for rapid iteration
-- **Production**: Oracle with persistent storage and advanced features
+- **Cloud**: PostgreSQL through the `postgres` profile, in its own database `vortex` on the same instance as the auth service (Flyway never creates the database; create it before the first boot)
+- **Production (Docker stack)**: Oracle with persistent storage and advanced features
 - **Migrations**: 
-  - Handled via Flyway for authorization service
-  - `import.sql` files for main application
-  - Migration files located in `src/main/resources/db/migration/`
+  - Authorization service: Flyway, files in `src/main/resources/db/migration/`
+  - Main application on H2: Hibernate `create-drop` plus `import.sql`; Flyway is off in the base profile
+  - Main application on PostgreSQL: Flyway `db/migration/postgres/V1__create_inventory_schema.sql` (schema) and `V2__seed_demo_data.sql` (the `import.sql` demo data, applied once on a new database), then Hibernate `validate`. Never move the seed to an `afterMigrate` callback: it would run on every boot and bring back seeded movements the demo deleted without their stock effect. To restart the demo from scratch, recreate the database. The seed's `setval` only moves a sequence forward (backwards would reissue ids already used). `spring.jpa.defer-datasource-initialization=false` there, or `validate` may run before the tables exist. A model change needs a new `V<n>__*.sql`; `validate` checks tables, columns and types, never CHECK, UNIQUE or foreign keys
+  - SQL files: SonarCloud reads `.sql` as PL/SQL, so no `NOT EXISTS`, `IF EXISTS` or `$$`
 
 ### Type Safety
 - **Backend**: 
@@ -342,7 +348,7 @@ npm run test:coverage         # Coverage report
 - **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
 - **Quality Gates**:
   - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
-  - Main app: minimum 43% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 43.1% (759/1760 lines, after the role matrix tests) rounded down (it started at 31% on 2026-11-09); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
+  - Main app: minimum 44% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 44.6% (785/1760 lines, after the PostgreSQL profile tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips
@@ -352,7 +358,7 @@ npm run test:coverage         # Coverage report
 
   | Workflow | Build job runs when these change | What the build job does |
   |---|---|---|
-  | `app-service.yml` | `backend/vortex-application-service/**` | Temurin 27, `./mvnw -B -ntp verify`, guard on `target/jacoco.exec`, coverage summary, `app-service-reports` artifact |
+  | `app-service.yml` | `backend/vortex-application-service/**` | Temurin 27, `./mvnw -B -ntp verify` (Testcontainers uses the runner's Docker), guard on `target/jacoco.exec`, coverage summary, `app-service-reports` artifact |
   | `auth-service.yml` | `backend/vortex-authorization-service/**` | Temurin 27, `./mvnw -B -ntp verify`, guard on `target/jacoco-quarkus.exec`, line and branch summary, `auth-service-reports` artifact (no Docker: H2 and every Dev Service off in `%test`, test-only keys in `src/test/resources/jwt-test`) |
   | `front-app.yml` | `frontend/vortex-application-service/**` | Node 26, `npm ci --ignore-scripts`, `npx eslint .` (never `npm run lint`, which has `--fix`), `npm run type-check`, `npx vitest run`, `npm run build-only` |
   | `front-auth.yml` | `frontend/vortex-authorization-service/**` | Node 26, `npm ci --ignore-scripts`, `npm run lint` (`--max-warnings 0`), `npm run type-check`, `npx vitest run`, `npx vite build` |
