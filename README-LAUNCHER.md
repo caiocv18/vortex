@@ -4,7 +4,7 @@ Script de inicialização completo (`start-vortex.sh`) que sobe os dois backends
 
 ## 📋 Características
 
-- **🪶 Modo leve (padrão)**: jars com JVM enxuta e cache AOT, frontends compilados servidos por um nginx só. Todo o sistema roda em cerca de 620 MB
+- **🪶 Modo leve (padrão)**: jars com JVM enxuta e cache AOT, frontends compilados servidos por um nginx só. Todo o sistema roda em cerca de 650 MB
 - **🔥 Modo dev**: hot reload (`spring-boot:run`, `quarkus:dev` e Vite), com teto de memória nas JVMs
 - **🔧 Ambiente de Desenvolvimento**: H2 Database
 - **🚀 Ambiente de Produção**: Oracle Database Free + backend em container
@@ -69,7 +69,7 @@ export JWT_SECRET="$(openssl rand -base64 48)"
 | Builds | só o que mudou, um por vez, antes de subir qualquer JVM | compilação do próprio Maven e do Vite |
 | Cache AOT | sim (JEP 514/515), treinado na primeira vez | não |
 | Hot reload | não | sim |
-| Memória (medida) | **cerca de 620 MB** no total do Vortex | não medida ainda (estimativa: 2 a 2,5 GB) |
+| Memória (medida) | **cerca de 650 MB** no total do Vortex (de 617 MB parado a 664 MB em uso) | não medida ainda (estimativa: 2 a 2,5 GB) |
 
 ### Orçamento de memória do modo leve
 
@@ -81,7 +81,8 @@ Medido com `./scripts/medir-memoria.sh` depois de `./start-vortex.sh --modo leve
 | Backend de autorização (Quarkus, perfil `leve`) | `-Xmx224m` | 233 a 234 MB |
 | `vortex-auth-db` (PostgreSQL 18) | `mem_limit: 256m` | 18 a 39 MB |
 | `vortex-static` (nginx) | `mem_limit: 32m` | 3 MB |
-| **Total do Vortex** | | **617 a 633 MB** |
+| **Total do Vortex, parado** | | **617 a 633 MB** |
+| **Total do Vortex em uso** (13/11/2026, depois do login e das telas de painel, produtos, movimentações e relatórios) | | **664 MB** (backend principal 373 MB, autorização 244 MB) |
 | VM do WSL inteira (inclui o Docker Engine e o cache de disco) | | cerca de 1,2 GB usados |
 
 Picos que acontecem uma vez só:
