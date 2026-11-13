@@ -61,7 +61,7 @@ COVERAGE_DIR="$BASE_DIR/coverage-reports/auth-password-recovery"
 print_color() {
     local color=$1
     shift
-    echo -e "${color}$@${NC}"
+    echo -e "${color}$*${NC}"
 }
 
 # Function to print section headers
@@ -333,7 +333,8 @@ generate_test_report() {
     echo "Profile: $PROFILE" >> "$summary_file"
     echo "Test Type: $TEST_TYPE" >> "$summary_file"
     
-    if [ -f target/surefire-reports/TEST-*.xml ]; then
+    # [ -f ] takes one path: with several reports the glob expands to many words and the test fails
+    if compgen -G 'target/surefire-reports/TEST-*.xml' > /dev/null; then
         local total_tests=$(grep -h 'tests=' target/surefire-reports/TEST-*.xml | sed 's/.*tests="\([0-9]*\)".*/\1/' | awk '{sum+=$1} END {print sum}')
         local failed_tests=$(grep -h 'failures=' target/surefire-reports/TEST-*.xml | sed 's/.*failures="\([0-9]*\)".*/\1/' | awk '{sum+=$1} END {print sum}')
         local errors=$(grep -h 'errors=' target/surefire-reports/TEST-*.xml | sed 's/.*errors="\([0-9]*\)".*/\1/' | awk '{sum+=$1} END {print sum}')

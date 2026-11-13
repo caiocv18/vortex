@@ -21,6 +21,9 @@
         <jacoco.version>0.8.16</jacoco.version>
         <!-- Arquivo padrão do quarkus-jacoco; o agente do plugin acrescenta nele (append) -->
         <jacoco.data.file>${project.build.directory}/jacoco-quarkus.exec</jacoco.data.file>
+        <!-- Pisos do jacoco:check (BUNDLE); o summary do workflow auth-service lê os mesmos valores -->
+        <jacoco.line.minimum>0.60</jacoco.line.minimum>
+        <jacoco.branch.minimum>0.50</jacoco.branch.minimum>
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <surefire-plugin.version>3.6.1</surefire-plugin.version>
         <!-- Teto de memória do fork de teste; @{argLine} mantém o agente do JaCoCo -->
@@ -281,12 +284,12 @@
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
+                                            <minimum>${jacoco.line.minimum}</minimum>
                                         </limit>
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.50</minimum>
+                                            <minimum>${jacoco.branch.minimum}</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
