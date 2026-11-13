@@ -9,7 +9,7 @@ locals {
   state_bucket = "vortex-tfstate-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}-an"
 }
 
-resource "aws_s3_bucket" "state" {
+resource "aws_s3_bucket" "state" { # NOSONAR(terraform:S6258) access logging needs a second bucket that would itself be unlogged; single-owner bucket, accepted risk
   #checkov:skip=CKV_AWS_144:Cross-region replication doubles storage and request cost; versioning already covers a bad apply
   #checkov:skip=CKV_AWS_145:SSE-S3 by decision; a customer managed KMS key costs US$ 1/month against a US$ 10/month budget
   #checkov:skip=CKV_AWS_18:Access logging needs a second bucket and only the owner ever touches this one
