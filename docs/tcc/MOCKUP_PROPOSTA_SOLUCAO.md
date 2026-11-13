@@ -223,7 +223,7 @@ src/
 
 #### Visão Geral
 
-![Dashboard Principal](../screenshoots/Dashboard%20Principal.png)
+![Dashboard Principal](../screenshots/dashboard.png)
 
 **Objetivo**: Fornecer uma visão geral do sistema com métricas principais e acesso rápido às funcionalidades
 
@@ -283,7 +283,7 @@ onMounted(async () => {
 
 #### Visão Geral
 
-![Gestão de Produtos](../screenshoots/Gestão%20de%20Produtos.png)
+![Gestão de Produtos](../screenshots/products.png)
 
 **Objetivo**: Permitir CRUD completo de produtos com controle de estoque
 
@@ -359,7 +359,7 @@ const getStockStatus = (quantity: number) => {
 
 #### Visão Geral
 
-![Movimentações de Estoque](../screenshoots/Movimentações%20de%20Estoque.png)
+![Movimentações de Estoque](../screenshots/movements.png)
 
 **Objetivo**: Controlar todas as entradas e saídas de estoque com rastreabilidade completa
 
@@ -415,7 +415,7 @@ const calcularValorVenda = (produto: Produto, quantidade: number) => {
 
 #### Visão Geral
 
-![Relatórios Gerenciais](../screenshoots/Relatórios%20Gerenciais.png)
+![Relatórios Gerenciais](../screenshots/reports.png)
 
 **Objetivo**: Fornecer análises visuais e métricas de negócio para tomada de decisão
 
@@ -726,10 +726,10 @@ O resultado é um sistema completo, funcional e profissional que demonstra o pot
 
 ## Referências das Imagens
 
-- Dashboard Principal: `docs/screenshoots/Dashboard Principal.png`
-- Gestão de Produtos: `docs/screenshoots/Gestão de Produtos.png`
-- Movimentações de Estoque: `docs/screenshoots/Movimentações de Estoque.png`
-- Relatórios Gerenciais: `docs/screenshoots/Relatórios Gerenciais.png`
+- Dashboard Principal: `docs/screenshots/dashboard.png`
+- Gestão de Produtos: `docs/screenshots/products.png`
+- Movimentações de Estoque: `docs/screenshots/movements.png`
+- Relatórios Gerenciais: `docs/screenshots/reports.png`
 
 ## Anexos
 
