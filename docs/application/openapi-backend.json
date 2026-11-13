@@ -2,12 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "API de Controle de Estoque - Vortex",
-    "description": "API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, tipos de produtos, movimentações de entrada e saída, e geração de relatórios. Desenvolvida como parte do desafio FullStack da Vortex.",
-    "termsOfService": "https://www.vortex.com.br/termos",
+    "description": "API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, tipos de produtos, movimentações de entrada e saída, e geração de relatórios. Desenvolvida como TCC da pós-graduação em Desenvolvimento Full-Stack da PUCRS.",
     "contact": {
-      "name": "Equipe de Desenvolvimento Vortex",
-      "url": "https://www.vortex.com.br/contato",
-      "email": "dev@vortex.com.br"
+      "name": "Vortex no GitHub",
+      "url": "https://github.com/caiocv18/vortex"
     },
     "license": {
       "name": "Apache 2.0",
@@ -16,17 +14,13 @@
     "version": "1.0.0"
   },
   "externalDocs": {
-    "description": "Documentação completa da API",
-    "url": "https://www.vortex.com.br/docs"
+    "description": "README do projeto",
+    "url": "https://github.com/caiocv18/vortex#readme"
   },
   "servers": [
     {
       "url": "http://localhost:8080/api",
       "description": "Servidor de Desenvolvimento"
-    },
-    {
-      "url": "https://api.vortex.com.br",
-      "description": "Servidor de Produção"
     }
   ],
   "tags": [
