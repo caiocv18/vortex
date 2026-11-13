@@ -16,13 +16,14 @@ While the authorization service is unreachable, `AuthServiceClient` falls back t
 
 - No token, or a token the authorization service rejects: `401`.
 - A valid token whose validation response carries no `roles`, or an empty list: the user is authenticated with no authority, so every endpoint above answers `403`. Until 2026-11 the filter assumed `USER` when the key was missing.
-- `/health` is public. `/api/test/**`, Swagger and the H2 console stay outside this matrix and are still open in every profile; closing them in the planned `cloud` profile is a separate change.
+- `/health` is public. `/api/test/**` and Swagger (`/swagger-ui`, `/v3/api-docs`) stay outside this matrix and are open without a token in every profile except `cloud`. The H2 console is open without a token only where it is switched on (`dev` and `dev,leve` on H2); `prd`, `local` and any composition with `postgres` switch it off.
+- In `cloud` none of them is even registered, and the security chain still denies them, together with any other path outside `/api/**` and `/health`: `401` without a token, and `401` or `403` with one, never `2xx`. `CloudProfileSecurityIntegrationTest` proves `cloud`, and `DevProfileOpenEndpointsIntegrationTest` proves `dev`.
 
 ## Decisions
 
 - **Roles are listed explicitly, with no `RoleHierarchy`.** A hierarchy (ADMIN > MANAGER > USER > VIEWER) would let ADMIN approve purchase orders, which the matrix keeps for MANAGER: the agent proposes, a manager approves.
 - **The CRUD controllers fail closed.** They carry `@CanWrite` at class level and each read handler opts into `@CanRead`, so a handler added without an annotation needs write access instead of opening up to VIEWER.
-- **Public sign-up gets `USER`** (`Role.findUserRole()` in the authorization service). The roles come from the Flyway migration `V5__Seed_default_roles.sql`. Before it, only the `import.sql` seeded them, and Hibernate loads that file in tests only: outside tests `auth.roles` was empty and every sign-up got no role, which went unnoticed while the app checked no role. `V5` also gives `USER` to every existing user left without one. The planned public demo will hand out `VIEWER` instead, through a `cloud` profile that does not exist yet.
+- **Public sign-up gets `USER`** (`Role.findUserRole()` in the authorization service). The roles come from the Flyway migration `V5__Seed_default_roles.sql`. Before it, only the `import.sql` seeded them, and Hibernate loads that file in tests only: outside tests `auth.roles` was empty and every sign-up got no role, which went unnoticed while the app checked no role. `V5` also gives `USER` to every existing user left without one. The public demo is meant to hand out `VIEWER` instead. The `cloud` profile now exists, but it only hardens the main app; sign-up in the authorization service still grants `USER`, and switching it to `VIEWER` for the demo is pending.
 
 ## Where it lives
 

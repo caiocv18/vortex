@@ -1,8 +1,10 @@
 package br.com.vortex.application.exception;
 
+import br.com.vortex.application.config.DeploymentProfiles;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,10 +25,10 @@ import java.util.UUID;
  */
 @ControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    @Value("${spring.profiles.active:}")
-    private String activeProfiles;
+    private final Environment environment;
 
     /**
      * Manipula exceções de recurso não encontrado.
@@ -109,11 +111,9 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception [ID: {}] - URI: {}", 
                 errorId, webRequest.getDescription(false), exception);
         
-        // Determine if we're in production mode
-        boolean isProduction = activeProfiles.contains("prd") || 
-                              activeProfiles.contains("prod") || 
-                              activeProfiles.contains("production");
-        
+        // Determine if we're in production mode (prd or the public cloud demo)
+        boolean isProduction = DeploymentProfiles.isProduction(environment);
+
         String userMessage;
         String technicalDetails = null;
         

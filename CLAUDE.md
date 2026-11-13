@@ -158,7 +158,10 @@ npm run test:coverage         # Coverage report
   - `config/`: Configuration classes (CORS, messaging, OpenAPI, Security)
   - `factory/`: Message broker factory pattern
 - **Authorization**: every `/api/**` handler (except `/api/test/**`) needs a `@PreAuthorize`, normally through `@CanRead`, `@CanWrite` or `@AdminOnly` in `config/security/`. The CRUD controllers carry `@CanWrite` on the class and `@CanRead` on each GET, so an unannotated new handler requires write access. `EndpointAuthorizationCoverageTest` encodes the matrix: it fails on a handler without `@PreAuthorize`, on one an authenticated user with no role passes, on a route missing from the matrix, and on any role passing or refused against it, so a new `/api` route needs a row in `docs/security/roles.md` and in its `expectedRoles()`. A validation response without `roles` grants no authority (403), never a default role. The roles themselves are seeded by the auth service's Flyway `V5__Seed_default_roles.sql`; its `import.sql` loads in tests only, so a role added there alone never reaches dev, leve or prd
-- **Exception handling**: `GlobalExceptionHandler` catches `Exception`, so it rethrows `AccessDeniedException` and `AuthenticationException` for Spring Security to answer 403/401; removing that handler turns every role denial into a 500
+- **Exception handling**: `GlobalExceptionHandler` catches `Exception`, so it rethrows `AccessDeniedException` and `AuthenticationException` for Spring Security to answer 403/401; removing that handler turns every role denial into a 500. In production the 500 carries only a generic message and the error id
+- **Production and cloud**: `config/DeploymentProfiles` is the only place that decides them, with `Environment.matchesProfiles` (whole profile names, so `preprod` is not production). Production is `prd | prod | production | cloud`; `GlobalExceptionHandler` and `SecurityConfigurationValidator` use it, and the validator then fails the boot on a weak `JWT_SECRET` or an in-memory H2
+- **Cloud profile** (`application-cloud.properties`, the public demo): Swagger, `/v3/api-docs` and the H2 console off, `TestController` absent (`@Profile("!cloud")`), and `SecurityConfig` switches to a chain that permits `/health` and the ERROR dispatch, requires a token on `/api/**`, and denies everything else, `/api/test/**` included. Without the ERROR dispatch rule a 403 from `@PreAuthorize` reaches the client as 401. The JWT filter skips `/swagger-ui*` and `/v3/api-docs`, so those answer 401 even with a token. X-Frame-Options stays `DENY` there (`sameOrigin` is for the H2 console elsewhere)
+- **CORS**: one `UrlBasedCorsConfigurationSource` in `CorsConfig`, passed explicitly to the security chain (Spring MVC also publishes a `CorsConfigurationSource`, so autodetection would be ambiguous). Origins come from `vortex.cors.allowed-origins`: the local frontends in the base, `VORTEX_CLOUD_CORS_ORIGINS` in `cloud` (empty means no cross-origin access). Never name that variable `VORTEX_CORS_ALLOWED_ORIGINS`: relaxed binding makes it the key itself, so it would replace the list in every profile. No `@CrossOrigin` on controllers: with an empty global list, a handler-level one would open CORS on its own
 
 #### Authorization Service (Quarkus 3.40 - Java 27)
 - **Pattern**: RESTful microservice with reactive programming
@@ -212,6 +215,7 @@ npm run test:coverage         # Coverage report
   - `application-dev.properties` - Development environment
   - `application-prd.properties` - Production environment (Oracle)
   - `application-postgres.properties` - PostgreSQL datasource, composed with others (`dev,postgres` in the WSL, `cloud,postgres,sqs` on the EC2)
+  - `application-cloud.properties` - Public demo hardening, no datasource keys (always together with `postgres`, which comes after it)
   - `application-kafka.properties` - Kafka configuration
   - `application-rabbitmq.properties` - RabbitMQ configuration
 - **Profile order**: the last active profile wins a shared key, so `postgres` goes after `dev` (`postgres,dev` silently runs on H2). `PostgresProfilePropertiesTest` fails when `dev` sets a datasource, JPA, `sql.init`, cache or H2 key that `postgres` does not override
@@ -220,7 +224,7 @@ npm run test:coverage         # Coverage report
 
 ### Main Application Service (Port 8080)
 - **Base URL**: `http://localhost:8080/api`
-- **Documentation**: `http://localhost:8080/swagger-ui.html`
+- **Documentation**: `http://localhost:8080/swagger-ui.html` (every profile except `cloud`)
 - **OpenAPI Spec**: `/docs/openapi-backend.json`
 
 #### Key Endpoints
@@ -298,7 +302,7 @@ npm run test:coverage         # Coverage report
 
 ### Database Configuration
 - **Development**: H2 in-memory database for rapid iteration
-- **Cloud**: PostgreSQL through the `postgres` profile, in its own database `vortex` on the same instance as the auth service (Flyway never creates the database; create it before the first boot)
+- **Cloud**: PostgreSQL through the `postgres` profile, in its own database `vortex` on the same instance as the auth service (Flyway never creates the database; create it before the first boot). The EC2 runs `SPRING_PROFILES_ACTIVE=cloud,postgres,sqs` and needs a strong `JWT_SECRET`, `VORTEX_DB_URL`, `VORTEX_DB_USERNAME`, `VORTEX_DB_PASSWORD`, and `VORTEX_CLOUD_CORS_ORIGINS` only if a browser calls the API from another origin. A non-empty list must also hold the demo's own public `https://` origin: behind the TLS-terminating nginx the backend sees `http` and treats the page's own writes as cross-origin (`server.forward-headers-strategy` is not set yet)
 - **Production (Docker stack)**: Oracle with persistent storage and advanced features
 - **Migrations**: 
   - Authorization service: Flyway, files in `src/main/resources/db/migration/`
@@ -348,7 +352,7 @@ npm run test:coverage         # Coverage report
 - **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
 - **Quality Gates**:
   - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
-  - Main app: minimum 44% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 44.6% (785/1760 lines, after the PostgreSQL profile tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
+  - Main app: minimum 47% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 47.9% (847/1769 lines, after the cloud profile tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests and 44% after the PostgreSQL profile tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips

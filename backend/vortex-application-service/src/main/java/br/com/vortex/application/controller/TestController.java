@@ -1,13 +1,18 @@
 package br.com.vortex.application.controller;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import java.util.Map;
 import java.util.HashMap;
 
+/**
+ * Endpoints de diagnóstico, abertos sem token fora do perfil {@code cloud}. Na demo pública o controller nem
+ * existe, e a cadeia de segurança ainda nega {@code /api/test/**}.
+ */
 @RestController
 @RequestMapping("/api/test")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174"})
+@Profile("!cloud")
 public class TestController {
     
     @GetMapping("/public")
