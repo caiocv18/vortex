@@ -1,0 +1,74 @@
+name: front-app
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions: {}
+
+concurrency:
+  # One group per PR (newer pushes cancel older runs); one group per commit on master (no push is ever cancelled)
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      front: ${{ steps.filter.outputs.front }}
+    steps:
+      # On pull_request the filter uses the API; on push it diffs against the previous commit with git
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            front:
+              - 'frontend/vortex-application-service/**'
+              - '.github/workflows/front-app.yml'
+
+  front-app:
+    name: front-app
+    needs: changes
+    # Fail closed: a skipped job reports success, so if the filter itself breaks, build anyway
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.front == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: frontend/vortex-application-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: frontend/vortex-application-service/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        # Not `npm run lint`: that script passes --fix, which would repair the code and pass
+        run: npx --no-install eslint .
+      - name: Type-check
+        run: npm run type-check
+      - name: Unit tests
+        # Not `npm run test:unit`: that script is Vitest in watch mode. The Playwright suite in e2e/ needs the
+        # whole stack running and is excluded by vitest.config.ts
+        run: npx --no-install vitest run
+      - name: Build
+        # build-only: `npm run build` would run the type-check again
+        run: npm run build-only

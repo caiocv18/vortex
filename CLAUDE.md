@@ -339,18 +339,29 @@ npm run test:coverage         # Coverage report
 #### JaCoCo Integration
 - **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
 - **Quality Gates**:
-  - Auth: minimum 60% line coverage, 50% branch coverage
+  - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
   - Main app: minimum 31% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-09 baseline of 31.27% (550/1759 lines) rounded down; override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips
 
 #### CI (GitHub Actions)
-- **Workflows**: one file per service in `.github/workflows/`; today only `app-service.yml` (main backend). Check names: `changes` and `app-service`
+- **Workflows**: one file per service in `.github/workflows/`, each with a `changes` job and a build job named after the workflow:
+
+  | Workflow | Build job runs when these change | What the build job does |
+  |---|---|---|
+  | `app-service.yml` | `backend/vortex-application-service/**` | Temurin 27, `./mvnw -B -ntp verify`, guard on `target/jacoco.exec`, coverage summary, `app-service-reports` artifact |
+  | `auth-service.yml` | `backend/vortex-authorization-service/**` | Temurin 27, `./mvnw -B -ntp verify`, guard on `target/jacoco-quarkus.exec`, line and branch summary, `auth-service-reports` artifact (no Docker: H2 and every Dev Service off in `%test`, test-only keys in `src/test/resources/jwt-test`) |
+  | `front-app.yml` | `frontend/vortex-application-service/**` | Node 26, `npm ci`, `npx eslint .` (never `npm run lint`, which has `--fix`), `npm run type-check`, `npx vitest run` (`test:unit` is watch mode), `npm run build-only` |
+  | `front-auth.yml` | `frontend/vortex-authorization-service/**` | Node 26, `npm ci`, `npm run lint` (`--max-warnings 0`), `npm run type-check`, `npx vitest run`, `npx vite build` |
+  | `launcher.yml` | any `*.sh` or `scripts/**` | `shellcheck --severity=error` and `bash -n` on every tracked script except the generated `src/api/generated/git_push.sh`, then `bash scripts/test-start-vortex.sh` |
+
+  Each workflow also triggers its build job when its own file changes. The Playwright suites are not in CI yet.
+- **Check names**: `app-service`, `auth-service`, `front-app`, `front-auth` and `launcher`, plus one `changes` per workflow. Five checks share the name `changes`, so a ruleset must require only the build jobs
 - **Triggers**: `pull_request` and `push` to `master`, never `paths` in `on:` (a required check whose workflow never starts stays pending forever). The `changes` job runs `dorny/paths-filter` and the build job runs only when its folder or its own workflow file changed
 - **Fail closed**: a skipped job reports success, so the build job's `if:` also runs it when `changes` did not succeed
-- **Build job**: Temurin 27 via `setup-java` with the Maven cache, `./mvnw -B -ntp verify`, then a guard that fails when `target/jacoco.exec` is missing
-- **Outputs**: the job summary table reads the report total (last `<counter>` of each type in `jacoco.xml`, the same number the gate compares; summing `jacoco.csv` double-counts lines shared with anonymous classes) and the `app-service-reports` artifact (JaCoCo site and surefire reports, 14 days)
+- **Outputs (backends)**: the job summary table reads the report total (last `<counter>` of each type in `jacoco.xml`, the same number the gate compares; summing `jacoco.csv` double-counts lines shared with anonymous classes) and the floors from the pom properties; the reports artifact keeps the JaCoCo site and the surefire reports for 14 days
+- **Local lint**: `actionlint` for the workflow files (it runs `shellcheck` on every `run:` block) and `shellcheck --severity=error` for the scripts
 - **Conventions for new workflows**: third-party actions pinned by commit SHA with the version in a comment, `permissions: {}` at the top and minimal permissions per job, `shell: bash` (pipefail), action `path` inputs written from the repo root (`defaults.run.working-directory` applies to `run` steps only), concurrency per PR and per commit on `master`
 
 #### Coverage Commands

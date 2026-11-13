@@ -1,0 +1,67 @@
+name: launcher
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions: {}
+
+concurrency:
+  # One group per PR (newer pushes cancel older runs); one group per commit on master (no push is ever cancelled)
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      scripts: ${{ steps.filter.outputs.scripts }}
+    steps:
+      # On pull_request the filter uses the API; on push it diffs against the previous commit with git
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          # Any shell script anywhere (the lint below covers every tracked one), plus scripts/ for the launcher tests
+          filters: |
+            scripts:
+              - '**/*.sh'
+              - 'scripts/**'
+              - '.github/workflows/launcher.yml'
+
+  launcher:
+    name: launcher
+    needs: changes
+    # Fail closed: a skipped job reports success, so if the filter itself breaks, build anyway
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.scripts == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint shell scripts
+        run: |
+          shellcheck --version
+          # Every tracked script except the one the OpenAPI generator writes into the Vue client
+          git ls-files -z -- '*.sh' ':!:frontend/vortex-application-service/src/api/generated/**' > "$RUNNER_TEMP/scripts.lst"
+          echo "Scripts: $(tr -cd '\0' < "$RUNNER_TEMP/scripts.lst" | wc -c)"
+          xargs -0 -a "$RUNNER_TEMP/scripts.lst" shellcheck --severity=error
+          xargs -0 -a "$RUNNER_TEMP/scripts.lst" -n1 bash -n
+      - name: Launcher tests
+        # Sources start-vortex.sh without running main: no Docker, JVM or network
+        run: bash scripts/test-start-vortex.sh
