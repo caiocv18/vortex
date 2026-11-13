@@ -1,5 +1,6 @@
 package br.com.vortex.application.controller;
 
+import br.com.vortex.application.config.security.AdminOnly;
 import br.com.vortex.application.dto.QueueInfoDTO;
 import br.com.vortex.application.service.QueueMonitoringService;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/queues")
 @CrossOrigin(origins = "*")
+@AdminOnly
 public class QueueController {
 
     @Autowired

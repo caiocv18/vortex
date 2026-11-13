@@ -1,5 +1,7 @@
 package br.com.vortex.application.controller;
 
+import br.com.vortex.application.config.security.CanRead;
+import br.com.vortex.application.config.security.CanWrite;
 import br.com.vortex.application.dto.ProdutoDTO;
 import br.com.vortex.application.service.ProdutoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/produtos")
 @Tag(name = "Produtos", description = "API para gerenciamento de produtos")
+@CanWrite
 public class ProdutoController {
 
     private final ProdutoService produtoService;
@@ -59,6 +62,7 @@ public class ProdutoController {
      *
      * @return Lista de DTOs dos produtos
      */
+    @CanRead
     @GetMapping
     @Operation(summary = "Busca todos os produtos", description = "Retorna uma lista com todos os produtos cadastrados")
     @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
@@ -74,6 +78,7 @@ public class ProdutoController {
      * @param id ID do produto
      * @return DTO do produto
      */
+    @CanRead
     @GetMapping("/{id}")
     @Operation(summary = "Busca um produto pelo ID", description = "Retorna um produto específico pelo seu ID")
     @ApiResponses(value = {

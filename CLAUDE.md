@@ -141,7 +141,7 @@ npm run test:coverage         # Coverage report
   - PostgreSQL (auth service) - Authentication data
   - H2 (development) - In-memory for testing
 - **Type-Safe**: Auto-generated API clients from OpenAPI specifications
-- **Security**: JWT-based authentication with refresh tokens
+- **Security**: JWT-based authentication with refresh tokens; the main app authorizes by role (VIEWER, USER, MANAGER, ADMIN), matrix in `docs/security/roles.md`
 
 ### Backend Architecture
 
@@ -156,6 +156,8 @@ npm run test:coverage         # Coverage report
   - `model/`: JPA entities (Produto, TipoProduto, MovimentoEstoque)
   - `config/`: Configuration classes (CORS, messaging, OpenAPI, Security)
   - `factory/`: Message broker factory pattern
+- **Authorization**: every `/api/**` handler (except `/api/test/**`) needs a `@PreAuthorize`, normally through `@CanRead`, `@CanWrite` or `@AdminOnly` in `config/security/`. The CRUD controllers carry `@CanWrite` on the class and `@CanRead` on each GET, so an unannotated new handler requires write access. `EndpointAuthorizationCoverageTest` fails on a handler without `@PreAuthorize`, on one an authenticated user with no role passes, and on a write handler that admits VIEWER. A validation response without `roles` grants no authority (403), never a default role
+- **Exception handling**: `GlobalExceptionHandler` catches `Exception`, so it rethrows `AccessDeniedException` and `AuthenticationException` for Spring Security to answer 403/401; removing that handler turns every role denial into a 500
 
 #### Authorization Service (Quarkus 3.40 - Java 27)
 - **Pattern**: RESTful microservice with reactive programming
