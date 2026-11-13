@@ -59,14 +59,16 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/vortex-authorization-service/package-lock.json
       - name: Install dependencies
-        run: npm ci
+        # No dependency lifecycle script runs in CI; only the macOS-only fsevents declares one
+        run: npm ci --ignore-scripts
       - name: Lint
         # The lint script has no --fix and fails on any warning (--max-warnings 0)
         run: npm run lint
       - name: Type-check
         run: npm run type-check
       - name: Unit tests
-        # Not `npm run test`: that script is Vitest in watch mode. The Playwright suite in e2e/ is excluded by vite.config.ts
+        # `vitest run` states the single run instead of relying on CI=true (`npm run test` is plain `vitest`, which watches
+        # outside CI). The Playwright suite in e2e/ is excluded by vite.config.ts
         run: npx --no-install vitest run
       - name: Build
         # Vite only: `npm run build` would run the type-check again

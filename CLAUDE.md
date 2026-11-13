@@ -52,7 +52,7 @@ npm run generate-api          # Regenerate API client from OpenAPI spec
 # Frontend - Authorization (React)
 cd frontend/vortex-authorization-service
 npm run build                 # Production build
-npm run lint                  # ESLint with auto-fix
+npm run lint                  # ESLint, no auto-fix, fails on any warning (lint:fix fixes)
 npm run test                  # Vitest unit tests
 ```
 
@@ -352,15 +352,16 @@ npm run test:coverage         # Coverage report
   |---|---|---|
   | `app-service.yml` | `backend/vortex-application-service/**` | Temurin 27, `./mvnw -B -ntp verify`, guard on `target/jacoco.exec`, coverage summary, `app-service-reports` artifact |
   | `auth-service.yml` | `backend/vortex-authorization-service/**` | Temurin 27, `./mvnw -B -ntp verify`, guard on `target/jacoco-quarkus.exec`, line and branch summary, `auth-service-reports` artifact (no Docker: H2 and every Dev Service off in `%test`, test-only keys in `src/test/resources/jwt-test`) |
-  | `front-app.yml` | `frontend/vortex-application-service/**` | Node 26, `npm ci`, `npx eslint .` (never `npm run lint`, which has `--fix`), `npm run type-check`, `npx vitest run` (`test:unit` is watch mode), `npm run build-only` |
-  | `front-auth.yml` | `frontend/vortex-authorization-service/**` | Node 26, `npm ci`, `npm run lint` (`--max-warnings 0`), `npm run type-check`, `npx vitest run`, `npx vite build` |
-  | `launcher.yml` | any `*.sh` or `scripts/**` | `shellcheck --severity=error` and `bash -n` on every tracked script except the generated `src/api/generated/git_push.sh`, then `bash scripts/test-start-vortex.sh` |
+  | `front-app.yml` | `frontend/vortex-application-service/**` | Node 26, `npm ci --ignore-scripts`, `npx eslint .` (never `npm run lint`, which has `--fix`), `npm run type-check`, `npx vitest run`, `npm run build-only` |
+  | `front-auth.yml` | `frontend/vortex-authorization-service/**` | Node 26, `npm ci --ignore-scripts`, `npm run lint` (`--max-warnings 0`), `npm run type-check`, `npx vitest run`, `npx vite build` |
+  | `launcher.yml` | any `*.sh` or `scripts/**` | `shellcheck --severity=error` and `bash -n` on every tracked `*.sh` except the generated `src/api/generated/git_push.sh` (the `mvnw` wrappers are not linted), a check that each of those is mode 100755 in git, then `bash scripts/test-start-vortex.sh` |
 
-  Each workflow also triggers its build job when its own file changes. The Playwright suites are not in CI yet.
+  Each workflow also triggers its build job when its own file changes. `npx vitest run` states the single run instead of relying on `CI=true` (the `test:unit` and `test` scripts call plain `vitest`, which watches outside CI). `--ignore-scripts` keeps dependency lifecycle scripts out of CI; only `@openapitools/openapi-generator-cli` (for `generate-api`) and the macOS-only `fsevents` declare one, and SonarCloud flags `npm ci` without it (`githubactions:S6505`). The Playwright suites are not in CI yet.
+- **Executable bit**: the docs run every script as `./scripts/name.sh`. Editing a script from Windows (through `\\wsl.localhost`) rewrites the file as 0644; restore it with `chmod +x` before `git add`, or the `launcher` check fails
 - **Check names**: `app-service`, `auth-service`, `front-app`, `front-auth` and `launcher`, plus one `changes` per workflow. Five checks share the name `changes`, so a ruleset must require only the build jobs
 - **Triggers**: `pull_request` and `push` to `master`, never `paths` in `on:` (a required check whose workflow never starts stays pending forever). The `changes` job runs `dorny/paths-filter` and the build job runs only when its folder or its own workflow file changed
 - **Fail closed**: a skipped job reports success, so the build job's `if:` also runs it when `changes` did not succeed
-- **Outputs (backends)**: the job summary table reads the report total (last `<counter>` of each type in `jacoco.xml`, the same number the gate compares; summing `jacoco.csv` double-counts lines shared with anonymous classes) and the floors from the pom properties; the reports artifact keeps the JaCoCo site and the surefire reports for 14 days
+- **Outputs (backends)**: the job summary table reads the report total (last `<counter>` of each type in `jacoco.xml`, the same number the gate compares; summing `jacoco.csv` double-counts lines shared with anonymous classes) and the floors from the pom properties; the reports artifact keeps the JaCoCo site and the surefire reports (plus the failsafe reports for the auth service) for 14 days
 - **Local lint**: `actionlint` for the workflow files (it runs `shellcheck` on every `run:` block) and `shellcheck --severity=error` for the scripts
 - **Conventions for new workflows**: third-party actions pinned by commit SHA with the version in a comment, `permissions: {}` at the top and minimal permissions per job, `shell: bash` (pipefail), action `path` inputs written from the repo root (`defaults.run.working-directory` applies to `run` steps only), concurrency per PR and per commit on `master`
 

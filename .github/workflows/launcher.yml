@@ -57,11 +57,16 @@ jobs:
       - name: Lint shell scripts
         run: |
           shellcheck --version
-          # Every tracked script except the one the OpenAPI generator writes into the Vue client
+          # Every tracked *.sh except the one the OpenAPI generator writes into the Vue client
           git ls-files -z -- '*.sh' ':!:frontend/vortex-application-service/src/api/generated/**' > "$RUNNER_TEMP/scripts.lst"
           echo "Scripts: $(tr -cd '\0' < "$RUNNER_TEMP/scripts.lst" | wc -c)"
           xargs -0 -a "$RUNNER_TEMP/scripts.lst" shellcheck --severity=error
           xargs -0 -a "$RUNNER_TEMP/scripts.lst" -n1 bash -n
+      - name: Check the executable bit
+        # The docs run the scripts as ./scripts/name.sh, and an edit from Windows drops the bit without any lint noticing
+        run: |
+          git ls-files -s -- '*.sh' ':!:frontend/vortex-application-service/src/api/generated/**' |
+            awk '$1 != "100755" { print "::error file=" $4 "::mode " $1 " in git, not executable: run chmod +x and git add"; bad = 1 } END { exit bad }'
       - name: Launcher tests
         # Sources start-vortex.sh without running main: no Docker, JVM or network
         run: bash scripts/test-start-vortex.sh
