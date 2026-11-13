@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Quick start (recommended) - Starts all services (interactive)
 ./start-vortex.sh
 
-# Lightest run (light mode, H2, no messaging, no prompts): ~620 MB for the whole system
+# Lightest run (light mode, H2, no messaging, no prompts): ~650 MB for the whole system
 ./start-vortex.sh --modo leve -e dev -m none --no-interaction
 
 # Hot reload (dev mode)
@@ -225,7 +225,7 @@ npm run test:coverage         # Coverage report
 ### Main Application Service (Port 8080)
 - **Base URL**: `http://localhost:8080/api`
 - **Documentation**: `http://localhost:8080/swagger-ui.html` (every profile except `cloud`)
-- **OpenAPI Spec**: `/docs/openapi-backend.json`
+- **OpenAPI Spec**: `docs/application/openapi-backend.json`, maintained by hand as the input of `npm run generate-api`. Its `servers` entry carries the `/api` base path and its operationIds were renamed for the client, so never overwrite it with an export of `/v3/api-docs` (the client's method names and `BASE_PATH` would change). Keep its `info` in step with `OpenApiConfig`
 
 #### Key Endpoints
 - **Products**: `/api/produtos` - Full CRUD operations
@@ -283,9 +283,9 @@ npm run test:coverage         # Coverage report
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
   - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16) in both backends
-  - Quality gates: auth 60% line and 50% branch coverage; main app 44% line coverage (`jacoco.line.minimum`)
+  - Quality gates: auth 60% line and 50% branch coverage; main app 47% line coverage (`jacoco.line.minimum`)
   - Reports in HTML, XML, and CSV formats
-  - Auth reports in `coverage-reports/auth-registration/`; main app reports in `backend/vortex-application-service/target/site/jacoco/`
+  - Auth reports in `coverage-reports/auth-registration/` (local output of the scripts, ignored by git); main app reports in `backend/vortex-application-service/target/site/jacoco/`
 - **CI**: GitHub Actions, one workflow per service (see Code Coverage & Quality Assurance)
 - **Specialized Test Scripts**: 
   - `./scripts/run-auth-registration-tests.sh` - Focused on account creation flow (42 tests)
@@ -322,7 +322,7 @@ npm run test:coverage         # Coverage report
 - **API Contract**: OpenAPI specification ensures consistency across services
 
 ### Launcher Script Features
-- **Run modes**: `--modo leve` (default) runs both backends as jars (Spring Boot extracted to `target/leve/`, Quarkus `quarkus-run.jar`) with one JVM flag set defined at the top of `start-vortex.sh` (`-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m`, `-Xmx320m` app, `-Xmx224m` auth, `MALLOC_ARENA_MAX=2`) and serves both `dist/` folders from one nginx (`infra/docker/docker-compose.leve.yml`, container `vortex-static`, ports 5173 and 3001, no `/api/` proxy). Measured: about 620 MB for the whole system. `--modo dev` keeps hot reload with capped child JVMs.
+- **Run modes**: `--modo leve` (default) runs both backends as jars (Spring Boot extracted to `target/leve/`, Quarkus `quarkus-run.jar`) with one JVM flag set defined at the top of `start-vortex.sh` (`-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m`, `-Xmx320m` app, `-Xmx224m` auth, `MALLOC_ARENA_MAX=2`) and serves both `dist/` folders from one nginx (`infra/docker/docker-compose.leve.yml`, container `vortex-static`, ports 5173 and 3001, no `/api/` proxy). Measured: about 650 MB for the whole system (617–633 MB idle, 664 MB after signing in and opening the four main pages). `--modo dev` keeps hot reload with capped child JVMs.
 - **Incremental builds (light mode)**: content stamps in `target/.vortex-build` and `dist/.vortex-build`; one build at a time, before any JVM starts. `.env.local` (theme) is rewritten only when its content changes.
 - **AOT cache (light mode, JDK 27)**: trained once per build/flags/profiles (`target/leve/app.aot`, `target/quarkus-app/app.aot`), validated once with `-XX:AOTMode=on`, then used in auto mode. Startup: Spring 11.6 s to 5.8 s, Quarkus 4.7 s to 2.8 s. Never train both services at once (the training JVM forks a second JVM to assemble the cache, ~1.4 GB together for the Spring one).
 - **Process control**: pid files in `logs/` for every process the launcher starts (JVMs, Maven wrappers, Vite servers, AOT training runs), written as `PID starttime boot_id` (field 22 of `/proc/PID/stat` and the kernel boot id). A pid is signalled only if it is still the same process (same start time, same boot, expected command line), so a PID reused after the distro restarts is never touched; legacy pid files holding only a PID are dropped without a signal. Stop sends TERM, waits up to 15 s, then KILL. Compose stacks go down without `-v` (with a neutral `JWT_SECRET`, since the prd compose files require it even for `down`). No broad `pkill` patterns.
@@ -346,6 +346,14 @@ npm run test:coverage         # Coverage report
 6. **Callback**: Redirects back to main app with authentication data
 7. **Session**: Main app stores tokens and allows access to protected routes
 
+### Documentation
+- **Public docs are in English**: `README.md` and `README.pt-BR.md` mirror each other; change both in the same commit
+- **Decisions**: `docs/adr/`, one numbered record per decision (Status, Date, Context, Decision, Alternatives considered, Consequences, References), indexed in `docs/adr/README.md`. Never rewrite an accepted record; supersede it with a new one
+- **Screenshots**: `docs/screenshots/`, light theme, page only (no browser chrome), taken with a throwaway account
+- **History**: `docs/archive/` keeps the early prompts, chats and reports as written, in Portuguese; link to it only as history
+- **License**: Apache-2.0 (`LICENSE`), also declared in the main app's pom and in the OpenAPI `info`
+- **Test credentials**: never in docs. The authorization service's test password survives only in the comments of `backend/vortex-authorization-service/src/main/resources/import.sql`, a file no profile loads, and in `SimpleAuthServiceTest`; the test-only `src/test/resources/import.sql` seeds the `USER` and `ADMIN` roles and no users
+
 ### Code Coverage & Quality Assurance
 
 #### JaCoCo Integration
@@ -354,7 +362,7 @@ npm run test:coverage         # Coverage report
   - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
   - Main app: minimum 47% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 47.9% (847/1769 lines, after the cloud profile tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests and 44% after the PostgreSQL profile tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
-- **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
+- **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts; local only, ignored by git, while CI keeps its reports as workflow artifacts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips
 
 #### CI (GitHub Actions)
@@ -371,6 +379,7 @@ npm run test:coverage         # Coverage report
   Each workflow also triggers its build job when its own file changes. `npx vitest run` states the single run instead of relying on `CI=true` (the `test:unit` and `test` scripts call plain `vitest`, which watches outside CI). `--ignore-scripts` keeps dependency lifecycle scripts out of CI; only `@openapitools/openapi-generator-cli` (for `generate-api`) and the macOS-only `fsevents` declare one, and SonarCloud flags `npm ci` without it (`githubactions:S6505`). The Playwright suites are not in CI yet.
 - **Executable bit**: the docs run every script as `./scripts/name.sh`. Editing a script from Windows (through `\\wsl.localhost`) rewrites the file as 0644; restore it with `chmod +x` before `git add`, or the `launcher` check fails
 - **Check names**: `app-service`, `auth-service`, `front-app`, `front-auth` and `launcher`, plus one `changes` per workflow. Five checks share the name `changes`, so a ruleset must require only the build jobs
+- **Coverage badge**: the `coverage-badge` job of `app-service.yml` runs only after a green build of a push to `master`. It sums the instructions of `jacoco.csv` from the `app-service-reports` artifact, draws `app-service/coverage.svg` in the shell (truncated to a tenth, shields.io colours) and pushes it with `app-service/source-sha` to the orphan `badges` branch. It is the only job with `contents: write`, so it runs no third-party action: only `actions/*` and its own shell may ever see that token. Before writing, it compares `source-sha` with its commit and skips when the badge already belongs to a newer one. The badge counts instructions (C0), not lines. It reports `skipped` on pull requests and must never be a required check; a ruleset must not protect the `badges` branch
 - **Triggers**: `pull_request` and `push` to `master`, never `paths` in `on:` (a required check whose workflow never starts stays pending forever). The `changes` job runs `dorny/paths-filter` and the build job runs only when its folder or its own workflow file changed
 - **Fail closed**: a skipped job reports success, so the build job's `if:` also runs it when `changes` did not succeed
 - **Outputs (backends)**: the job summary table reads the report total (last `<counter>` of each type in `jacoco.xml`, the same number the gate compares; summing `jacoco.csv` double-counts lines shared with anonymous classes) and the floors from the pom properties; the reports artifact keeps the JaCoCo site and the surefire reports (plus the failsafe reports for the auth service) for 14 days
