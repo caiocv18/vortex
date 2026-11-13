@@ -17,3 +17,24 @@
 
 # Estado local do Quarkus CLI
 .quarkus/
+
+# Terraform (infra/terraform); the provider lock file stays versioned
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+infra/terraform/backend.hcl
+terraform.tfvars
+
+# Local env files hold secrets; only the examples are versioned
+.env
+.env.*
+!.env.example

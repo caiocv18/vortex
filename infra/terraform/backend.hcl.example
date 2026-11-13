@@ -1,0 +1,9 @@
+# Shared partial backend configuration, copied to backend.hcl (git-ignored).
+# On the machine that ran the first apply:
+#   terraform -chdir=bootstrap output -raw backend_hcl > backend.hcl
+# On any other machine: cp backend.hcl.example backend.hcl and replace <account-id>
+# with the output of: aws sts get-caller-identity --query Account --output text
+bucket       = "vortex-tfstate-<account-id>-us-east-1-an"
+region       = "us-east-1"
+use_lockfile = true
+encrypt      = true
