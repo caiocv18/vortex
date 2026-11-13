@@ -1,16 +1,17 @@
 package br.com.vortex.application.config.security;
 
-import br.com.vortex.application.dto.TipoProdutoDTO;
 import br.com.vortex.application.service.AuthServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -34,9 +35,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * A matriz de {@code docs/security/roles.md} pela porta HTTP, com a cadeia real: JwtAuthenticationFilter,
- * {@code @PreAuthorize} nos controllers e GlobalExceptionHandler. Só o validate-token do serviço de
- * autorização é simulado: o token é o nome de um papel, e a resposta traz esse papel em {@code roles}.
+ * A matriz de {@code docs/security/roles.md} pela porta HTTP, célula por célula, com a cadeia real:
+ * JwtAuthenticationFilter, {@code @PreAuthorize} nos controllers e GlobalExceptionHandler. Só o validate-token
+ * do serviço de autorização é simulado: o token é o nome de um papel, e a resposta traz esse papel em
+ * {@code roles}. Cada célula "sim" é provada com 2xx e cada "não" com 403.
  *
  * <p>Os corpos de escrita são válidos de propósito. O {@code @PreAuthorize} roda depois da validação dos
  * argumentos, então um corpo inválido daria 400 e esconderia se a autorização recusou ou não.
@@ -46,10 +48,16 @@ import static org.mockito.Mockito.when;
 @AutoConfigureTestRestTemplate
 class RoleAuthorizationIntegrationTest {
 
+    private static final List<String> ROLES = List.of("VIEWER", "USER", "MANAGER", "ADMIN");
     /** Token cuja resposta do validate-token não traz a chave {@code roles}. */
     private static final String NO_ROLES_TOKEN = "NO_ROLES";
     /** Token cuja resposta do validate-token traz {@code roles} vazio. */
     private static final String EMPTY_ROLES_TOKEN = "EMPTY_ROLES";
+    /** Produto da massa de teste sem movimento de estoque: um DELETE que passasse o apagaria de fato. */
+    private static final String PRODUCT_WITHOUT_MOVEMENTS = "/api/produtos/20";
+
+    private static final ParameterizedTypeReference<Map<String, Object>> JSON_OBJECT = new ParameterizedTypeReference<>() {
+    };
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -75,17 +83,14 @@ class RoleAuthorizationIntegrationTest {
                 ApiCall.get("/api/relatorios/produtos-por-tipo?tipoProdutoId=1"));
     }
 
+    static Stream<Arguments> everyRoleTimesEveryRead() {
+        return ROLES.stream().flatMap(role -> reads().map(call -> Arguments.of(role, call)));
+    }
+
     static Stream<ApiCall> writes() {
         Map<String, Object> tipo = Map.of("nome", "Tipo que não deveria existir");
-        Map<String, Object> produto = Map.of(
-                "descricao", "Produto que não deveria existir",
-                "valorFornecedor", 10,
-                "quantidadeEmEstoque", 1,
-                "tipoProdutoId", 1);
-        Map<String, Object> movimento = Map.of(
-                "tipoMovimentacao", "ENTRADA",
-                "quantidadeMovimentada", 1,
-                "produtoId", 1);
+        Map<String, Object> produto = produto("Produto que não deveria existir");
+        Map<String, Object> movimento = movimento(1, 1);
         return Stream.of(
                 new ApiCall(HttpMethod.POST, "/api/tipos-produto", tipo),
                 new ApiCall(HttpMethod.PUT, "/api/tipos-produto/1", tipo),
@@ -119,10 +124,10 @@ class RoleAuthorizationIntegrationTest {
         verify(authServiceClient, never()).validateToken(anyString());
     }
 
-    @ParameterizedTest(name = "VIEWER lê {0}")
-    @MethodSource("reads")
-    void viewerReads(ApiCall call) {
-        assertEquals(HttpStatus.OK, send(call, "VIEWER").getStatusCode());
+    @ParameterizedTest(name = "{0} lê {1}")
+    @MethodSource("everyRoleTimesEveryRead")
+    void everyRoleReads(String role, ApiCall call) {
+        assertEquals(HttpStatus.OK, send(call, role).getStatusCode());
     }
 
     @ParameterizedTest(name = "VIEWER não escreve: {0}")
@@ -133,26 +138,40 @@ class RoleAuthorizationIntegrationTest {
 
     @Test
     void deniedDeleteLeavesTheProductInPlace() {
-        assertEquals(HttpStatus.FORBIDDEN, send(new ApiCall(HttpMethod.DELETE, "/api/produtos/2", null), "VIEWER").getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+                send(new ApiCall(HttpMethod.DELETE, PRODUCT_WITHOUT_MOVEMENTS, null), "VIEWER").getStatusCode());
 
-        assertEquals(HttpStatus.OK, send(ApiCall.get("/api/produtos/2"), "VIEWER").getStatusCode());
+        assertEquals(HttpStatus.OK, send(ApiCall.get(PRODUCT_WITHOUT_MOVEMENTS), "VIEWER").getStatusCode());
     }
 
-    @ParameterizedTest(name = "{0} cria, altera e apaga")
+    @ParameterizedTest(name = "{0} cria, altera e apaga tipo de produto")
     @ValueSource(strings = {"USER", "MANAGER", "ADMIN"})
-    void writerRolesCreateUpdateAndDelete(String role) {
-        ResponseEntity<TipoProdutoDTO> created = restTemplate.exchange(
-                "/api/tipos-produto",
-                HttpMethod.POST,
-                new HttpEntity<>(Map.of("nome", "Tipo criado por " + role), bearer(role)),
-                TipoProdutoDTO.class);
-        assertEquals(HttpStatus.CREATED, created.getStatusCode());
-        assertNotNull(created.getBody());
-        String path = "/api/tipos-produto/" + created.getBody().getId();
+    void writerRolesManageTiposProduto(String role) {
+        String path = "/api/tipos-produto/" + create(role, "/api/tipos-produto", Map.of("nome", "Tipo criado por " + role));
 
-        assertEquals(HttpStatus.OK,
-                send(new ApiCall(HttpMethod.PUT, path, Map.of("nome", "Tipo alterado por " + role)), role).getStatusCode());
-        assertEquals(HttpStatus.NO_CONTENT, send(new ApiCall(HttpMethod.DELETE, path, null), role).getStatusCode());
+        assertEquals(HttpStatus.OK, put(role, path, Map.of("nome", "Tipo alterado por " + role)));
+        assertEquals(HttpStatus.NO_CONTENT, delete(role, path));
+    }
+
+    @ParameterizedTest(name = "{0} cria, altera e apaga produto")
+    @ValueSource(strings = {"USER", "MANAGER", "ADMIN"})
+    void writerRolesManageProdutos(String role) {
+        String path = "/api/produtos/" + create(role, "/api/produtos", produto("Produto criado por " + role));
+
+        assertEquals(HttpStatus.OK, put(role, path, produto("Produto alterado por " + role)));
+        assertEquals(HttpStatus.NO_CONTENT, delete(role, path));
+    }
+
+    @ParameterizedTest(name = "{0} cria, altera e apaga movimento")
+    @ValueSource(strings = {"USER", "MANAGER", "ADMIN"})
+    void writerRolesManageMovimentos(String role) {
+        // Produto próprio, para que o efeito no estoque não toque a massa compartilhada
+        String productId = create(role, "/api/produtos", produto("Produto dos movimentos de " + role));
+        String path = "/api/movimentos/" + create(role, "/api/movimentos", movimento(Long.parseLong(productId), 1));
+
+        assertEquals(HttpStatus.OK, put(role, path, movimento(Long.parseLong(productId), 2)));
+        assertEquals(HttpStatus.NO_CONTENT, delete(role, path));
+        assertEquals(HttpStatus.NO_CONTENT, delete(role, "/api/produtos/" + productId));
     }
 
     @ParameterizedTest(name = "token sem papel não acessa {0}")
@@ -169,10 +188,28 @@ class RoleAuthorizationIntegrationTest {
                 assertEquals(HttpStatus.FORBIDDEN, send(call, role).getStatusCode(), call + " como " + role));
     }
 
-    @Test
-    void adminReachesQueues() {
-        assertEquals(HttpStatus.OK, send(ApiCall.get("/api/queues"), "ADMIN").getStatusCode());
-        assertEquals(HttpStatus.OK, send(ApiCall.get("/api/queues/status"), "ADMIN").getStatusCode());
+    @ParameterizedTest(name = "ADMIN alcança {0}")
+    @MethodSource("queues")
+    void adminReachesEveryQueueCall(ApiCall call) {
+        assertEquals(HttpStatus.OK, send(call, "ADMIN").getStatusCode());
+    }
+
+    /** POST que precisa dar 201; devolve o id criado. */
+    private String create(String role, String path, Map<String, Object> body) {
+        ResponseEntity<Map<String, Object>> created = restTemplate.exchange(
+                path, HttpMethod.POST, new HttpEntity<>(body, bearer(role)), JSON_OBJECT);
+        assertEquals(HttpStatus.CREATED, created.getStatusCode(), "POST " + path + " como " + role);
+        assertNotNull(created.getBody());
+        assertNotNull(created.getBody().get("id"));
+        return String.valueOf(created.getBody().get("id"));
+    }
+
+    private HttpStatus put(String role, String path, Map<String, Object> body) {
+        return HttpStatus.valueOf(send(new ApiCall(HttpMethod.PUT, path, body), role).getStatusCode().value());
+    }
+
+    private HttpStatus delete(String role, String path) {
+        return HttpStatus.valueOf(send(new ApiCall(HttpMethod.DELETE, path, null), role).getStatusCode().value());
     }
 
     private ResponseEntity<String> send(ApiCall call, String token) {
@@ -183,6 +220,14 @@ class RoleAuthorizationIntegrationTest {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         return headers;
+    }
+
+    private static Map<String, Object> produto(String descricao) {
+        return Map.of("descricao", descricao, "valorFornecedor", 10, "quantidadeEmEstoque", 5, "tipoProdutoId", 1);
+    }
+
+    private static Map<String, Object> movimento(long produtoId, int quantidade) {
+        return Map.of("tipoMovimentacao", "ENTRADA", "quantidadeMovimentada", quantidade, "produtoId", produtoId);
     }
 
     private static Map<String, Object> validationFor(String token) {

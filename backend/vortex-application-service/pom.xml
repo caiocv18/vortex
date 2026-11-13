@@ -38,8 +38,8 @@
 		<argLine/>
 		<!-- Mesma versão do auth -->
 		<jacoco.version>0.8.16</jacoco.version>
-		<!-- Piso de cobertura de linhas do jacoco:check: linha de base de 09/11/2026 = 31,27% (550/1759), arredondada para baixo -->
-		<jacoco.line.minimum>0.3100</jacoco.line.minimum>
+		<!-- Piso de cobertura de linhas do jacoco:check: linha de base de 13/11/2026 = 35,85% (631/1760), arredondada para baixo -->
+		<jacoco.line.minimum>0.3500</jacoco.line.minimum>
 	</properties>
 	<dependencyManagement>
 		<dependencies>

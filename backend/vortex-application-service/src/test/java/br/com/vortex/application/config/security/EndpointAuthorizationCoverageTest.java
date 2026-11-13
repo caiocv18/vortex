@@ -25,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,11 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Guarda da matriz de papéis: percorre todos os handlers registrados no Spring MVC e, para cada um em
- * {@code /api/**} (menos {@code /api/test/**}), resolve o {@code @PreAuthorize} efetivo com o mesmo scanner
- * da segurança de método (anotação do método vence a da classe; meta-anotações como {@code @CanWrite}
- * contam) e avalia a expressão. Falha quando um handler não tem {@code @PreAuthorize}, quando um usuário
- * autenticado sem papel passa, ou quando um handler de escrita deixa VIEWER passar.
+ * Guarda da matriz de papéis ({@code docs/security/roles.md}): percorre todos os handlers registrados no
+ * Spring MVC e, para cada um em {@code /api/**} (menos {@code /api/test/**}), resolve o {@code @PreAuthorize}
+ * efetivo com o mesmo scanner da segurança de método (anotação do método vence a da classe;
+ * meta-anotações como {@code @CanWrite} contam) e avalia a expressão para cada papel. Falha quando um handler
+ * não tem {@code @PreAuthorize}, quando um usuário autenticado sem papel passa, quando a rota não está na
+ * matriz, ou quando algum papel passa ou é recusado ao contrário do que a matriz diz.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -45,6 +47,12 @@ class EndpointAuthorizationCoverageTest {
 
     /** Handlers que existiam quando a matriz foi escrita (tipos, produtos e movimentos 5 cada, relatórios 2, filas 5). */
     private static final int KNOWN_API_HANDLERS = 22;
+
+    private static final List<String> ROLES = List.of("VIEWER", "USER", "MANAGER", "ADMIN");
+    private static final Set<String> EVERY_ROLE = Set.copyOf(ROLES);
+    private static final Set<String> WRITERS = Set.of("USER", "MANAGER", "ADMIN");
+    private static final Set<String> ADMIN_ONLY = Set.of("ADMIN");
+    private static final List<String> CRUD_COLLECTIONS = List.of("/api/tipos-produto", "/api/produtos", "/api/movimentos");
 
     private static final Set<RequestMethod> READ_METHODS = EnumSet.of(RequestMethod.GET, RequestMethod.HEAD, RequestMethod.OPTIONS);
 
@@ -59,8 +67,27 @@ class EndpointAuthorizationCoverageTest {
     @Qualifier("requestMappingHandlerMapping")
     private RequestMappingHandlerMapping handlerMapping;
 
+    /**
+     * A matriz de {@code docs/security/roles.md}: os papéis que passam numa rota de leitura ou de escrita, ou
+     * {@code null} quando a rota não está na matriz (nova rota pede uma linha lá e aqui).
+     */
+    static Set<String> expectedRoles(String path, boolean write) {
+        if (path.equals("/api/queues") || path.startsWith("/api/queues/")) {
+            return ADMIN_ONLY;
+        }
+        if (path.startsWith("/api/relatorios/")) {
+            return write ? null : EVERY_ROLE;
+        }
+        for (String collection : CRUD_COLLECTIONS) {
+            if (path.equals(collection) || path.startsWith(collection + "/")) {
+                return write ? WRITERS : EVERY_ROLE;
+            }
+        }
+        return null;
+    }
+
     @Test
-    void everyApiHandlerRequiresARoleAndNoWriteHandlerAdmitsViewer() {
+    void everyApiHandlerGrantsExactlyTheRolesOfTheMatrix() {
         List<String> violations = new ArrayList<>();
         int checked = 0;
 
@@ -81,11 +108,27 @@ class EndpointAuthorizationCoverageTest {
                 violations.add(name + ": sem @PreAuthorize");
                 continue;
             }
-            if (grants(preAuthorize.value(), handler)) {
-                violations.add(name + ": admite usuário autenticado sem papel (" + preAuthorize.value() + ")");
+            String expression = preAuthorize.value();
+            if (grants(expression, handler)) {
+                violations.add(name + ": admite usuário autenticado sem papel (" + expression + ")");
             }
-            if (isWrite(mapping) && grants(preAuthorize.value(), handler, "ROLE_VIEWER")) {
-                violations.add(name + ": handler de escrita admite VIEWER (" + preAuthorize.value() + ")");
+
+            boolean write = isWrite(mapping);
+            Set<Set<String>> rows = new HashSet<>();
+            for (String path : paths) {
+                rows.add(expectedRoles(path, write));
+            }
+            if (rows.contains(null) || rows.size() != 1) {
+                violations.add(name + ": rota fora da matriz de docs/security/roles.md");
+                continue;
+            }
+            Set<String> expected = rows.iterator().next();
+            for (String role : ROLES) {
+                boolean granted = grants(expression, handler, "ROLE_" + role);
+                if (granted != expected.contains(role)) {
+                    violations.add(name + ": " + role + (granted ? " passa" : " é recusado")
+                            + ", ao contrário da matriz (" + expression + ")");
+                }
             }
         }
 

@@ -156,7 +156,7 @@ npm run test:coverage         # Coverage report
   - `model/`: JPA entities (Produto, TipoProduto, MovimentoEstoque)
   - `config/`: Configuration classes (CORS, messaging, OpenAPI, Security)
   - `factory/`: Message broker factory pattern
-- **Authorization**: every `/api/**` handler (except `/api/test/**`) needs a `@PreAuthorize`, normally through `@CanRead`, `@CanWrite` or `@AdminOnly` in `config/security/`. The CRUD controllers carry `@CanWrite` on the class and `@CanRead` on each GET, so an unannotated new handler requires write access. `EndpointAuthorizationCoverageTest` fails on a handler without `@PreAuthorize`, on one an authenticated user with no role passes, and on a write handler that admits VIEWER. A validation response without `roles` grants no authority (403), never a default role
+- **Authorization**: every `/api/**` handler (except `/api/test/**`) needs a `@PreAuthorize`, normally through `@CanRead`, `@CanWrite` or `@AdminOnly` in `config/security/`. The CRUD controllers carry `@CanWrite` on the class and `@CanRead` on each GET, so an unannotated new handler requires write access. `EndpointAuthorizationCoverageTest` encodes the matrix: it fails on a handler without `@PreAuthorize`, on one an authenticated user with no role passes, on a route missing from the matrix, and on any role passing or refused against it, so a new `/api` route needs a row in `docs/security/roles.md` and in its `expectedRoles()`. A validation response without `roles` grants no authority (403), never a default role. The roles themselves are seeded by the auth service's Flyway `V5__Seed_default_roles.sql`; its `import.sql` loads in tests only, so a role added there alone never reaches dev, leve or prd
 - **Exception handling**: `GlobalExceptionHandler` catches `Exception`, so it rethrows `AccessDeniedException` and `AuthenticationException` for Spring Security to answer 403/401; removing that handler turns every role denial into a 500
 
 #### Authorization Service (Quarkus 3.40 - Java 27)
@@ -275,7 +275,7 @@ npm run test:coverage         # Coverage report
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
   - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16) in both backends
-  - Quality gates: auth 60% line and 50% branch coverage; main app 31% line coverage (`jacoco.line.minimum`)
+  - Quality gates: auth 60% line and 50% branch coverage; main app 35% line coverage (`jacoco.line.minimum`)
   - Reports in HTML, XML, and CSV formats
   - Auth reports in `coverage-reports/auth-registration/`; main app reports in `backend/vortex-application-service/target/site/jacoco/`
 - **CI**: GitHub Actions, one workflow per service (see Code Coverage & Quality Assurance)
@@ -342,7 +342,7 @@ npm run test:coverage         # Coverage report
 - **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
 - **Quality Gates**:
   - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
-  - Main app: minimum 31% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-09 baseline of 31.27% (550/1759 lines) rounded down; override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
+  - Main app: minimum 35% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 35.85% (631/1760 lines) rounded down (it started at 31% on 2026-11-09); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips
