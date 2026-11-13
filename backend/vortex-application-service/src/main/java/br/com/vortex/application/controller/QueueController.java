@@ -23,7 +23,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/queues")
-@CrossOrigin(origins = "*")
 @AdminOnly
 public class QueueController {
 

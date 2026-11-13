@@ -2,14 +2,12 @@ package br.com.vortex.application.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -19,9 +17,6 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
 
     private final JwtProperties jwtProperties;
     private final Environment environment;
-
-    @Value("${spring.profiles.active:}")
-    private String activeProfiles;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -127,13 +122,13 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
     }
 
     private void validateEnvironmentVariables(List<String> warnings, List<String> errors) {
-        // Check for required environment variables in production
+        // Check for required environment variables in production. The datasource password is checked in
+        // validateDatabaseConfiguration for whichever database is active (Oracle in prd, PostgreSQL in cloud)
         if (isProductionEnvironment()) {
-            String[] requiredEnvVars = {
-                "JWT_SECRET",
-                "ORACLE_DB_PASSWORD",
-                "REDIS_PASSWORD"
-            };
+            List<String> requiredEnvVars = new ArrayList<>(List.of("JWT_SECRET"));
+            if ("redis".equalsIgnoreCase(environment.getProperty("spring.cache.type"))) {
+                requiredEnvVars.add("REDIS_PASSWORD");
+            }
 
             for (String envVar : requiredEnvVars) {
                 String value = System.getenv(envVar);
@@ -145,9 +140,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
     }
 
     private boolean isProductionEnvironment() {
-        return activeProfiles.contains("prd") || 
-               activeProfiles.contains("prod") || 
-               activeProfiles.contains("production");
+        return DeploymentProfiles.isProduction(environment);
     }
 
     private boolean isWeakSecret(String secret) {
