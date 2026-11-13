@@ -320,7 +320,7 @@ INSERT INTO auth.roles (id, name, description) VALUES
 ('550e8400-e29b-41d4-a716-446655440004', 'VIEWER', 'Usuário com acesso somente leitura');
 
 -- Inserir usuários de teste
--- Senha padrão para todos: Test@123
+-- Uma senha padrão para todos (removida desta cópia)
 INSERT INTO auth.users (id, email, username, is_active, is_verified) VALUES 
 ('650e8400-e29b-41d4-a716-446655440001', 'admin@vortex.com', 'admin', true, true),
 ('650e8400-e29b-41d4-a716-446655440002', 'user@vortex.com', 'user', true, true),
@@ -329,7 +329,7 @@ INSERT INTO auth.users (id, email, username, is_active, is_verified) VALUES
 ('650e8400-e29b-41d4-a716-446655440005', 'inactive@vortex.com', 'inactive', false, true),
 ('650e8400-e29b-41d4-a716-446655440006', 'unverified@vortex.com', 'unverified', true, false);
 
--- Inserir credenciais (senha: Test@123 - bcrypt hash)
+-- Inserir credenciais (hash bcrypt da senha padrão)
 INSERT INTO auth.credentials (user_id, password_hash) VALUES 
 ('650e8400-e29b-41d4-a716-446655440001', '$2a$10$5vvbROzmmXGkfPVaZTyNOuSgD3KHdxHhgNJL2PWbXkUFqGJqYdcmW'),
 ('650e8400-e29b-41d4-a716-446655440002', '$2a$10$5vvbROzmmXGkfPVaZTyNOuSgD3KHdxHhgNJL2PWbXkUFqGJqYdcmW'),
@@ -366,12 +366,12 @@ INSERT INTO auth.login_attempts (email, ip_address, success, attempted_at) VALUE
 
 | Email | Username | Senha | Role(s) | Status |
 |-------|----------|-------|---------|---------|
-| admin@vortex.com | admin | Test@123 | ADMIN, USER | Ativo e Verificado |
-| user@vortex.com | user | Test@123 | USER | Ativo e Verificado |
-| manager@vortex.com | manager | Test@123 | MANAGER, USER | Ativo e Verificado |
-| viewer@vortex.com | viewer | Test@123 | VIEWER | Ativo e Verificado |
-| inactive@vortex.com | inactive | Test@123 | USER | Inativo |
-| unverified@vortex.com | unverified | Test@123 | USER | Não Verificado |
+| admin@vortex.com | admin | (removida) | ADMIN, USER | Ativo e Verificado |
+| user@vortex.com | user | (removida) | USER | Ativo e Verificado |
+| manager@vortex.com | manager | (removida) | MANAGER, USER | Ativo e Verificado |
+| viewer@vortex.com | viewer | (removida) | VIEWER | Ativo e Verificado |
+| inactive@vortex.com | inactive | (removida) | USER | Inativo |
+| unverified@vortex.com | unverified | (removida) | USER | Não Verificado |
 
 ## Arquivos Existentes Relevantes
 

@@ -74,14 +74,7 @@ The service uses a dedicated `auth` schema in PostgreSQL with the following tabl
 
 ## Test Users
 
-The system includes pre-configured test users:
-
-| Email | Username | Password | Role(s) | Status |
-|-------|----------|----------|---------|---------|
-| admin@vortex.com | admin | Test@123 | ADMIN, USER | Active |
-| user@vortex.com | user | Test@123 | USER | Active |
-| manager@vortex.com | manager | Test@123 | MANAGER, USER | Active |
-| viewer@vortex.com | viewer | Test@123 | VIEWER | Active |
+No profile seeds users. The service's tests load `src/test/resources/import.sql`, only in the `%test` profile, and it inserts just the `USER` and `ADMIN` roles; each test creates the users it needs. Every other profile uses `quarkus.hibernate-orm.schema-management.strategy=none`, so the accounts listed in `src/main/resources/import.sql` are never loaded. A local run has no seed users: sign up, then change your role as described in [Trying other roles locally](../security/roles.md#trying-other-roles-locally).
 
 ## Getting Started
 

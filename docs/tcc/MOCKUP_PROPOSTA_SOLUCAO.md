@@ -237,7 +237,7 @@ src/
 
 2. **Seção de Boas-vindas**
    - Mensagem personalizada "Bem-vindo ao Sistema de Estoque"
-   - Descrição do sistema "Sistema de gerenciamento de estoque Nexdom"
+   - Descrição do sistema "Sistema de gerenciamento de estoque Vortex"
 
 3. **Status de Conectividade**
    - Indicador de conexão com API
