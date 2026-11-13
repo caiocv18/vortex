@@ -9,6 +9,7 @@
 # Saídas locais de execução e de teste
 /logs/
 /test-reports/
+/coverage-reports/
 /erros/
 /node_modules/
 

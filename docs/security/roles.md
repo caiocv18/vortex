@@ -34,4 +34,4 @@ While the authorization service is unreachable, `AuthServiceClient` falls back t
 
 ## Trying other roles locally
 
-Outside the authorization service's tests there are no seed users: the `admin`, `manager`, `user` and `viewer` accounts of its `import.sql` exist only in the H2 test database. A local account signs up as `USER`. To try another role, change its row in `auth.user_roles` in the auth database (role ids are in `V5__Seed_default_roles.sql`); the next request picks it up, because `validate-token` reads the roles from the database.
+There are no seed users anywhere: the authorization service's tests seed only the `USER` and `ADMIN` roles and create their own users, and the accounts listed in its `src/main/resources/import.sql` are never loaded. A local account signs up as `USER`. To try another role, change its row in `auth.user_roles` in the auth database (role ids are in `V5__Seed_default_roles.sql`); the next request picks it up, because `validate-token` reads the roles from the database.

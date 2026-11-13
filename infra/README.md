@@ -81,7 +81,7 @@ infra/
 # Iniciar sistema completo (interativo) - inclui autenticação
 ./start-vortex.sh
 
-# Modo leve, o mais econômico (cerca de 620 MB no total)
+# Modo leve, o mais econômico (cerca de 650 MB no total)
 ./start-vortex.sh --modo leve -e dev -m none --no-interaction
 
 # Iniciar com opções específicas

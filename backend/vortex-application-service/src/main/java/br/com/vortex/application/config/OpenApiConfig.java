@@ -29,24 +29,19 @@ public class OpenApiConfig {
                         .title("API de Controle de Estoque - Vortex")
                         .description("API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, " +
                                 "tipos de produtos, movimentações de entrada e saída, e geração de relatórios. " +
-                                "Desenvolvida como parte do desafio FullStack da Vortex.")
+                                "Desenvolvida como TCC da pós-graduação em Desenvolvimento Full-Stack da PUCRS.")
                         .version("1.0.0")
-                        .termsOfService("https://www.vortex.com.br/termos")
                         .contact(new Contact()
-                                .name("Equipe de Desenvolvimento Vortex")
-                                .email("dev@vortex.com.br")
-                                .url("https://www.vortex.com.br/contato"))
+                                .name("Vortex no GitHub")
+                                .url("https://github.com/caiocv18/vortex"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0")))
                 .externalDocs(new ExternalDocumentation()
-                        .description("Documentação completa da API")
-                        .url("https://www.vortex.com.br/docs"))
+                        .description("README do projeto")
+                        .url("https://github.com/caiocv18/vortex#readme"))
                 .addServersItem(new Server()
                         .url("http://localhost:8080")
-                        .description("Servidor de Desenvolvimento"))
-                .addServersItem(new Server()
-                        .url("https://api.vortex.com.br")
-                        .description("Servidor de Produção"));
+                        .description("Servidor de Desenvolvimento"));
     }
 }

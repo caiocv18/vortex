@@ -844,7 +844,7 @@ test('deve realizar fluxo completo de criação de produto', async ({ page }) =>
   // Login
   await page.goto('http://localhost:3001/login');
   await page.fill('[data-testid=email]', 'admin@vortex.com');
-  await page.fill('[data-testid=password]', 'Test@123');
+  await page.fill('[data-testid=password]', process.env.E2E_PASSWORD!);
   await page.click('[data-testid=login-button]');
   
   // Aguarda redirecionamento
@@ -1184,4 +1184,4 @@ A arquitetura do Sistema Vortex representa uma solução moderna e escalável pa
 - **Integração**: Facilidade de integração com sistemas externos
 - **Observabilidade**: Monitoramento completo de métricas e logs
 
-A escolha por tecnologias especializadas (Quarkus para autenticação, Spring Boot para negócio, Vue.js/React para frontend) demonstra uma abordagem pragmática que prioriza a ferramenta certa para cada contexto, resultando em um sistema robusto, performático e preparado para os desafios de um ambiente de produção empresarial.
+A escolha por tecnologias especializadas (Quarkus para autenticação, Spring Boot para negócio, Vue.js/React para frontend) demonstra uma abordagem pragmática que prioriza a ferramenta certa para cada contexto, resultando em um sistema robusto, performático e preparado para as exigências de um ambiente de produção empresarial.
