@@ -1,5 +1,7 @@
 package br.com.vortex.application.controller;
 
+import br.com.vortex.application.config.security.CanRead;
+import br.com.vortex.application.config.security.CanWrite;
 import br.com.vortex.application.dto.TipoProdutoDTO;
 import br.com.vortex.application.service.TipoProdutoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tipos-produto")
 @Tag(name = "Tipos de Produto", description = "API para gerenciamento de tipos de produto")
+@CanWrite
 public class TipoProdutoController {
 
     private final TipoProdutoService tipoProdutoService;
@@ -57,6 +60,7 @@ public class TipoProdutoController {
      *
      * @return Lista de DTOs dos tipos de produto
      */
+    @CanRead
     @GetMapping
     @Operation(summary = "Busca todos os tipos de produto", description = "Retorna uma lista com todos os tipos de produto cadastrados")
     @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
@@ -72,6 +76,7 @@ public class TipoProdutoController {
      * @param id ID do tipo de produto
      * @return DTO do tipo de produto
      */
+    @CanRead
     @GetMapping("/{id}")
     @Operation(summary = "Busca um tipo de produto pelo ID", description = "Retorna um tipo de produto específico pelo seu ID")
     @ApiResponses(value = {

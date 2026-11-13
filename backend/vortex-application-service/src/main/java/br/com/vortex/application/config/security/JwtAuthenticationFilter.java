@@ -53,11 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         username = (String) validationResponse.get("email");
                     }
                     
-                    // Get roles from the response
+                    // Roles from the validation response. Without them the user is authenticated with no
+                    // authority, so every @PreAuthorize endpoint answers 403 (fail closed; it used to assume USER)
                     List<String> roles = (List<String>) validationResponse.get("roles");
                     if (roles == null) {
-                        roles = new java.util.ArrayList<>();
-                        roles.add("USER"); // Default role
+                        roles = List.of();
+                        logger.warn("Token validation response carries no roles; granting no authority");
                     }
                     
                     List<SimpleGrantedAuthority> authorities = roles.stream()

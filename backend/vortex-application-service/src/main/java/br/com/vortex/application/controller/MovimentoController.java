@@ -1,5 +1,7 @@
 package br.com.vortex.application.controller;
 
+import br.com.vortex.application.config.security.CanRead;
+import br.com.vortex.application.config.security.CanWrite;
 import br.com.vortex.application.dto.MovimentoEstoqueDTO;
 import br.com.vortex.application.service.MovimentoEstoqueService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/movimentos")
 @Tag(name = "Movimentos de Estoque", description = "API para gerenciamento de movimentos de estoque (entradas e saídas), com controle automático de estoque e cálculo de valores de venda")
+@CanWrite
 public class MovimentoController {
 
     private final MovimentoEstoqueService movimentoEstoqueService;
@@ -59,6 +62,7 @@ public class MovimentoController {
      *
      * @return Lista de DTOs dos movimentos de estoque
      */
+    @CanRead
     @GetMapping
     @Operation(summary = "Busca todos os movimentos de estoque", description = "Retorna uma lista com todos os movimentos de estoque cadastrados")
     @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
@@ -74,6 +78,7 @@ public class MovimentoController {
      * @param id ID do movimento de estoque
      * @return DTO do movimento de estoque
      */
+    @CanRead
     @GetMapping("/{id}")
     @Operation(summary = "Busca um movimento de estoque pelo ID", description = "Retorna um movimento de estoque específico pelo seu ID")
     @ApiResponses(value = {

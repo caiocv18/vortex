@@ -180,7 +180,8 @@ public class AuthService {
         if (userRole != null) {
             user.roles = Set.of(userRole);
         } else {
-            // Initialize empty roles set if no default role found
+            // Sem o papel USER (a migração V5 o semeia), o usuário nasce sem papel e o app recusa tudo com 403
+            LOGGER.error("Role USER not found in auth.roles; user {} registered without a role", user.email);
             user.roles = Set.of();
         }
         

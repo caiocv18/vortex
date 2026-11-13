@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -80,6 +82,17 @@ public class GlobalExceptionHandler {
                 errors);
         
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Devolve ao Spring Security as recusas do {@code @PreAuthorize}. Sem este handler, o genérico abaixo
+     * capturaria a {@code AuthorizationDeniedException} e responderia 500 a um papel sem permissão. Relançada
+     * a mesma exceção, o Spring MVC desiste dela e o {@code ExceptionTranslationFilter} responde 403 (ou 401,
+     * quando não há autenticação).
+     */
+    @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
+    public void rethrowSecurityException(RuntimeException exception) {
+        throw exception;
     }
 
     /**

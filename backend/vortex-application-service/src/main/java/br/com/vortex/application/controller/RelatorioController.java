@@ -1,5 +1,6 @@
 package br.com.vortex.application.controller;
 
+import br.com.vortex.application.config.security.CanRead;
 import br.com.vortex.application.dto.LucroPorProdutoDTO;
 import br.com.vortex.application.dto.ProdutoPorTipoDTO;
 import br.com.vortex.application.service.RelatorioService;
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/relatorios")
 @Tag(name = "Relatórios", description = "API para geração de relatórios")
+@CanRead
 public class RelatorioController {
 
     private final RelatorioService relatorioService;
