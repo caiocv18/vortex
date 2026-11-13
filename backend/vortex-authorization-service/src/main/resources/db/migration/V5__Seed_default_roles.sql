@@ -9,9 +9,11 @@ INSERT INTO auth.roles (id, name, description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- Quem se cadastrou com a tabela vazia ficou sem papel nenhum. Recebe o USER que o cadastro
--- (AuthService.register) teria dado se o papel existisse.
+-- (AuthService.register) teria dado se o papel existisse. O LEFT JOIN com IS NULL é o anti-join:
+-- quem já tem algum papel some do resultado, então rodar de novo não duplica nem troca papel.
 INSERT INTO auth.user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM auth.users u
 JOIN auth.roles r ON r.name = 'USER'
-WHERE NOT EXISTS (SELECT 1 FROM auth.user_roles ur WHERE ur.user_id = u.id);
+LEFT JOIN auth.user_roles ur ON ur.user_id = u.id
+WHERE ur.user_id IS NULL;
