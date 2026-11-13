@@ -7,7 +7,7 @@ variable "region" {
 variable "domain_name" {
   description = "Apex domain of the public hosted zone; projects live on subdomains (vortex.<domain>, turnward.<domain>)."
   type        = string
-  default     = "caio.engineer"
+  default     = "caiocv.dev"
 
   validation {
     condition     = can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}$", var.domain_name))
