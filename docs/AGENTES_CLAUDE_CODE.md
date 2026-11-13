@@ -296,7 +296,7 @@ Contexto: Sistema usa import.sql, precisa de migrations robustas
 
 Este documento complementa:
 - `/CLAUDE.md` - Comandos e configurações do projeto
-- `/docs/prompts/ANALISE_MELHORIAS_VORTEX.md` - Análise técnica detalhada
+- `/docs/archive/prompts/ANALISE_MELHORIAS_VORTEX.md` - Análise técnica detalhada (histórico)
 - `/docs/authentication/README.md` - Documentação de autenticação
 - `/README.md` - Visão geral do projeto
 
