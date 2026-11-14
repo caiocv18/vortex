@@ -30,7 +30,7 @@ public class OpenApiConfig {
                         .description("API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, " +
                                 "tipos de produtos, movimentações de entrada e saída, e geração de relatórios. " +
                                 "Desenvolvida como TCC da pós-graduação em Desenvolvimento Full-Stack da PUCRS.")
-                        .version("0.1.0")
+                        .version("0.1.1")
                         .contact(new Contact()
                                 .name("Vortex no GitHub")
                                 .url("https://github.com/caiocv18/vortex"))
