@@ -6,8 +6,9 @@ Infrastructure as code for the AWS account that hosts the Vortex portfolio. The 
 |---|---|---|
 | `bootstrap/` | `bootstrap/terraform.tfstate` | The S3 bucket that stores every stack's state, its own included |
 | `foundation/` | `foundation/terraform.tfstate` | The public Route 53 zone of the portfolio domain and the gross monthly cost budget |
+| `demo/` | `demo/terraform.tfstate` | The on-demand demo instance, reached only through Session Manager, with its network, role and data volume ([ADR 0006](../../docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)) |
 
-Later stacks (static site on S3 + CloudFront, the on-demand demo on EC2) get their own folder and state key.
+Later stacks (the static site on S3 + CloudFront) get their own folder and state key.
 
 ## Decisions
 
@@ -23,7 +24,7 @@ Later stacks (static site on S3 + CloudFront, the on-demand demo on EC2) get the
 ## Prerequisites
 
 - Terraform 1.17+, AWS CLI 2.32+ (for `aws login`), tflint and checkov.
-- A profile that can manage S3, Route 53 and Budgets: run `aws login --profile <profile>`, then `export AWS_PROFILE=<profile>`.
+- A profile that can manage S3, Route 53 and Budgets (plus EC2, IAM and Systems Manager for the demo): run `aws login --profile <profile>`, then `export AWS_PROFILE=<profile>`.
 
 ## First run (once per account)
 
@@ -65,6 +66,42 @@ terraform -chdir=infra/terraform/foundation init -backend-config=../backend.hcl
 terraform -chdir=infra/terraform/foundation plan
 ```
 
+## Demo
+
+The demo instance exists only while `demo_enabled` is `true`. The network, the instance role and the data volume stay when it is off, so turning it on again mounts the same data. Always apply a saved plan that was read first: `aws_ebs_volume.data` must never show up as destroyed or replaced.
+
+The off plan still prints the data volume's id twice, and both are expected: inside the destroyed attachment, and inside the destroyed instance's `ebs_block_device`, with `delete_on_termination = false`. The provider reads every attached volume into that block, but terminating the instance leaves it alone. To check a saved plan without reading it all:
+
+```sh
+terraform show -json off.tfplan \
+  | jq -r '.resource_changes[] | select(.change.actions != ["no-op"]) | "\(.address) \(.change.actions)"'
+```
+
+It must list only `aws_volume_attachment.data[0]` and `aws_instance.demo[0]`. In an on plan, both are creates, and the attachment's `volume_id` matches `terraform output -raw data_volume_id`.
+
+```sh
+cd infra/terraform/demo
+terraform init -backend-config=../backend.hcl
+
+# On: a new instance from the latest Amazon Linux 2023 arm64 image
+terraform plan -var demo_enabled=true -out=on.tfplan
+terraform apply on.tfplan
+
+# Off: terminates the instance and keeps the data volume
+terraform plan -var demo_enabled=false -out=off.tfplan
+terraform apply off.tfplan
+```
+
+There is no SSH. A shell on the instance goes through Session Manager, which needs the [session-manager-plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) next to the AWS CLI:
+
+```sh
+aws ssm start-session --target "$(terraform output -raw instance_id)"
+```
+
+A script without a terminal can run one command through `--document-name AWS-StartNonInteractiveCommand`. The plugin then needs a stdin that stays open, such as `< <(sleep 600)`; with a closed one it stops at `Cannot perform start session: EOF`.
+
+The first boot runs `infra/cloud/user-data.sh` and logs to `/var/log/vortex-user-data.log`. A changed user data or a newer image applies on the next launch only (`ignore_changes`), so turning the demo off and on is how either reaches the instance.
+
 ## Checks
 
 ```sh
@@ -72,8 +109,10 @@ cd infra/terraform
 terraform fmt -check -recursive
 terraform -chdir=bootstrap init -backend=false -input=false
 terraform -chdir=foundation init -backend=false -input=false
+terraform -chdir=demo init -backend=false -input=false
 terraform -chdir=bootstrap validate
 terraform -chdir=foundation validate
+terraform -chdir=demo validate
 tflint --init --config "$PWD/.tflint.hcl"
 tflint --recursive --config "$PWD/.tflint.hcl"
 checkov -d . --framework terraform --quiet
@@ -88,5 +127,8 @@ Every `#checkov:skip` in the code states why the control does not pay for itself
 | Route 53 hosted zone | US$ 0.50 |
 | State bucket (a few KB, a few requests per run) | cents |
 | Budget | free (the first two budgets cost nothing) |
+| Demo data volume (5 GiB gp3, always there) | US$ 0.40 |
+| Demo instance (`t4g.small`), only while on | instance hours free under the T4g trial until 2026-12-31, then about US$ 0.017/hour; CPU above the baseline not earned back before stop or terminate costs US$ 0.04 per vCPU-hour (unlimited credits, not covered by the trial) |
+| Demo public IPv4 address and 10 GiB root volume, only while on | US$ 0.005/hour plus about US$ 0.001/hour |
 
 Domain registration is paid by card: AWS credits do not cover it.

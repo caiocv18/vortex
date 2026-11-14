@@ -152,6 +152,7 @@ Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) expli
 3. [PostgreSQL com Flyway para a demo na nuvem](docs/adr/0003-postgres-with-flyway-for-the-cloud.md)
 4. [Imagens multiarquitetura no GHCR, construídas sem emulação e analisadas pelo Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
 5. [Ruleset do master sem bypass, Dependabot com cooldown e releases imutáveis](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
+6. [Instância de demo sob demanda, acessada só pelo Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
 
 ## Estrutura do repositório
 
