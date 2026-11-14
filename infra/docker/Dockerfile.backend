@@ -4,6 +4,12 @@
 # 1) Build: JDK 27 + o Maven Wrapper do módulo (Maven 3.10.0, mesmo do desenvolvimento)
 FROM eclipse-temurin:27-jdk AS build
 
+# O wrapper descompacta o Maven com unzip, que esta imagem não traz. Sem ele, o wrapper baixa o
+# .tar.gz no lugar do zip e o recusa contra o checksum do zip em .mvn/wrapper/maven-wrapper.properties
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Só o wrapper e o pom.xml primeiro, para cachear as dependências

@@ -3,6 +3,12 @@
 # multi-platform build compiles once and never runs Maven under emulation
 FROM --platform=$BUILDPLATFORM eclipse-temurin:27-jdk AS build
 
+# The wrapper unpacks Maven with unzip, which this image lacks. Without it the wrapper downloads the
+# .tar.gz instead and rejects it against the zip's checksum in .mvn/wrapper/maven-wrapper.properties
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # The wrapper and pom.xml first, so the dependencies stay in their own cached layer

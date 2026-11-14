@@ -26,7 +26,7 @@ cd backend/vortex-application-service && ./mvnw spring-boot:run
 cd frontend/vortex-application-service && npm ci && npm run dev
 ```
 
-Toolchain: Java 27 via SDKMAN (`sdk use java 27.0.1-tem`), Node.js 26 via nvm (`nvm use 26`), Docker Engine with Compose v2 (`docker compose`, never the v1 `docker-compose`). Both backends ship `./mvnw` (Maven 3.10.0), which checks the downloaded distribution against `distributionSha256Sum` in `.mvn/wrapper/maven-wrapper.properties`; bump the checksum together with the Maven version, or the wrapper refuses the download. The launcher loads SDKMAN and nvm itself, because `.bashrc` returns early in non-interactive shells.
+Toolchain: Java 27 via SDKMAN (`sdk use java 27.0.1-tem`), Node.js 26 via nvm (`nvm use 26`), Docker Engine with Compose v2 (`docker compose`, never the v1 `docker-compose`). Both backends ship `./mvnw` (Maven 3.10.0), which checks the downloaded distribution against `distributionSha256Sum` in `.mvn/wrapper/maven-wrapper.properties`; bump the checksum together with the Maven version, or the wrapper refuses the download. The wrapper needs `unzip`: without it (as in `eclipse-temurin:27-jdk`) it silently downloads the `.tar.gz` instead and rejects it against the zip's checksum, so both Dockerfiles that run the app's wrapper install `unzip` in their build stage (wrapper 3.3.4 accepts only a `*-bin.zip` URL). The launcher loads SDKMAN and nvm itself, because `.bashrc` returns early in non-interactive shells.
 
 ### Build Commands
 ```bash
