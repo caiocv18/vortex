@@ -189,6 +189,18 @@ class CloudProfileSecurityIntegrationTest extends PostgresContainerSupport {
         assertNull(localFrontend.getHeaders().getAccessControlAllowOrigin());
     }
 
+    @Test
+    void corsNeverAllowsCredentials() {
+        // A API do app é stateless, só lê Bearer e não usa cookie: sem credencial que o navegador anexe
+        // sozinho, o CSRF desligado no SecurityConfig não tem superfície. Sem Access-Control-Allow-Credentials,
+        // nenhuma origem lê a resposta de uma requisição com credenciais; isso é defesa extra, não a proteção
+        // contra CSRF.
+        ResponseEntity<String> configured = preflight(DEMO_ORIGIN);
+
+        assertEquals(HttpStatus.OK, configured.getStatusCode());
+        assertFalse(configured.getHeaders().getAccessControlAllowCredentials());
+    }
+
     private ResponseEntity<String> get(String path, String token) {
         HttpHeaders headers = token == null ? new HttpHeaders() : bearer(token);
         return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
