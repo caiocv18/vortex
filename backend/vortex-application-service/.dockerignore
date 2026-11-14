@@ -1,0 +1,7 @@
+# Allowlist: the build context carries only what the Dockerfile copies. Everything else, such as
+# target/, the IDE folders and the local .env, never reaches the builder
+*
+!mvnw
+!.mvn
+!pom.xml
+!src

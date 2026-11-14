@@ -121,6 +121,26 @@ cd frontend/vortex-application-service && npx eslint . && npm run type-check && 
 cd frontend/vortex-authorization-service && npm run lint && npm run type-check && npx vitest run
 ```
 
+## Container images
+
+Pushes to `master` publish both backends to the GitHub Container Registry, for `linux/amd64` and `linux/arm64` ([ADR 0004](docs/adr/0004-multi-arch-images-on-ghcr.md)):
+
+| Image | Service | Port |
+|---|---|---|
+| `ghcr.io/caiocv18/vortex-application-service` | Spring Boot inventory API | 8080 |
+| `ghcr.io/caiocv18/vortex-authorization-service` | Quarkus sign-up, sign-in and tokens | 8081 |
+
+`edge` follows `master` and is rebuilt every week to pick up JRE and Alpine fixes, `sha-<commit>` marks each push that gets its own run, and each release adds `X.Y.Z`, `X.Y` and `latest`. Both images run as a non-root user. After each publish, the arm64 application image must answer `/health` on an arm64 runner, and Trivy reports the CRITICAL and HIGH findings that already have a fix, on the arm64 variant of both images, to the repository's Security tab.
+
+The application service runs alone on H2:
+
+```bash
+docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=dev,leve ghcr.io/caiocv18/vortex-application-service:edge
+curl http://localhost:8080/health
+```
+
+The authorization service needs PostgreSQL and its JWT key pair. The image carries neither, so each deployment supplies them at runtime.
+
 ## Decisions
 
 The [architecture decision records](docs/adr/README.md) explain the choices that shape the code:
@@ -128,6 +148,7 @@ The [architecture decision records](docs/adr/README.md) explain the choices that
 1. [One CI workflow per service, gated by a paths filter](docs/adr/0001-ci-per-service-with-paths-filter.md)
 2. [An explicit role matrix, without a role hierarchy](docs/adr/0002-explicit-role-matrix-without-hierarchy.md)
 3. [PostgreSQL with Flyway for the cloud demo](docs/adr/0003-postgres-with-flyway-for-the-cloud.md)
+4. [Multi-arch images on GHCR, built without emulation and scanned by Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
 
 ## Repository layout
 
