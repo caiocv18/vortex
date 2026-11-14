@@ -1,0 +1,93 @@
+# Version updates once a month: minor and patch updates grouped per ecosystem, majors one by one.
+# The cooldown keeps a new release out of version updates for 7 days, so a hijacked release has a
+# week to be caught before it reaches a pull request. Security updates, enabled in the repository
+# settings, skip the schedule and the cooldown, but only for what the dependency graph sees: the npm
+# lockfiles in full, and for Maven only the dependencies declared in the poms. The jars that the
+# Spring Boot parent and the Quarkus BOM bring in move with the monthly update of the parent or the
+# BOM, and Trivy reports their vulnerabilities (ADR 0005)
+version: 2
+updates:
+  - package-ecosystem: maven
+    directories: ['/backend/*']
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      maven-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories: ['/frontend/*']
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Updates the SHA pins of .github/workflows and the version comment next to each one
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+    groups:
+      actions-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Base images of every Dockerfile; the docker ecosystem reads only the folders listed here
+  - package-ecosystem: docker
+    directories:
+      - /backend/vortex-application-service
+      - /backend/vortex-authorization-service/src/main/docker
+      - /frontend/*
+      - /infra/docker
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      docker-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Images referenced by the Compose files, which the docker ecosystem does not read
+  - package-ecosystem: docker-compose
+    directories: [/infra/docker]
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      compose-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Provider versions and the committed .terraform.lock.hcl of each root module
+  - package-ecosystem: terraform
+    directories: ['/infra/terraform/*']
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      terraform-minor-and-patch:
+        update-types: [minor, patch]
