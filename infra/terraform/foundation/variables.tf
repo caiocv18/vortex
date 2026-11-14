@@ -5,7 +5,7 @@ variable "region" {
 }
 
 variable "domain_name" {
-  description = "Apex domain of the public hosted zone; projects live on subdomains (vortex.<domain>, turnward.<domain>)."
+  description = "Apex domain of the public hosted zone. The site stack serves the Vortex inventory app at the apex and its login app at login.<domain>; other projects take subdomains of their own (turnward.<domain>)."
   type        = string
   default     = "caiocv.dev"
 
