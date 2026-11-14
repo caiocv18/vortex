@@ -232,6 +232,16 @@ Opções: `--origem VOLUME`, `--destino CONTAINER`, `--imagem-origem IMAGEM` e `
 
 ---
 
+### ☁️ publicar-fronts.sh
+Builds both single-page apps from the committed `HEAD` and publishes them to the static site stack (`infra/terraform/site`, [ADR 0007](../docs/adr/0007-static-spas-on-cloudfront.md)): hashed assets first, then the rest, then an invalidation of `/index.html`. See the "Site" section of [infra/terraform/README.md](../infra/terraform/README.md).
+
+```bash
+AWS_PROFILE=<profile> scripts/publicar-fronts.sh          # both sites
+AWS_PROFILE=<profile> scripts/publicar-fronts.sh login    # one site
+```
+
+---
+
 ## Convenções de Scripts
 
 ### Estrutura Padrão

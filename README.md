@@ -155,6 +155,7 @@ The [architecture decision records](docs/adr/README.md) explain the choices that
 4. [Multi-arch images on GHCR, built without emulation and scanned by Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
 5. [A master ruleset without bypass, Dependabot with a cooldown and immutable releases](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
 6. [An on-demand demo instance, reached only through Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
+7. [Static single-page apps on S3 and CloudFront](docs/adr/0007-static-spas-on-cloudfront.md)
 
 ## Repository layout
 
