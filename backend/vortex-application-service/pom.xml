@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>br.com.vortex.application</groupId>
 	<artifactId>backend</artifactId>
-	<version>0.1.0</version>
+	<version>0.1.1</version>
 	<name>backend</name>
 	<description>Inventory control API of Vortex, the capstone project (TCC) of a PUCRS graduate program in full-stack development</description>
 	<url/>
@@ -37,6 +37,14 @@
 		<jjwt.version>0.13.0</jjwt.version>
 		<!-- Sobrescreve o 23.26.3.0.0 gerenciado pelo Boot 4.1.2 -->
 		<oracle-database.version>23.26.4.0.0</oracle-database.version>
+		<!--
+			Sobrescreve o 5.30.0 gerenciado pelo Boot 4.1.2, que tem 4 CVEs HIGH (Trivy) e mais 6 GHSA
+			(5 médios, 1 baixo) que o filtro CRITICAL,HIGH do Trivy esconde. O 5.34.0 já fecha os HIGH,
+			mas ainda tem 3 médios; o 5.37.1 fecha todos.
+			No Boot 4.2 a propriedade passa a se chamar rabbitmq-client.version e esta é ignorada sem aviso:
+			conferir o amqp-client no dependency:tree ao subir o parent. Ver docs/security/alert-triage.md.
+		-->
+		<rabbit-amqp-client.version>5.37.1</rabbit-amqp-client.version>
 		<!-- Vazio de propósito: o surefire usa @{argLine}, que um agente (ex.: JaCoCo) pode preencher -->
 		<argLine/>
 		<!-- Mesma versão do auth -->
@@ -52,6 +60,21 @@
 				<version>${spring-cloud-aws.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<!--
+				Compressores que o kafka-clients 4.2.2 (Boot 4.1.2) traz em versões com CVE HIGH; o Boot não tem
+				propriedade para eles. São as versões que o Kafka 4.3.2 já fixa. O Kafka 4.4.0 (Boot 4.2) volta
+				aos vulneráveis, então estes pins ficam até o Kafka corrigir. Ver docs/security/alert-triage.md.
+			-->
+			<dependency>
+				<groupId>org.xerial.snappy</groupId>
+				<artifactId>snappy-java</artifactId>
+				<version>1.1.10.11</version>
+			</dependency>
+			<dependency>
+				<groupId>at.yawk.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>1.11.4</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

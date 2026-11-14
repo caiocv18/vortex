@@ -38,7 +38,10 @@ public class CorsConfig {
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
+        // Sem credenciais: a API só aceita o token no cabeçalho Authorization (Bearer) e nenhum serviço usa
+        // cookie. Sem credencial ambiente não há CSRF, que é o motivo do dismiss do alerta do CodeQL
+        // (docs/security/alert-triage.md); um cookie de sessão no futuro exige rever as duas coisas juntas.
+        configuration.setAllowCredentials(false);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
