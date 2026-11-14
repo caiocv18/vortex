@@ -6,7 +6,7 @@
 
     <groupId>br.com.vortex.authorization</groupId>
     <artifactId>vortex-authorization-service</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <name>Vortex Authorization Service</name>
