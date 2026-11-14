@@ -14,7 +14,7 @@ The authorization service's Dockerfile copies a `target/quarkus-app` built befor
 
 ## Decision
 
-- **Registry:** the GitHub Container Registry, as `ghcr.io/caiocv18/vortex-application-service` and `ghcr.io/caiocv18/vortex-authorization-service`, for `linux/amd64` and `linux/arm64`. Both packages are to be public: GHCR creates them private, so each one is switched by hand after the first publish (see Consequences).
+- **Registry:** the GitHub Container Registry, as `ghcr.io/caiocv18/vortex-application-service` and `ghcr.io/caiocv18/vortex-authorization-service`, for `linux/amd64` and `linux/arm64`. Both packages are public (see the correction under Consequences).
 - **Workflow:** `.github/workflows/images.yml`, with `permissions: {}` at the top and one job per concern:
 
   | Job | Runs on | Permissions | What it does |
@@ -69,7 +69,7 @@ The authorization service's Dockerfile copies a `target/quarkus-app` built befor
 - A release's images are rebuilt only if its tag workflow is re-run; `edge` is the only tag that moves on a schedule.
 - The application has two Dockerfiles: the one in its module is canonical and builds the published image, while `infra/docker/Dockerfile.backend` builds the local Compose stack and can drift from it.
 - The authorization image carries no JWT key pair (`*.pem` stays out of git), so every deployment supplies the keys at runtime.
-- GHCR creates a pushed package as private, and the workflow's own token can still pull it, so CI does not notice. After the first publish from `master`, each package is made public once in its settings (Package settings, Danger Zone, Change visibility); until then an anonymous pull is denied. GitHub does not let a public package become private again.
+- **Correction (2026-11-14, after the first publish):** this record first said that GHCR creates a pushed package as private, so each package would be made public by hand. The first publish from `master` showed otherwise: both packages accepted an anonymous pull right away, with no manual step. GitHub does not let a public package become private again.
 
 ## References
 
