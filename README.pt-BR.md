@@ -119,6 +119,26 @@ cd frontend/vortex-application-service && npx eslint . && npm run type-check && 
 cd frontend/vortex-authorization-service && npm run lint && npm run type-check && npx vitest run
 ```
 
+## Imagens de contêiner
+
+Os pushes no `master` publicam os dois backends no GitHub Container Registry, para `linux/amd64` e `linux/arm64` ([ADR 0004](docs/adr/0004-multi-arch-images-on-ghcr.md)):
+
+| Imagem | Serviço | Porta |
+|---|---|---|
+| `ghcr.io/caiocv18/vortex-application-service` | API de estoque em Spring Boot | 8080 |
+| `ghcr.io/caiocv18/vortex-authorization-service` | Cadastro, login e tokens em Quarkus | 8081 |
+
+A `edge` acompanha o `master` e é reconstruída toda semana, para trazer as correções da JRE e do Alpine; `sha-<commit>` marca cada push que ganha execução própria, e cada release acrescenta `X.Y.Z`, `X.Y` e `latest`. As duas imagens rodam com um usuário sem privilégios. Depois de cada publicação, a imagem arm64 do serviço de aplicação precisa responder no `/health` num runner arm64, e o Trivy reporta na aba Security do repositório os achados CRITICAL e HIGH que já têm correção, na variante arm64 das duas imagens.
+
+O serviço de aplicação roda sozinho, em H2:
+
+```bash
+docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=dev,leve ghcr.io/caiocv18/vortex-application-service:edge
+curl http://localhost:8080/health
+```
+
+O serviço de autorização precisa do PostgreSQL e do par de chaves do JWT. A imagem não leva nenhum dos dois, então cada implantação os fornece em tempo de execução.
+
 ## Decisões
 
 Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) explicam as escolhas que moldam o código:
@@ -126,6 +146,7 @@ Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) expli
 1. [Um workflow de CI por serviço, filtrado por caminho](docs/adr/0001-ci-per-service-with-paths-filter.md)
 2. [Uma matriz de papéis explícita, sem hierarquia de papéis](docs/adr/0002-explicit-role-matrix-without-hierarchy.md)
 3. [PostgreSQL com Flyway para a demo na nuvem](docs/adr/0003-postgres-with-flyway-for-the-cloud.md)
+4. [Imagens multiarquitetura no GHCR, construídas sem emulação e analisadas pelo Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
 
 ## Estrutura do repositório
 
