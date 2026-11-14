@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { test as setup, expect } from '@playwright/test'
@@ -28,8 +29,9 @@ setup('cadastra, autentica e grava a sessão do usuário de teste', async ({
   expect(baseURL, 'baseURL precisa estar definida no playwright.config.ts').toBeTruthy()
   const appOrigin = new URL(baseURL!).origin
 
-  // Usuário único por execução: o H2 do app zera a cada subida, o Postgres do auth não
-  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  // Usuário único por execução: o H2 do app zera a cada subida, o Postgres do auth não.
+  // UUID do gerador criptográfico do Node: o id também compõe a senha (alerta js/insecure-randomness).
+  const id = randomUUID()
   const username = `e2e_${id}`
   const email = `${username}@vortex.test`
   // Política de senha: maiúscula, minúscula, dígito, especial e 8 ou mais caracteres
