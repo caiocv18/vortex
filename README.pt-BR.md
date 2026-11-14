@@ -153,6 +153,7 @@ Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) expli
 4. [Imagens multiarquitetura no GHCR, construídas sem emulação e analisadas pelo Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
 5. [Ruleset do master sem bypass, Dependabot com cooldown e releases imutáveis](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
 6. [Instância de demo sob demanda, acessada só pelo Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
+7. [Aplicações de página única estáticas no S3 e no CloudFront](docs/adr/0007-static-spas-on-cloudfront.md)
 
 ## Estrutura do repositório
 

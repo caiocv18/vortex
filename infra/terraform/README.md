@@ -7,8 +7,9 @@ Infrastructure as code for the AWS account that hosts the Vortex portfolio. The 
 | `bootstrap/` | `bootstrap/terraform.tfstate` | The S3 bucket that stores every stack's state, its own included |
 | `foundation/` | `foundation/terraform.tfstate` | The public Route 53 zone of the portfolio domain and the gross monthly cost budget |
 | `demo/` | `demo/terraform.tfstate` | The on-demand demo instance, reached only through Session Manager, with its network, role and data volume ([ADR 0006](../../docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)) |
+| `site/` | `site/terraform.tfstate` | The two single-page apps on private S3 buckets behind CloudFront, with their certificate, headers policy, routing function and DNS records ([ADR 0007](../../docs/adr/0007-static-spas-on-cloudfront.md)) |
 
-Later stacks (the static site on S3 + CloudFront) get their own folder and state key.
+A later stack gets its own folder and state key.
 
 ## Decisions
 
@@ -24,7 +25,7 @@ Later stacks (the static site on S3 + CloudFront) get their own folder and state
 ## Prerequisites
 
 - Terraform 1.17+, AWS CLI 2.32+ (for `aws login`), tflint and checkov.
-- A profile that can manage S3, Route 53 and Budgets (plus EC2, IAM and Systems Manager for the demo): run `aws login --profile <profile>`, then `export AWS_PROFILE=<profile>`.
+- A profile that can manage S3, Route 53 and Budgets (plus EC2, IAM and Systems Manager for the demo, and CloudFront and ACM for the site): run `aws login --profile <profile>`, then `export AWS_PROFILE=<profile>`.
 
 ## First run (once per account)
 
@@ -102,6 +103,34 @@ A script without a terminal can run one command through `--document-name AWS-Sta
 
 The first boot runs `infra/cloud/user-data.sh` and logs to `/var/log/vortex-user-data.log`. A changed user data or a newer image applies on the next launch only (`ignore_changes`), so turning the demo off and on is how either reaches the instance.
 
+## Site
+
+The inventory app answers at the apex domain and the login app at `login.<domain>`, each from a private bucket behind its own CloudFront distribution. The stack adds records to the foundation's zone, so the foundation comes first.
+
+```sh
+cd infra/terraform/site
+terraform init -backend-config=../backend.hcl
+terraform plan -out=site.tfplan
+terraform apply site.tfplan
+```
+
+The first apply waits until the certificate is issued and both distributions are deployed, which takes 5 to 20 minutes.
+
+The buckets start empty. `scripts/publicar-fronts.sh` builds both apps from the committed `HEAD` with Node.js 26 as in CI (24.x from 24.15 and 22.x from 22.22.2 also meet the dependencies), writes the stack's URLs into each build, uploads them and invalidates `/index.html`. Pass `app` or `login` to publish one site only. From the repository root:
+
+```sh
+AWS_PROFILE=<profile> scripts/publicar-fronts.sh
+```
+
+Routes such as `/products` or `/reset-password/<token>` reach `index.html` through the `vortex-spa-rewrite` function. Its rules are in `site/spa-rewrite.js`; any change to them goes through a plan like the rest of the stack.
+
+Terraform does not delete a bucket that still holds objects, so a `terraform destroy` of this stack needs both buckets emptied first:
+
+```sh
+aws s3 rm "s3://$(terraform -chdir=infra/terraform/site output -raw app_bucket)" --recursive
+aws s3 rm "s3://$(terraform -chdir=infra/terraform/site output -raw login_bucket)" --recursive
+```
+
 ## Checks
 
 ```sh
@@ -110,9 +139,11 @@ terraform fmt -check -recursive
 terraform -chdir=bootstrap init -backend=false -input=false
 terraform -chdir=foundation init -backend=false -input=false
 terraform -chdir=demo init -backend=false -input=false
+terraform -chdir=site init -backend=false -input=false
 terraform -chdir=bootstrap validate
 terraform -chdir=foundation validate
 terraform -chdir=demo validate
+terraform -chdir=site validate
 tflint --init --config "$PWD/.tflint.hcl"
 tflint --recursive --config "$PWD/.tflint.hcl"
 checkov -d . --framework terraform --quiet
@@ -130,5 +161,9 @@ Every `#checkov:skip` in the code states why the control does not pay for itself
 | Demo data volume (5 GiB gp3, always there) | US$ 0.40 |
 | Demo instance (`t4g.small`), only while on | instance hours free under the T4g trial until 2026-12-31, then about US$ 0.017/hour; CPU above the baseline not earned back before stop or terminate costs US$ 0.04 per vCPU-hour (unlimited credits, not covered by the trial) |
 | Demo public IPv4 address and 10 GiB root volume, only while on | US$ 0.005/hour plus about US$ 0.001/hour |
+| Site distributions and their function | free within the CloudFront always free tier (1 TB out, 10 million requests and 2 million function invocations a month) |
+| Site alias records (A, AAAA, HTTPS) | free: Route 53 does not charge alias queries to CloudFront |
+| Site certificate (ACM) | free |
+| Site buckets (a few MB) and invalidations (the first 1,000 paths a month are free) | cents |
 
 Domain registration is paid by card: AWS credits do not cover it.
