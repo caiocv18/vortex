@@ -97,6 +97,9 @@ O serviço de autorização assina os tokens com um par de chaves RSA que fica f
 - O serviço de aplicação valida cada token de `/api/**` no serviço de autorização e autoriza por papel: `VIEWER` lê, `USER` e `MANAGER` também escrevem, `ADMIN` também monitora as filas. A matriz completa e as decisões estão em [docs/security/roles.md](docs/security/roles.md) (em inglês).
 - O `EndpointAuthorizationCoverageTest` falha quando um handler não tem regra ou discorda da matriz, e o `RoleAuthorizationIntegrationTest` prova cada célula por HTTP.
 - O perfil `cloud` nem registra Swagger, console do H2 e endpoints de teste, nega qualquer caminho fora de `/api/**` e `/health`, e não sobe com o segredo JWT padrão.
+- O `master` só aceita mudança por pull request que passe nos cinco builds e no SonarCloud, com commits assinados e sem bypass, nem para o dono ([ADR 0005](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)).
+- O CodeQL analisa os workflows, o Java e o TypeScript. O Dependabot abre correções de segurança assim que surge um alerta, além das atualizações mensais agrupadas, que esperam sete dias depois de cada versão nova. Os alertas dele cobrem os lockfiles do npm e as dependências Maven declaradas nos poms; os jars que o parent do Spring Boot e o BOM do Quarkus trazem são apontados pelo Trivy e mudam com a atualização do parent ou do BOM.
+- Os releases são imutáveis, e as tags deles são assinadas.
 
 ## Qualidade
 
@@ -147,6 +150,7 @@ Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) expli
 2. [Uma matriz de papéis explícita, sem hierarquia de papéis](docs/adr/0002-explicit-role-matrix-without-hierarchy.md)
 3. [PostgreSQL com Flyway para a demo na nuvem](docs/adr/0003-postgres-with-flyway-for-the-cloud.md)
 4. [Imagens multiarquitetura no GHCR, construídas sem emulação e analisadas pelo Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
+5. [Ruleset do master sem bypass, Dependabot com cooldown e releases imutáveis](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
 
 ## Estrutura do repositório
 

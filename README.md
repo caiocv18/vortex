@@ -99,6 +99,9 @@ The authorization service signs its tokens with an RSA key pair that stays out o
 - The application service validates every `/api/**` token with the authorization service and authorizes by role: `VIEWER` reads, `USER` and `MANAGER` also write, `ADMIN` also monitors the queues. The full matrix and its decisions are in [docs/security/roles.md](docs/security/roles.md).
 - `EndpointAuthorizationCoverageTest` fails when a handler has no rule or disagrees with the matrix, and `RoleAuthorizationIntegrationTest` proves each cell over HTTP.
 - The `cloud` profile does not register Swagger, the H2 console or the test endpoints, denies any path outside `/api/**` and `/health`, and refuses to start with the default JWT secret.
+- `master` takes changes only through pull requests that pass the five builds and SonarCloud, with signed commits and no bypass, not even for the owner ([ADR 0005](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)).
+- CodeQL analyzes the workflows, the Java and the TypeScript. Dependabot opens security fixes as soon as an alert appears, plus grouped monthly version updates that wait seven days after each new release. Its alerts cover the npm lockfiles and the Maven dependencies declared in the poms; the jars that the Spring Boot parent and the Quarkus BOM bring in are flagged by Trivy and move with the parent or BOM update.
+- Releases are immutable and their tags are signed.
 
 ## Quality
 
@@ -149,6 +152,7 @@ The [architecture decision records](docs/adr/README.md) explain the choices that
 2. [An explicit role matrix, without a role hierarchy](docs/adr/0002-explicit-role-matrix-without-hierarchy.md)
 3. [PostgreSQL with Flyway for the cloud demo](docs/adr/0003-postgres-with-flyway-for-the-cloud.md)
 4. [Multi-arch images on GHCR, built without emulation and scanned by Trivy](docs/adr/0004-multi-arch-images-on-ghcr.md)
+5. [A master ruleset without bypass, Dependabot with a cooldown and immutable releases](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
 
 ## Repository layout
 
