@@ -98,7 +98,8 @@ O serviço de autorização assina os tokens com um par de chaves RSA que fica f
 - O `EndpointAuthorizationCoverageTest` falha quando um handler não tem regra ou discorda da matriz, e o `RoleAuthorizationIntegrationTest` prova cada célula por HTTP.
 - O perfil `cloud` nem registra Swagger, console do H2 e endpoints de teste, nega qualquer caminho fora de `/api/**` e `/health`, e não sobe com o segredo JWT padrão.
 - O `master` só aceita mudança por pull request que passe nos cinco builds e no SonarCloud, com commits assinados e sem bypass, nem para o dono ([ADR 0005](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)).
-- O CodeQL analisa os workflows, o Java e o TypeScript. O Dependabot abre correções de segurança assim que surge um alerta, além das atualizações mensais agrupadas, que esperam sete dias depois de cada versão nova. Os alertas dele cobrem os lockfiles do npm e as dependências Maven declaradas nos poms; os jars que o parent do Spring Boot e o BOM do Quarkus trazem são apontados pelo Trivy e mudam com a atualização do parent ou do BOM.
+- O CodeQL analisa os workflows, o Java e o TypeScript. O Dependabot abre correções de segurança assim que surge um alerta, além das atualizações mensais agrupadas, que esperam sete dias depois de cada versão nova. Os alertas dele cobrem os lockfiles do npm e as dependências Maven declaradas nos poms; os jars que o parent do Spring Boot e o BOM do Quarkus trazem são apontados pelo Trivy e mudam com a atualização do parent ou do BOM, ou ficam fixados no pom quando a correção não pode esperar.
+- Todo alerta é corrigido ou dispensado com motivo escrito, inclusive o risco aceito de guardar tokens no armazenamento do navegador: [docs/security/alert-triage.md](docs/security/alert-triage.md) (em inglês).
 - Os releases são imutáveis, e as tags deles são assinadas.
 
 ## Qualidade
