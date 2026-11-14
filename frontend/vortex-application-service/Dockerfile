@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # 2) Production stage: Nginx para servir arquivos estáticos
-FROM nginx:1.30.6-alpine AS production
+FROM nginx:1.31.7-alpine AS production
 
 # Copiar arquivos buildados para o Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
