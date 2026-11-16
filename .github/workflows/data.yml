@@ -1,0 +1,72 @@
+name: data
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions: {}
+
+concurrency:
+  # One group per PR (newer pushes cancel older runs); one group per commit on master (no push is ever cancelled)
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      data: ${{ steps.filter.outputs.data }}
+    steps:
+      # On pull_request the filter uses the API; on push it diffs against the previous commit with git
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          # data/schemas is read by the tests, and by the gcp/data Terraform stack as the table schemas
+          filters: |
+            data:
+              - 'data/**'
+              - '.github/workflows/data.yml'
+
+  data:
+    name: data
+    needs: changes
+    # Fail closed: a skipped job reports success, so if the filter itself breaks, build anyway
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.data == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: data/pipeline
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.8'
+          python-version: '3.12'
+          working-directory: data/pipeline
+          cache-dependency-glob: data/pipeline/uv.lock
+      - name: Install dependencies
+        # --locked fails when pyproject.toml changed without `uv lock`: the lockfile is the contract
+        run: uv sync --locked
+      - name: Lint
+        run: |
+          uv run --no-sync ruff check --output-format github .
+          uv run --no-sync ruff format --check .
+      - name: Tests
+        # DirectRunner end to end over the fixtures; the coverage floor is fail_under in pyproject.toml
+        run: uv run --no-sync pytest
