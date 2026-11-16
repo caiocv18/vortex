@@ -26,6 +26,17 @@ variable "monthly_budget_usd" {
   }
 }
 
+variable "apex_txt_records" {
+  description = "TXT values of the apex domain, such as google-site-verification=<token>. Set them in terraform.tfvars (git-ignored); an empty list creates no record."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for r in var.apex_txt_records : length(r) > 0 && length(r) <= 255])
+    error_message = "Each TXT value must have 1 to 255 characters."
+  }
+}
+
 variable "budget_alert_emails" {
   description = "Addresses that receive the budget alerts. Set it in terraform.tfvars (git-ignored)."
   type        = list(string)
