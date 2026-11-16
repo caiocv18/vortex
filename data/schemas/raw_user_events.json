@@ -1,0 +1,16 @@
+[
+  {"name": "event_id", "type": "STRING", "mode": "REQUIRED", "description": "eventId set by the authorization service; views deduplicate on it"},
+  {"name": "event_type", "type": "STRING", "mode": "REQUIRED", "description": "user.created, user.logged_in, user.logged_out, password.changed, password.reset_requested or email.verified"},
+  {"name": "schema_version", "type": "STRING", "mode": "NULLABLE", "description": "version field of the event"},
+  {"name": "event_ts", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "When the event was produced, in UTC; partition column"},
+  {"name": "user_id", "type": "STRING", "mode": "NULLABLE", "description": "Personal data: user UUID in the authorization database"},
+  {"name": "username", "type": "STRING", "mode": "NULLABLE", "description": "Personal data: username, in clear"},
+  {"name": "user_email", "type": "STRING", "mode": "NULLABLE", "description": "Personal data: e-mail address, in clear"},
+  {"name": "ip_address", "type": "STRING", "mode": "NULLABLE", "description": "Personal data: client IP address, in clear"},
+  {"name": "user_agent", "type": "STRING", "mode": "NULLABLE", "description": "Personal data: browser user agent, in clear"},
+  {"name": "session_id", "type": "STRING", "mode": "NULLABLE", "description": "Personal data: session id"},
+  {"name": "attributes", "type": "STRING", "mode": "NULLABLE", "description": "Other fields of the event as JSON text, without the secret ones (reset and verification token ids)"},
+  {"name": "source_file", "type": "STRING", "mode": "REQUIRED", "description": "Landing file the line came from"},
+  {"name": "run_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline run that wrote the row"},
+  {"name": "ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Start of that pipeline run, in UTC"}
+]
