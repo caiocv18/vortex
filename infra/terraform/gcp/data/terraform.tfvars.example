@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+org_id          = "123456789012"
+operator_member = "user:you@example.com"
+# billing_account = "012345-6789AB-CDEF01"  # leave unset to stay in the BigQuery sandbox
