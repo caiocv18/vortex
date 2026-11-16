@@ -7,6 +7,7 @@
 [![front-app](https://github.com/caiocv18/vortex/actions/workflows/front-app.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/front-app.yml)
 [![front-auth](https://github.com/caiocv18/vortex/actions/workflows/front-auth.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/front-auth.yml)
 [![launcher](https://github.com/caiocv18/vortex/actions/workflows/launcher.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/launcher.yml)
+[![data](https://github.com/caiocv18/vortex/actions/workflows/data.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/data.yml)
 [![app-service coverage](https://raw.githubusercontent.com/caiocv18/vortex/badges/app-service/coverage.svg)](https://github.com/caiocv18/vortex/actions/workflows/app-service.yml)
 
 Vortex is an inventory control system built as the capstone project (TCC) of a PUCRS graduate program in full-stack development. It registers product types, products and stock movements in and out, and reports products by type and profit per product. Four services split the work: a Spring Boot API for inventory, a Quarkus service for sign-up and sign-in, and one frontend for each.
@@ -115,6 +116,7 @@ Each service has its own GitHub Actions workflow, which builds only when that se
 | `front-app` | ESLint, `vue-tsc` type check, Vitest, production build |
 | `front-auth` | ESLint, type check, Vitest, production build |
 | `launcher` | ShellCheck, `bash -n` and the executable bit on every script, plus the launcher's own tests |
+| `data` | uv with the locked dependencies, Ruff, and pytest with branch coverage: unit tests plus an end-to-end run of the Beam pipeline on the DirectRunner |
 
 The coverage badge counts instructions (JaCoCo C0) of the application service, so it differs from the line gate. To run the same checks locally:
 
@@ -123,6 +125,7 @@ cd backend/vortex-application-service && ./mvnw verify        # needs Docker for
 cd backend/vortex-authorization-service && ./mvnw verify
 cd frontend/vortex-application-service && npx eslint . && npm run type-check && npx vitest run
 cd frontend/vortex-authorization-service && npm run lint && npm run type-check && npx vitest run
+cd data/pipeline && uv sync --locked && uv run ruff check . && uv run pytest
 ```
 
 ## Container images
@@ -145,6 +148,12 @@ curl http://localhost:8080/health
 
 The authorization service needs PostgreSQL and its JWT key pair. The image carries neither, so each deployment supplies them at runtime.
 
+## Data pipeline
+
+An Apache Beam pipeline in Python takes the inventory and account events to BigQuery on Google Cloud ([ADR 0008](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)). Raw events, with personal data, stay in an ingestion project for 30 days. Curated events replace usernames and e-mail addresses with HMAC-SHA256 pseudonyms and IP addresses with their networks. Analysts read only views in a second project, authorized on the curated dataset, and the pseudonyms still join: the same user has the same `user_key` in movements and in logins.
+
+Today it runs on the DirectRunner and loads into the BigQuery sandbox, with no billing. Dataflow, Cloud Storage and a policy tag on the raw columns come with billing, behind a budget and a kill-switch. How to run it: [data/README.md](data/README.md).
+
 ## Decisions
 
 The [architecture decision records](docs/adr/README.md) explain the choices that shape the code:
@@ -156,6 +165,7 @@ The [architecture decision records](docs/adr/README.md) explain the choices that
 5. [A master ruleset without bypass, Dependabot with a cooldown and immutable releases](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
 6. [An on-demand demo instance, reached only through Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
 7. [Static single-page apps on S3 and CloudFront](docs/adr/0007-static-spas-on-cloudfront.md)
+8. [A Beam pipeline into BigQuery, across two Google Cloud projects, with pseudonymization](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)
 
 ## Repository layout
 
@@ -166,6 +176,7 @@ backend/
 frontend/
   vortex-application-service/     Vue inventory app
   vortex-authorization-service/   React sign-in app
+data/                             Beam pipeline, table schemas and scripts (Google Cloud)
 infra/                            Docker Compose files, Oracle, Kafka, RabbitMQ, SQS, Terraform
 scripts/                          Test, memory and maintenance scripts
 docs/
