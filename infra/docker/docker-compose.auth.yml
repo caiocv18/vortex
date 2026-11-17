@@ -56,6 +56,10 @@ services:
       auth-db:
         condition: service_healthy
     environment:
+      # Container local: perfil leve, o mesmo do launcher. Sem perfil a imagem roda no prod, que exige uma
+      # POSTGRES_DB_PASSWORD forte (DatasourcePasswordValidator) e recusaria a senha local abaixo.
+      QUARKUS_PROFILE: leve
+
       # Database Configuration (nomes lidos pelo application.properties)
       POSTGRES_DB_URL: jdbc:postgresql://auth-db:5432/vortex_auth
       POSTGRES_DB_USERNAME: vortex_auth

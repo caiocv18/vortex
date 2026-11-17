@@ -8,6 +8,7 @@ Este documento descreve como configurar e executar a aplicação com Oracle Data
 - Nenhum login em registry: a imagem é a `gvenzl/oracle-free:23.26.3-slim-faststart`, do Docker Hub
 - Cerca de 3 GB de RAM livres. O compose usa `mem_limit: 3g`: o Oracle Database Free limita a 2 GB só a SGA e a PGA, e o container também conta a memória privada dos processos de fundo, das sessões e do listener. Medido em 07/11/2026 com o `23.26.3-slim-faststart` e o limite de 3g: `sga_target` 1536M e `pga_aggregate_target` 512M; memória que não dá para devolver (anônima mais a SGA em memória compartilhada) de 1,3 GiB ocioso e 1,5 GiB com 20 sessões dedicadas (o máximo do pool do perfil `prd`), 63 a 104 processos e nenhum OOM. Só a SGA inteira (1,5 GiB) mais a memória anônima medida com as 20 sessões (0,7 GiB) já passam dos 2 GB, então o antigo `mem_limit: 2g` não tinha folga. O resto do limite é cache de disco dos datafiles, que o kernel devolve sob pressão; por isso o `docker stats` do `vortex-db` mostra 2,2 a 2,6 GiB mesmo ocioso
 - `JWT_SECRET` forte exportado (o backend no perfil `prd` recusa o padrão): `export JWT_SECRET="$(openssl rand -base64 48)"`
+- `ORACLE_APP_USER_PASSWORD` forte exportado antes da primeira subida do volume (o backend no perfil `prd` recusa o padrão `vortex_password`): `export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"`. Hexadecimal porque a barra do Base64 quebraria o `usuário/senha@serviço` do `sqlplus`
 
 ## Configuração Implementada
 
@@ -28,7 +29,7 @@ O profile `prd` foi configurado com:
 | PDB / serviço | `FREEPDB1` (no lugar do antigo `ORCLPDB1`) |
 | Senha de SYS e SYSTEM | `ORACLE_PASSWORD` (padrão `Oracle_1234`) |
 | Usuário da aplicação | `APP_USER=vortex_user`, criado no `FREEPDB1` na primeira subida |
-| Senha da aplicação | `APP_USER_PASSWORD` (padrão `vortex_password`) |
+| Senha da aplicação | `APP_USER_PASSWORD`, vinda de `ORACLE_APP_USER_PASSWORD` (padrão `vortex_password`, que o backend recusa por ser fraca) |
 | Volume | `vortex-oracle-data`, compartilhado pelas stacks prd |
 | Healthcheck | `healthcheck.sh`, que vem na imagem |
 
@@ -59,8 +60,11 @@ Eles rodam **uma vez só**, na primeira inicialização do volume, como `SYS` no
 
 ```bash
 export JWT_SECRET="$(openssl rand -base64 48)"
+export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"
 ./start-vortex.sh -e prd -m none
 ```
+
+O backend recusa subir no prd com senha de banco fraca (menos de 12 caracteres, só letras ou só dígitos, ou com `password` ou `admin`), e o padrão `vortex_password` é fraco. A imagem do Oracle grava a senha do `vortex_user` só na primeira subida do volume, então ela é exportada antes da primeira subida e mantida nas seguintes.
 
 O launcher confere o `JWT_SECRET` (as mesmas regras do `SecurityConfigurationValidator`) antes de mexer em qualquer coisa, sobe o Oracle (`docker compose up -d db`), espera o log `DATABASE IS READY TO USE` e depois sobe o backend em container. Se o `vortex-app` parar durante a subida, o launcher mostra as últimas linhas do log dele na hora.
 
@@ -74,6 +78,7 @@ O launcher confere o `JWT_SECRET` (as mesmas regras do `SecurityConfigurationVal
 
 ```bash
 export JWT_SECRET="$(openssl rand -base64 48)"
+export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"   # antes da primeira subida do volume
 cd infra/docker
 docker compose up -d
 ```
@@ -97,7 +102,7 @@ docker logs vortex-db -f    # Oracle
 - `SPRING_PROFILES_ACTIVE=prd` (o launcher acrescenta o perfil de mensageria)
 - `ORACLE_DB_URL=jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1`
 - `ORACLE_DB_USERNAME=vortex_user`
-- `ORACLE_DB_PASSWORD=vortex_password` (ou `ORACLE_APP_USER_PASSWORD`, se definido)
+- `ORACLE_DB_PASSWORD`, com o valor de `ORACLE_APP_USER_PASSWORD` (sem ela, o padrão `vortex_password`, que o backend recusa no `prd`)
 
 ### String de Conexão Oracle
 
@@ -164,26 +169,27 @@ JWT_SECRET=nao-usado-pelo-oracle docker compose up -d db
 - Host: localhost
 - Porta: 1521
 - Serviço (PDB): FREEPDB1
-- Usuário da aplicação: vortex_user / vortex_password
+- Usuário da aplicação: vortex_user / o valor de `ORACLE_APP_USER_PASSWORD` da primeira subida do volume
 - Administrador: system / Oracle_1234 (ou o valor de `ORACLE_PASSWORD`)
 
 ```bash
-docker exec -it vortex-db sqlplus vortex_user/vortex_password@//localhost:1521/FREEPDB1
+docker exec -it vortex-db sqlplus "vortex_user/$ORACLE_APP_USER_PASSWORD@//localhost:1521/FREEPDB1"
 ```
 
 ## Desenvolvimento Local
 
 Para executar a aplicação localmente (fora do Docker) conectando ao Oracle no Docker:
 
-1. Subir apenas o Oracle:
+1. Subir apenas o Oracle, com a senha do `vortex_user` definida antes da primeira subida do volume:
 ```bash
+export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"
 ./infra/scripts/start-oracle.sh
 ```
 
-2. Executar a aplicação com profile prd (o perfil exige um `JWT_SECRET` forte):
+2. Executar a aplicação com profile prd (o perfil exige um `JWT_SECRET` forte e recusa senha de banco fraca):
 ```bash
 cd backend/vortex-application-service
-JWT_SECRET="$(openssl rand -base64 48)" ORACLE_DB_USERNAME=vortex_user ORACLE_DB_PASSWORD=vortex_password \
+JWT_SECRET="$(openssl rand -base64 48)" ORACLE_DB_USERNAME=vortex_user ORACLE_DB_PASSWORD="$ORACLE_APP_USER_PASSWORD" \
   ./mvnw spring-boot:run -Dspring-boot.run.profiles=prd
 ```
 
