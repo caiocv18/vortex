@@ -109,9 +109,10 @@ npm run dev
 # Start auth services with Docker (Compose v2)
 docker compose -f infra/docker/docker-compose.auth.yml up -d
 
-# Or as part of full stack (prd needs a strong JWT_SECRET, and a strong vortex_user
-# password exported before the Oracle volume is first started)
+# Or as part of full stack (prd needs a strong JWT_SECRET, and strong SYS/SYSTEM and
+# vortex_user passwords exported before the Oracle volume is first started)
 export JWT_SECRET="$(openssl rand -base64 48)"
+export ORACLE_PASSWORD="$(openssl rand -hex 24)"
 export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"
 ./start-vortex.sh -e prd -m kafka
 ```

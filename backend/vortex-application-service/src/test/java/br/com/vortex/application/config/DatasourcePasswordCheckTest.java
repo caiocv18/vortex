@@ -1,6 +1,8 @@
 package br.com.vortex.application.config;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.io.ClassPathResource;
@@ -14,23 +16,26 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Lê o {@code application-postgres.properties} que vai na imagem, sem cópia: se alguém devolver um padrão à senha,
- * o primeiro teste deixa de falhar o boot e reprova.
+ * Lê os {@code application-postgres.properties} (nuvem) e {@code application-prd.properties} (Oracle) que vão na
+ * imagem, sem cópia: se alguém devolver um padrão à senha de um deles, o primeiro teste deixa de falhar o boot e
+ * reprova.
  */
 class DatasourcePasswordCheckTest {
 
-    @Test
-    void stopsTheBootNamingTheVariableWhenThePostgresPasswordIsNotExported() throws IOException {
-        MockEnvironment environment = withProfileFile("application-postgres.properties");
+    @ParameterizedTest
+    @CsvSource({"application-postgres.properties, VORTEX_DB_PASSWORD", "application-prd.properties, ORACLE_DB_PASSWORD"})
+    void stopsTheBootNamingTheVariableWhenThePasswordIsNotExported(String file, String variable) throws IOException {
+        MockEnvironment environment = withProfileFile(file);
 
         IllegalStateException failure = assertThrows(IllegalStateException.class, () -> check(environment));
-        assertTrue(failure.getMessage().contains("VORTEX_DB_PASSWORD"), failure.getMessage());
+        assertTrue(failure.getMessage().contains(variable), failure.getMessage());
     }
 
-    @Test
-    void passesWhenThePostgresPasswordIsExported() throws IOException {
-        MockEnvironment environment = withProfileFile("application-postgres.properties")
-                .withProperty("VORTEX_DB_PASSWORD", StrongTestPasswords.generate());
+    @ParameterizedTest
+    @CsvSource({"application-postgres.properties, VORTEX_DB_PASSWORD", "application-prd.properties, ORACLE_DB_PASSWORD"})
+    void passesWhenThePasswordIsExported(String file, String variable) throws IOException {
+        MockEnvironment environment = withProfileFile(file)
+                .withProperty(variable, StrongTestPasswords.generate());
 
         assertDoesNotThrow(() -> check(environment));
     }

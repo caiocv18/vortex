@@ -22,7 +22,7 @@
 # - Parada por pid file: TERM, até 15 s de espera e só então KILL (nada de pkill por padrão)
 # - pid file com PID, instante de início e boot_id: PID reaproveitado nunca recebe sinal
 # - Par de chaves RSA do JWT do serviço de autorização gerado quando falta (nunca sobrescreve)
-# - Ambiente prd exige JWT_SECRET forte antes de subir qualquer container
+# - Ambiente prd exige JWT_SECRET e as duas senhas do Oracle fortes antes de subir qualquer container
 # - Java (SDKMAN) e Node.js (nvm) carregados pelo próprio launcher
 
 set -e
@@ -132,6 +132,8 @@ show_help() {
     echo "  dev  - Desenvolvimento com H2 Database"
     echo "  prd  - Produção com Oracle Database (backend principal no Docker)."
     echo "         Exige JWT_SECRET forte: export JWT_SECRET=\"\$(openssl rand -base64 48)\""
+    echo "         e as duas senhas do Oracle (SYS e SYSTEM; vortex_user), sem padrão nos compose:"
+    echo "         export ORACLE_PASSWORD=\"\$(openssl rand -hex 24)\" ORACLE_APP_USER_PASSWORD=\"\$(openssl rand -hex 24)\""
     echo ""
     echo "Modos de execução:"
     echo "  leve - Padrão. Builds só do que mudou, jars com JVM enxuta e cache AOT,"
@@ -633,6 +635,12 @@ check_prd_jwt_secret() {
     return 1
 }
 
+# Senhas do Oracle do prd (ORACLE_PASSWORD e ORACLE_APP_USER_PASSWORD): sem padrão nos compose e
+# gravadas no volume na primeira subida. db_password_weakness e check_oracle_passwords ficam num
+# arquivo próprio porque o infra/scripts/start-oracle.sh, que também cria o volume, usa as mesmas.
+# shellcheck source=scripts/lib/oracle-passwords.sh
+source "$SCRIPT_DIR/scripts/lib/oracle-passwords.sh"
+
 # ================================================================
 # REDES DOCKER
 # ================================================================
@@ -731,11 +739,15 @@ safe_docker_compose() {
     return 1
 }
 
-# docker compose para "down": os compose de prd exigem JWT_SECRET (${JWT_SECRET:?...}) e o
-# Compose interpola o arquivo inteiro em todo comando, até no "down". Para parar qualquer valor
-# serve (nada sobe), e sem ele o "down" falharia calado e deixaria a stack de pé.
+# docker compose para "down": os compose de prd exigem JWT_SECRET, ORACLE_PASSWORD e
+# ORACLE_APP_USER_PASSWORD (${VAR:?...}) e o Compose interpola o arquivo inteiro em todo comando,
+# até no "down". Para parar qualquer valor serve (nada sobe nem é criado), e sem eles o "down"
+# falharia calado e deixaria a stack de pé.
 compose_for_down() {
-    JWT_SECRET="${JWT_SECRET:-nao-usado-no-down}" docker compose "$@"
+    JWT_SECRET="${JWT_SECRET:-nao-usado-no-down}" \
+        ORACLE_PASSWORD="${ORACLE_PASSWORD:-nao-usado-no-down}" \
+        ORACLE_APP_USER_PASSWORD="${ORACLE_APP_USER_PASSWORD:-nao-usado-no-down}" \
+        docker compose "$@"
 }
 
 # "down" de uma stack, SEM -v (volumes ficam), incluindo os serviços atrás de profiles
@@ -2764,10 +2776,14 @@ main() {
     # Escolher componentes
     choose_components
 
-    # prd: todo compose de prd exige JWT_SECRET, e o backend no perfil prd recusa um fraco.
-    # Confere antes de parar ou subir qualquer coisa.
+    # prd: todo compose de prd exige JWT_SECRET e as duas senhas do Oracle, e o backend no perfil prd
+    # recusa segredo ou senha de banco fracos. Confere antes de parar ou subir qualquer coisa, e
+    # mostra todos os problemas de uma vez.
     if [[ "$ENVIRONMENT" == "prd" ]]; then
-        check_prd_jwt_secret || exit 1
+        local prd_ok=true
+        check_prd_jwt_secret || prd_ok=false
+        check_oracle_passwords || prd_ok=false
+        [[ "$prd_ok" == "true" ]] || exit 1
     fi
 
     # Parar serviços existentes

@@ -141,9 +141,10 @@ if ("rabbitmq".equals(brokerType)) {
 # 3. Modo não interativo
 ./start-vortex.sh --no-interaction -e dev -m rabbitmq
 
-# 4. Ambiente prd (backend no Docker), com um JWT_SECRET forte e uma senha forte para o vortex_user
-#    (exportada antes da primeira subida do volume do Oracle; ver infra/docs/README-ORACLE.md)
+# 4. Ambiente prd (backend no Docker), com um JWT_SECRET forte e as duas senhas do Oracle fortes
+#    (exportadas antes da primeira subida do volume; ver infra/docs/README-ORACLE.md)
 export JWT_SECRET="$(openssl rand -base64 48)"
+export ORACLE_PASSWORD="$(openssl rand -hex 24)"
 export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"
 ./start-vortex.sh -e prd -m rabbitmq
 ```

@@ -3,17 +3,8 @@
 -- Conectar ao PDB (Pluggable Database) padrão do Oracle Free
 ALTER SESSION SET CONTAINER = FREEPDB1;
 
--- Criar usuário para a aplicação (caso não exista; com APP_USER=vortex_user no compose a imagem já
--- o cria, e o ORA-01920 abaixo é ignorado)
-BEGIN
-   EXECUTE IMMEDIATE 'CREATE USER vortex_user IDENTIFIED BY vortex_password';
-EXCEPTION
-   WHEN OTHERS THEN
-      IF SQLCODE != -1920 THEN -- Ignorar erro se usuário já existe
-         RAISE;
-      END IF;
-END;
-/
+-- O usuário da aplicação (vortex_user) não é criado aqui: a imagem o cria no FREEPDB1 antes deste
+-- script, a partir de APP_USER e APP_USER_PASSWORD do compose (a senha vem de ORACLE_APP_USER_PASSWORD).
 
 -- Conceder privilégios necessários
 GRANT CONNECT, RESOURCE, DBA TO vortex_user;

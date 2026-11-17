@@ -54,11 +54,13 @@ class SecurityConfigurationValidatorTest {
     }
 
     /**
-     * "vortex" era o padrão do perfil postgres, que ia na imagem; "vortex_password" é o padrão dos composes do prd
-     * para o usuário do app no Oracle. Antes o validador só avisava, e o boot seguia com eles.
+     * "vortex" era o padrão do perfil postgres e "secure_oracle_password" o do perfil prd, os dois dentro da imagem;
+     * "vortex_password" era o padrão dos composes do prd para o usuário do app no Oracle. Antes o validador só
+     * avisava, e o boot seguia com eles.
      */
     @ParameterizedTest
-    @CsvSource({"cloud, vortex", "cloud, vortex_password", "prd, vortex", "prd, vortex_password"})
+    @CsvSource({"cloud, vortex", "cloud, vortex_password", "prd, vortex", "prd, vortex_password",
+            "prd, secure_oracle_password"})
     void productionRefusesTheDatabasePasswordsTheProfilesShippedWith(String profile, String shippedPassword) {
         assertThrows(IllegalStateException.class,
                 () -> validate(profile, strongSecret(), POSTGRES_URL, shippedPassword));
