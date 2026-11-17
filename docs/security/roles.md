@@ -16,7 +16,7 @@ While the authorization service is unreachable, `AuthServiceClient` falls back t
 
 - No token, or a token the authorization service rejects: `401`.
 - A valid token whose validation response carries no `roles`, or an empty list: the user is authenticated with no authority, so every endpoint above answers `403`. Until 2026-11 the filter assumed `USER` when the key was missing.
-- `/health` is public. `/api/test/**` and Swagger (`/swagger-ui`, `/v3/api-docs`) stay outside this matrix and are open without a token in every profile except `cloud`. The H2 console is open without a token only where it is switched on (`dev` and `dev,leve` on H2); `prd`, `local` and any composition with `postgres` switch it off.
+- `/health` is public. `/api/test/**` and Swagger (`/swagger-ui`, `/v3/api-docs`) stay outside this matrix and are open without a token in every profile except `cloud`. The H2 console is open without a token only where it is switched on (`dev` and `dev,leve` on H2); `prd` and any composition with `postgres` switch it off.
 - In `cloud` none of them is even registered, and the security chain still denies them, together with any other path outside `/api/**` and `/health`: `401` without a token, and `401` or `403` with one, never `2xx`. `CloudProfileSecurityIntegrationTest` proves `cloud`, and `DevProfileOpenEndpointsIntegrationTest` proves `dev`.
 
 ## Decisions
