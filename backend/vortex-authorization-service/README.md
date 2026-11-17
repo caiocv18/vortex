@@ -35,15 +35,13 @@ Este serviço oferece autenticação JWT completa, incluindo registro de usuári
 
 ### Execução Local
 ```bash
-# Modo desenvolvimento (H2 database)
+# Modo desenvolvimento (perfil dev: PostgreSQL local do docker-compose.auth.yml, com a senha local)
 mvn quarkus:dev
 
-# Com PostgreSQL
-mvn quarkus:dev -Dquarkus.profile=postgres
-
-# Build para produção
+# Build para produção. O perfil prod lê POSTGRES_DB_PASSWORD sem padrão e recusa uma senha fraca
 mvn package
-java -jar target/quarkus-app/quarkus-run.jar
+POSTGRES_DB_URL=jdbc:postgresql://<host>:5432/vortex_auth POSTGRES_DB_PASSWORD='<senha forte do banco>' \
+  java -jar target/quarkus-app/quarkus-run.jar
 ```
 
 ### Usando o Launcher Principal

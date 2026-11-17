@@ -174,6 +174,7 @@ npm run test:coverage         # Coverage report
   - `security/`: JWT service and password handling
   - `event/`: Event-driven authentication logging
   - `config/`: Messaging and security configuration
+- **Database password**: the base line (the `prod` profile of the published image) reads `${POSTGRES_DB_PASSWORD}` with no default. Quarkus does not fail on the unset variable (the datasource password is optional, so the expression becomes "no password"): PostgreSQL refuses the connection, and a server that accepts it without a password gets through Flyway and is stopped right after by `config/DatasourcePasswordValidator` (a `StartupEvent` observer), which refuses an empty or weak one (the app's rule) whenever none of `dev`, `leve` or `test` is active, so `kafka` or `rabbitmq` alone are checked too; those three profiles keep their local password. The `auth-backend` service of `docker-compose.auth.yml` runs with `QUARKUS_PROFILE=leve` for that reason
 - **Testing**: 42 focused tests for registration flow with JaCoCo coverage
 - **Quality Assurance**: Maven plugin with automated coverage reporting
 
