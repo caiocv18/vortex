@@ -84,11 +84,13 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
                 errors.add("H2 in-memory database should not be used in production");
             }
 
-            // Check for weak database passwords
+            // Senha fraca derruba o boot, como o JWT fraco: um aviso no log não impedia a demo de subir com o padrão
+            // que o perfil postgres trazia. Roda depois do Flyway; a variável ausente para antes, no DatasourcePasswordCheck
             if (datasourcePassword.isEmpty()) {
                 errors.add("Database password is not configured");
             } else if (isWeakPassword(datasourcePassword)) {
-                warnings.add("Database password appears to be weak - consider using a stronger password");
+                errors.add("Database password is too weak - use at least 12 characters, not only letters or only digits, "
+                        + "and without 'password' or 'admin'");
             }
 
             // Check connection pool settings

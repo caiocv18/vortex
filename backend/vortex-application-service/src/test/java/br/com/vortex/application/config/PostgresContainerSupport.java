@@ -13,13 +13,16 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * de sobrescrever o {@code org.h2.Driver} da base. Assim o teste exercita os placeholders e a chave do driver que
  * vão para a nuvem.
  *
+ * <p>A senha é forte porque o perfil {@code cloud} recusa uma fraca, e a padrão do Testcontainers ("test") é fraca.
+ *
  * <p>Sem Docker, o inicializador estático falha e a classe de teste erra; nunca pula em silêncio, nem no CI.
  * O Ryuk do Testcontainers derruba o container quando a JVM sai.
  */
 public abstract class PostgresContainerSupport {
 
-    protected static final PostgreSQLContainer POSTGRES =
-            new PostgreSQLContainer("postgres:18.6-alpine").withDatabaseName("vortex");
+    protected static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6-alpine")
+            .withDatabaseName("vortex")
+            .withPassword(StrongTestPasswords.generate());
 
     static {
         POSTGRES.start();

@@ -31,8 +31,10 @@ A ordem das perguntas é: tema, ambiente, **modo (leve ou dev)**, mensageria e c
 # Hot reload (modo dev)
 ./start-vortex.sh -e dev -r dev -m none
 
-# Ambiente de produção (Oracle; backend principal no Docker). Exige um JWT_SECRET forte:
+# Ambiente de produção (Oracle; backend principal no Docker). Exige um JWT_SECRET forte e uma senha forte
+# para o vortex_user, exportada antes da primeira subida do volume do Oracle:
 export JWT_SECRET="$(openssl rand -base64 48)"
+export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"
 ./start-vortex.sh -e prd -m none
 
 # Apenas backend
@@ -162,6 +164,7 @@ Nesta distro WSL o Docker Engine sobe no boot da distro (o `[boot] command` do `
 - **Database**: Oracle Database Free 23ai (`gvenzl/oracle-free:23.26.3-slim-faststart`, serviço `FREEPDB1`)
 - **Serviço de autorização e frontends**: seguem o modo escolhido (no modo leve, jar com cache AOT e nginx estático)
 - **`JWT_SECRET` obrigatório**: o backend no perfil `prd` recusa o segredo padrão e qualquer segredo fraco (menos de 32 caracteres, as palavras secret, password, change ou default, só letras ou só números, ou sem maiúsculas e com menos de 50 caracteres). O launcher confere com as mesmas regras antes de parar ou subir qualquer coisa e para com a dica; os compose de prd param com `required variable JWT_SECRET is missing a value` se ele faltar. Gere com `export JWT_SECRET="$(openssl rand -base64 48)"`
+- **`ORACLE_APP_USER_PASSWORD` forte**: o backend no perfil `prd` recusa senha de banco fraca (menos de 12 caracteres, só letras ou só números, ou com `password` ou `admin`), e o padrão dos compose, `vortex_password`, é fraco. A imagem do Oracle grava a senha do `vortex_user` só na primeira subida do volume `vortex-oracle-data`, então ela vem antes dessa subida e não muda depois. Gere com `export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"`
 - **Chave pública do auth**: o `vortex-app` recebe a `publicKey.pem` do serviço de autorização montada só leitura em `/app/keys/auth-public-key.pem` (`AUTH_JWT_PUBLIC_KEY_LOCATION`), para conferir os tokens quando o auth está fora
 - **Mensageria**: com `-m kafka` o `vortex-app` fala com o `kafka:19092` pela rede `vortex-simple`; com `-m rabbitmq`, com o `vortex-rabbitmq` pela rede `vortex-rabbitmq-network` (usuário `vortex`, vhost `vortex-vhost`)
 - **Falha rápida**: se o container `vortex-app` parar durante a subida, o launcher mostra as últimas linhas do log dele na hora, sem esperar os 10 minutos do health
@@ -296,6 +299,12 @@ docker logs vortex-db             # o container pode usar até 3 GB de RAM (mem_
 ```bash
 export JWT_SECRET="$(openssl rand -base64 48)"   # o perfil prd recusa o segredo padrão
 ```
+
+**3c. `-e prd`: o `vortex-app` para com "Database password is too weak"**
+```bash
+export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"   # o padrão vortex_password é fraco
+```
+Vale num volume novo. Um `vortex-oracle-data` criado com `vortex_password` guarda essa senha: troque-a no banco (`ALTER USER vortex_user IDENTIFIED BY "<nova>"` no `FREEPDB1`) ou recrie o volume com `./start-vortex.sh --clean`.
 
 **4. Forçar um build ou um treino de cache AOT novo**
 ```bash
