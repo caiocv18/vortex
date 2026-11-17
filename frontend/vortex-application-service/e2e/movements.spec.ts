@@ -320,14 +320,6 @@ test.describe('Movements Page', () => {
     }
   })
 
-  test('loading state is displayed when fetching data', async ({ page }) => {
-    // Recarrega a página para ver o estado de carregamento
-    await page.reload()
-    
-    // Aguarda a tabela carregar completamente
-    await page.waitForSelector('.v-data-table', { timeout: 10000 })
-  })
-
   test('page is responsive on mobile viewport', async ({ page }) => {
     // Define viewport mobile
     await page.setViewportSize({ width: 375, height: 667 })
@@ -339,22 +331,14 @@ test.describe('Movements Page', () => {
   })
 
   test('table is sortable by clicking headers', async ({ page }) => {
-    // Aguarda a tabela carregar
-    await page.waitForSelector('.v-data-table', { timeout: 10000 })
-    
-    // Verifica se os cabeçalhos clicáveis estão presentes
-    const sortableHeaders = page.locator('th[role="columnheader"]')
-    
-    if (await sortableHeaders.count() > 0) {
-      // Clica no cabeçalho Data para ordenar
-      const dateHeader = page.locator('th:has-text("Data")')
-      if (await dateHeader.isVisible()) {
-        await dateHeader.click()
-        await page.waitForTimeout(500)
-        
-        // Verifica se a ordenação foi aplicada
-        // Nota: O ícone pode não estar visível dependendo da implementação do Vuetify
-      }
-    }
+    // A coluna Data é ordenável (sortable: true no MovementsView) e a tabela não tem ordenação inicial
+    const dateHeader = page.locator('th:has-text("Data")')
+    await expect(dateHeader).toBeVisible({ timeout: 10000 })
+    await expect(dateHeader).toHaveClass(/v-data-table__th--sortable/)
+
+    // O 1º clique ordena em ordem crescente: o Vuetify marca o th como ordenado e põe aria-sort
+    await dateHeader.click()
+    await expect(dateHeader).toHaveClass(/v-data-table__th--sorted/)
+    await expect(dateHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 }) 

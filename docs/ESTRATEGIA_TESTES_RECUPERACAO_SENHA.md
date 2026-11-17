@@ -15,9 +15,8 @@ backend/vortex-authorization-service/src/test/java/br/com/vortex/authorization/
 │   └── PasswordRecoveryResourceTest.java     # 15 testes de integração REST
 ├── security/
 │   └── PasswordRecoverySecurityTest.java     # 8 testes de segurança
-├── dto/
-│   └── PasswordRecoveryValidationTest.java   # 18 testes de validação
-└── PasswordRecoveryTestProfile.java          # Configuração de perfil de teste
+└── dto/
+    └── PasswordRecoveryValidationTest.java   # 18 testes de validação
 ```
 
 ## Cobertura de Testes Implementada ✅ 100% ESTÁVEIS
@@ -130,35 +129,9 @@ Validação abrangente de DTOs e Bean Validation:
 - ✅ **Múltiplas violações**: Handling de vários erros simultâneos
 - ✅ **Whitespace handling**: Tratamento correto de espaços
 
-## Configuração Especializada
+## Configuração dos testes
 
-### PasswordRecoveryTestProfile
-Configuração otimizada para testes de recuperação de senha:
-
-```properties
-# Banco H2 em memória para testes isolados
-quarkus.datasource.db-kind=h2
-quarkus.datasource.jdbc.url=jdbc:h2:mem:password-recovery-test
-
-# Política de senhas para testes
-auth.password.min-length=8
-auth.password.max-length=128
-auth.password.require-uppercase=true
-auth.password.require-lowercase=true
-auth.password.require-numbers=true
-auth.password.require-special-chars=true
-
-# Rate limiting para testes de segurança
-auth.rate-limit.password-reset.max-attempts=3
-auth.rate-limit.password-reset.window-minutes=60
-
-# Configuração de tokens
-auth.password-reset.token-length=32
-auth.password-reset.token-expiration-hours=1
-
-# BCrypt otimizado para testes (rounds reduzidos)
-auth.security.bcrypt-rounds=4
-```
+Os testes de recuperação de senha usam a configuração de teste do módulo, `src/test/resources/application.properties`: H2 em memória, a política de senhas (8 a 128 caracteres, com maiúscula, minúscula, número e caractere especial) e o par JWT de `src/test/resources/jwt-test`. Não há perfil de teste dedicado: o `PasswordRecoveryTestProfile`, que nenhum teste usava, foi removido.
 
 ## Script de Execução Avançado
 

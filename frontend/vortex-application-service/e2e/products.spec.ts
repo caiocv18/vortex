@@ -248,14 +248,6 @@ test.describe('Products Page', () => {
     }
   })
 
-  test('loading state is displayed when fetching data', async ({ page }) => {
-    // Recarrega a página para ver o estado de carregamento
-    await page.reload()
-    
-    // Aguarda a tabela carregar completamente
-    await page.waitForSelector('.v-data-table', { timeout: 10000 })
-  })
-
   test('page is responsive on mobile viewport', async ({ page }) => {
     // Define viewport mobile
     await page.setViewportSize({ width: 375, height: 667 })
@@ -267,23 +259,14 @@ test.describe('Products Page', () => {
   })
 
   test('table is sortable by clicking headers', async ({ page }) => {
-    // Aguarda a tabela carregar
-    await page.waitForSelector('.v-data-table', { timeout: 10000 })
-    
-    // Verifica se os cabeçalhos clicáveis estão presentes
-    const sortableHeaders = page.locator('th[role="columnheader"]')
-    
-    if (await sortableHeaders.count() > 0) {
-      // Clica no cabeçalho ID para ordenar
-      const idHeader = page.locator('th:has-text("ID")')
-      if (await idHeader.isVisible()) {
-        await idHeader.click()
-        await page.waitForTimeout(500)
-        
-        // Verifica se a ordenação foi aplicada (ícone de ordenação deve aparecer)
-        // Nota: O ícone pode não estar visível dependendo da implementação do Vuetify,
-        // por isso não há asserção sobre '.mdi-arrow-up' / '.mdi-arrow-down' aqui
-      }
-    }
+    // A coluna ID é ordenável (sortable: true no ProductsView) e a tabela não tem ordenação inicial
+    const idHeader = page.locator('th:has-text("ID")')
+    await expect(idHeader).toBeVisible({ timeout: 10000 })
+    await expect(idHeader).toHaveClass(/v-data-table__th--sortable/)
+
+    // O 1º clique ordena em ordem crescente: o Vuetify marca o th como ordenado e põe aria-sort
+    await idHeader.click()
+    await expect(idHeader).toHaveClass(/v-data-table__th--sorted/)
+    await expect(idHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 }) 

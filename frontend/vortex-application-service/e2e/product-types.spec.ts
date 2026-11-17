@@ -160,18 +160,6 @@ test.describe('Product Types Page', () => {
     }
   })
 
-  test('loading state is displayed when fetching data', async ({ page }) => {
-    // Recarrega a página para ver o estado de carregamento
-    await page.reload()
-    
-    // Verifica se o indicador de carregamento aparece (mesmo que brevemente)
-    // Nota: Pode ser difícil de capturar se a API for muito rápida, por isso não há
-    // asserção sobre '.v-progress-linear' / '.v-skeleton-loader'
-
-    // Aguarda a tabela carregar completamente
-    await page.waitForSelector('.v-data-table', { timeout: 10000 })
-  })
-
   test('page is responsive on mobile viewport', async ({ page }) => {
     // Define viewport mobile
     await page.setViewportSize({ width: 375, height: 667 })
