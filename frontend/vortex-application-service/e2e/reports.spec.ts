@@ -152,21 +152,15 @@ test.describe('Reports Page', () => {
     }
   })
 
-  test('displays loading states correctly', async ({ page }) => {
-    // Recarrega a página para ver estados de carregamento
+  test('loading indicators clear once the reports load', async ({ page }) => {
+    // Recarrega a página: o relatório de lucro por produto busca os dados ao montar e mostra um
+    // v-progress-linear (v-if) direto no v-card-text enquanto carrega
     await page.reload()
-    
-    // Aguarda a página carregar completamente
-    await page.waitForTimeout(5000)
-    
-    // Verifica se não há indicadores de carregamento visíveis após o carregamento
-    const loadingIndicators = page.locator('.v-progress-circular, .v-skeleton-loader')
-    
-    // Se houver indicadores, eles devem desaparecer após o carregamento
-    if (await loadingIndicators.count() > 0) {
-      await page.waitForTimeout(3000)
-      // Após aguardar, os indicadores devem ter desaparecido ou estar ocultos
-    }
+    await expect(page.locator('.v-card:has-text("Relatório de Lucro por Produto")')).toBeVisible({ timeout: 10000 })
+
+    // Só as barras dos relatórios (v-if no v-card-text). Todo v-card do Vuetify também renderiza uma
+    // barra inativa em .v-card__loader, que fica no DOM e não indica carregamento.
+    await expect(page.locator('.v-card-text > .v-progress-linear')).toHaveCount(0, { timeout: 10000 })
   })
 
   test('statistics cards show meaningful data', async ({ page }) => {
