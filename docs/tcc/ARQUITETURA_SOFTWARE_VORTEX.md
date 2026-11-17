@@ -703,7 +703,7 @@ services:
     environment:
       POSTGRES_DB: vortex_auth
       POSTGRES_USER: vortex_auth
-      POSTGRES_PASSWORD: vortex123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
     ports:
       - "5433:5432"
     
@@ -712,7 +712,7 @@ services:
     environment:
       ORACLE_SID: ORCLCDB
       ORACLE_PDB: ORCLPDB1
-      ORACLE_PWD: Oracle_1234
+      ORACLE_PWD: ${ORACLE_PWD:?defina ORACLE_PWD}
     ports:
       - "1521:1521"
       
