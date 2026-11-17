@@ -53,6 +53,10 @@ Este diretório contém todos os testes end-to-end (E2E) para a aplicação Sist
    - Tempo de carregamento das páginas
    - Design responsivo em diferentes viewports
 
+9. **`data-tables.spec.ts`** - Comportamento comum das tabelas de cadastro
+   - Mesma verificação nas telas de Tipos de Produto, Produtos e Movimentação, num laço
+   - O indicador de carregamento do `v-data-table` some quando os dados chegam
+
 ## Como Executar os Testes
 
 ### Pré-requisitos

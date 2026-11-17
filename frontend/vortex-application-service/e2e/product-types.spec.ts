@@ -160,17 +160,6 @@ test.describe('Product Types Page', () => {
     }
   })
 
-  test('loading indicator clears once the data arrives', async ({ page }) => {
-    // Recarrega a página: o v-data-table mostra a linha de progresso (:loading) enquanto busca os dados.
-    // Com a API rápida a linha pode nem aparecer, então a asserção é sobre o fim do carregamento.
-    await page.reload()
-
-    const table = page.locator('.v-data-table')
-    await expect(table).toBeVisible({ timeout: 10000 })
-    // A linha .v-data-table-progress só existe com loading=true; some quando a busca termina
-    await expect(table.locator('.v-data-table-progress')).toHaveCount(0, { timeout: 10000 })
-  })
-
   test('page is responsive on mobile viewport', async ({ page }) => {
     // Define viewport mobile
     await page.setViewportSize({ width: 375, height: 667 })
