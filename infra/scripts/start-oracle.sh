@@ -37,6 +37,12 @@ if [[ -f "$DOCKER_DIR/docker-compose.yml" ]]; then
         exit 0
     fi
 
+    # As senhas do Oracle não têm padrão nem valor neutro: viram as do banco na primeira subida do
+    # volume. Mesma conferência do start-vortex.sh, antes de criar qualquer coisa (redes inclusive).
+    # shellcheck source=../../scripts/lib/oracle-passwords.sh
+    source "$PROJECT_ROOT/scripts/lib/oracle-passwords.sh"
+    check_oracle_passwords || exit 1
+
     # A rede vortex-simple é external no docker-compose.yml
     docker network inspect vortex-simple > /dev/null 2>&1 || docker network create vortex-simple > /dev/null
 
@@ -76,8 +82,8 @@ if [[ -f "$DOCKER_DIR/docker-compose.yml" ]]; then
     print_color $GREEN "✅ Oracle iniciado com sucesso!"
     print_color $GREEN "   🌐 Oracle: localhost:1521"
     print_color $GREEN "   📊 Serviço (PDB): FREEPDB1"
-    print_color $GREEN "   👤 Usuário da aplicação: vortex_user / vortex_password"
-    print_color $GREEN "   🔐 SYS e SYSTEM: senha de ORACLE_PASSWORD (padrão Oracle_1234)"
+    print_color $GREEN "   👤 Usuário da aplicação: vortex_user / senha de ORACLE_APP_USER_PASSWORD na primeira subida do volume"
+    print_color $GREEN "   🔐 SYS e SYSTEM: senha de ORACLE_PASSWORD na primeira subida do volume"
     print_color $GREEN "   🔗 JDBC: jdbc:oracle:thin:@//localhost:1521/FREEPDB1"
 
 else

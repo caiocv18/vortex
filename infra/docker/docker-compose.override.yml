@@ -28,4 +28,4 @@ services:
     #   - "1522:1521"
     environment:
       # Senha de SYS e SYSTEM (só vale na primeira inicialização do volume)
-      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle_1234}
+      ORACLE_PASSWORD: "${ORACLE_PASSWORD:?defina ORACLE_PASSWORD (senha de SYS e SYSTEM, 12+ caracteres aleatórios, ex. openssl rand -hex 24)}"

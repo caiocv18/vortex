@@ -2,9 +2,11 @@
 #   Backend:  http://localhost:8080
 #   Frontend: http://localhost:3000 (nginx do container escuta na 80)
 # O Kafka, quando usado (KAFKA_ENABLED=true), é o do docker-compose.kafka-simple.yml (rede vortex-simple).
-# JWT_SECRET é obrigatório (export JWT_SECRET="$(openssl rand -base64 48)"), inclusive para o
-# "down": o Compose interpola o arquivo inteiro. A chave pública do serviço de autorização
-# (src/main/resources/jwt/publicKey.pem do módulo) precisa existir; o start-vortex.sh gera o par.
+# JWT_SECRET (export JWT_SECRET="$(openssl rand -base64 48)"), ORACLE_PASSWORD e
+# ORACLE_APP_USER_PASSWORD (openssl rand -hex 24; valem só na primeira subida do volume) são
+# obrigatórios, inclusive para o "down": o Compose interpola o arquivo inteiro. A chave pública do
+# serviço de autorização (src/main/resources/jwt/publicKey.pem do módulo) precisa existir; o
+# start-vortex.sh gera o par.
 name: vortex-full
 
 services:
@@ -12,9 +14,9 @@ services:
     image: gvenzl/oracle-free:23.26.3-slim-faststart
     container_name: vortex-db
     environment:
-      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle_1234}
+      ORACLE_PASSWORD: "${ORACLE_PASSWORD:?defina ORACLE_PASSWORD (senha de SYS e SYSTEM, 12+ caracteres aleatórios, ex. openssl rand -hex 24)}"
       APP_USER: vortex_user
-      APP_USER_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
+      APP_USER_PASSWORD: "${ORACLE_APP_USER_PASSWORD:?defina ORACLE_APP_USER_PASSWORD (senha do vortex_user, 12+ caracteres aleatórios, ex. openssl rand -hex 24)}"
     ports:
       - "1521:1521"
     volumes:
@@ -44,7 +46,7 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prd}
       ORACLE_DB_URL: jdbc:oracle:thin:@//vortex-db:1521/FREEPDB1
       ORACLE_DB_USERNAME: vortex_user
-      ORACLE_DB_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-vortex_password}
+      ORACLE_DB_PASSWORD: "${ORACLE_APP_USER_PASSWORD:?defina ORACLE_APP_USER_PASSWORD (senha do vortex_user, 12+ caracteres aleatórios, ex. openssl rand -hex 24)}"
       JWT_SECRET: "${JWT_SECRET:?defina JWT_SECRET (32+ caracteres aleatórios, ex. openssl rand -base64 48) para o backend no perfil prd}"
       KAFKA_ENABLED: ${KAFKA_ENABLED:-false}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:19092}

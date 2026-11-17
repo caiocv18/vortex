@@ -26,9 +26,12 @@ print_color $YELLOW "🛑 Parando todos os serviços de infraestrutura..."
 
 cd "$DOCKER_DIR"
 
-# Os compose de prd exigem JWT_SECRET, e o Compose interpola o arquivo inteiro até no "down".
-# Para parar qualquer valor serve (nada sobe); sem ele o "down" falharia calado.
+# Os compose de prd exigem JWT_SECRET, ORACLE_PASSWORD e ORACLE_APP_USER_PASSWORD, e o Compose
+# interpola o arquivo inteiro até no "down". Para parar qualquer valor serve (nada sobe nem é
+# criado); sem eles o "down" falharia calado.
 export JWT_SECRET="${JWT_SECRET:-nao-usado-no-down}"
+export ORACLE_PASSWORD="${ORACLE_PASSWORD:-nao-usado-no-down}"
+export ORACLE_APP_USER_PASSWORD="${ORACLE_APP_USER_PASSWORD:-nao-usado-no-down}"
 
 down() {
     docker compose "$@" --profile '*' down 2>/dev/null || true

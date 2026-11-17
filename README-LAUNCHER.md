@@ -31,9 +31,10 @@ A ordem das perguntas é: tema, ambiente, **modo (leve ou dev)**, mensageria e c
 # Hot reload (modo dev)
 ./start-vortex.sh -e dev -r dev -m none
 
-# Ambiente de produção (Oracle; backend principal no Docker). Exige um JWT_SECRET forte e uma senha forte
-# para o vortex_user, exportada antes da primeira subida do volume do Oracle:
+# Ambiente de produção (Oracle; backend principal no Docker). Exige um JWT_SECRET forte e as duas senhas
+# do Oracle (SYS e SYSTEM; vortex_user), fortes e exportadas antes da primeira subida do volume:
 export JWT_SECRET="$(openssl rand -base64 48)"
+export ORACLE_PASSWORD="$(openssl rand -hex 24)"
 export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"
 ./start-vortex.sh -e prd -m none
 
@@ -164,7 +165,7 @@ Nesta distro WSL o Docker Engine sobe no boot da distro (o `[boot] command` do `
 - **Database**: Oracle Database Free 23ai (`gvenzl/oracle-free:23.26.3-slim-faststart`, serviço `FREEPDB1`)
 - **Serviço de autorização e frontends**: seguem o modo escolhido (no modo leve, jar com cache AOT e nginx estático)
 - **`JWT_SECRET` obrigatório**: o backend no perfil `prd` recusa o segredo padrão e qualquer segredo fraco (menos de 32 caracteres, as palavras secret, password, change ou default, só letras ou só números, ou sem maiúsculas e com menos de 50 caracteres). O launcher confere com as mesmas regras antes de parar ou subir qualquer coisa e para com a dica; os compose de prd param com `required variable JWT_SECRET is missing a value` se ele faltar. Gere com `export JWT_SECRET="$(openssl rand -base64 48)"`
-- **`ORACLE_APP_USER_PASSWORD` forte**: o backend no perfil `prd` recusa senha de banco fraca (menos de 12 caracteres, só letras ou só números, ou com `password` ou `admin`), e o padrão dos compose, `vortex_password`, é fraco. A imagem do Oracle grava a senha do `vortex_user` só na primeira subida do volume `vortex-oracle-data`, então ela vem antes dessa subida e não muda depois. Gere com `export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"`
+- **`ORACLE_PASSWORD` e `ORACLE_APP_USER_PASSWORD` obrigatórias e fortes**: a primeira é a senha de SYS e SYSTEM, a segunda a do `vortex_user`. Os compose de prd não têm padrão para nenhuma das duas e param com `required variable ... is missing a value` se faltarem. O backend no perfil `prd` recusa senha de banco fraca (menos de 12 caracteres, só letras ou só números, ou com `password` ou `admin`), e o launcher confere as duas com essa regra, junto com o `JWT_SECRET`, antes de parar ou subir qualquer coisa. A imagem do Oracle grava as duas só na primeira subida do volume `vortex-oracle-data`, então elas vêm antes dessa subida e não mudam depois; um volume criado antes desta regra guarda os antigos padrões (item 3c do troubleshooting). Gere com `export ORACLE_PASSWORD="$(openssl rand -hex 24)" ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"`
 - **Chave pública do auth**: o `vortex-app` recebe a `publicKey.pem` do serviço de autorização montada só leitura em `/app/keys/auth-public-key.pem` (`AUTH_JWT_PUBLIC_KEY_LOCATION`), para conferir os tokens quando o auth está fora
 - **Mensageria**: com `-m kafka` o `vortex-app` fala com o `kafka:19092` pela rede `vortex-simple`; com `-m rabbitmq`, com o `vortex-rabbitmq` pela rede `vortex-rabbitmq-network` (usuário `vortex`, vhost `vortex-vhost`)
 - **Falha rápida**: se o container `vortex-app` parar durante a subida, o launcher mostra as últimas linhas do log dele na hora, sem esperar os 10 minutos do health
@@ -262,13 +263,13 @@ docker logs vortex-db -f          # Oracle
 cat logs/startup-times.log
 
 # Acessar Oracle
-docker exec -it vortex-db sqlplus vortex_user/vortex_password@//localhost:1521/FREEPDB1
+docker exec -it vortex-db sqlplus "vortex_user/$ORACLE_APP_USER_PASSWORD@//localhost:1521/FREEPDB1"
 ```
 
 ### Desenvolvimento manual
 ```bash
-# Apenas Oracle para dev local
-cd infra/docker && docker compose up -d db
+# Apenas Oracle para dev local (as duas senhas do Oracle exportadas antes, como no -e prd)
+./infra/scripts/start-oracle.sh
 
 # Backend dev local
 cd backend/vortex-application-service && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
@@ -295,16 +296,17 @@ sudo service docker status        # o Engine sobe pelo [boot] command do /etc/ws
 docker logs vortex-db             # o container pode usar até 3 GB de RAM (mem_limit: 3g)
 ```
 
-**3b. `-e prd` para logo no começo com "JWT_SECRET ..."**
+**3b. `-e prd` para logo no começo com "JWT_SECRET ..." ou "Oracle: ORACLE_PASSWORD ..."**
 ```bash
-export JWT_SECRET="$(openssl rand -base64 48)"   # o perfil prd recusa o segredo padrão
+export JWT_SECRET="$(openssl rand -base64 48)"            # o perfil prd recusa o segredo padrão
+export ORACLE_PASSWORD="$(openssl rand -hex 24)"            # SYS e SYSTEM, sem padrão nos compose
+export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"   # vortex_user, sem padrão nos compose
 ```
+Com o volume do Oracle já criado, gere só a que o launcher apontou e mantenha a outra, que é a do banco. Volume de antes de as senhas serem obrigatórias: veja o 3c.
 
-**3c. `-e prd`: o `vortex-app` para com "Database password is too weak"**
-```bash
-export ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"   # o padrão vortex_password é fraco
-```
-Vale num volume novo. Um `vortex-oracle-data` criado com `vortex_password` guarda essa senha: troque-a no banco (`ALTER USER vortex_user IDENTIFIED BY "<nova>"` no `FREEPDB1`) ou recrie o volume com `./start-vortex.sh --clean`.
+**3c. Volume `vortex-oracle-data` de antes de as senhas serem obrigatórias**
+
+A imagem grava as senhas só na primeira subida do volume, então ele guarda os antigos padrões: o `vortex-app` para com `ORA-01017: invalid credential or not authorized; logon denied` (o `vortex_user` continua com `vortex_password`), e SYS e SYSTEM continuam com `Oracle_1234` sem erro nenhum. Troque as duas no banco para as exportadas (os comandos estão em [Volume criado com outras senhas](infra/docs/README-ORACLE.md#volume-criado-com-outras-senhas)) ou recrie o volume com `./start-vortex.sh --clean`.
 
 **4. Forçar um build ou um treino de cache AOT novo**
 ```bash

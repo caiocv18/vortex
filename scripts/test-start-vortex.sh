@@ -4,7 +4,7 @@
 #   - a identidade dos pid files (PID reaproveitado, outro boot ou formato antigo nunca recebem sinal);
 #   - a validação do cache AOT (só uma recusa explícita da JVM apaga o cache);
 #   - as chaves RSA do JWT do auth (gera quando falta, nunca sobrescreve, move do local antigo);
-#   - o JWT_SECRET do prd e o valor neutro dos "down";
+#   - o JWT_SECRET e as senhas do Oracle do prd, e os valores neutros dos "down";
 #   - a chave pública e o emissor passados ao backend principal;
 #   - o aviso do volume antigo do PostgreSQL do auth.
 # Cada grupo roda numa pasta temporária, apagada no fim.
@@ -241,13 +241,50 @@ check "só minúsculas e números, com menos de 50, é recusado" secret_rejected
 check "aleatório com maiúsculas, minúsculas e números é aceito" secret_accepted "Xk9fQ2mZ7vR4tB8nL1pW6yH3cJ5dG0sA-uE"
 check "saída do openssl rand -base64 48 é aceita" secret_accepted "$(openssl rand -base64 48)"
 
-# docker falso: imprime o JWT_SECRET que o comando recebeu
-docker() { echo "JWT_SECRET=${JWT_SECRET:-}"; }
-out=$(unset JWT_SECRET; compose_for_down -f x.yml down)
-check "down sem JWT_SECRET recebe um valor neutro (o Compose não para na interpolação)" \
-    test "$out" = "JWT_SECRET=nao-usado-no-down"
-out=$(JWT_SECRET="valor-real" compose_for_down -f x.yml down)
-check "down com JWT_SECRET usa o valor exportado" test "$out" = "JWT_SECRET=valor-real"
+# ----------------------------------------------------------------------------
+echo "== senhas do Oracle do prd"
+forte=$(openssl rand -hex 24)
+oracle_rejected() { ! ORACLE_PASSWORD="$1" ORACLE_APP_USER_PASSWORD="$2" check_oracle_passwords > /dev/null; }
+oracle_accepted() { ORACLE_PASSWORD="$1" ORACLE_APP_USER_PASSWORD="$2" check_oracle_passwords > /dev/null; }
+check "as duas ausentes são recusadas" oracle_rejected "" ""
+check "só a do vortex_user ausente é recusada" oracle_rejected "$forte" ""
+check "o antigo padrão Oracle_1234 de SYS e SYSTEM é recusado" oracle_rejected "Oracle_1234" "$forte"
+check "o antigo padrão vortex_password do vortex_user é recusado" oracle_rejected "$forte" "vortex_password"
+check "admin em qualquer caixa é recusado" oracle_rejected "Meu-ADMIN-2026-xyz" "$forte"
+check "só letras é recusado" oracle_rejected "$forte" "abcdefghijklmnopQ"
+check "só números é recusado" oracle_rejected "$forte" "123456789012345"
+check "saída do openssl rand -hex 24 nas duas é aceita" oracle_accepted "$forte" "$(openssl rand -hex 24)"
+check "12 caracteres misturados é o mínimo aceito" oracle_accepted "a1b2c3d4e5f6" "$forte"
+check "11 caracteres misturados é recusado" oracle_rejected "a1b2c3d4e5f" "$forte"
+# O locale de quem roda não muda a regra: em C o bash conta bytes, e 8 caracteres com acento dão 14
+oracle_rejected_in_locale() { local LC_ALL=$1; shift; oracle_rejected "$@"; }
+oracle_accepted_in_locale() { local LC_ALL=$1; shift; oracle_accepted "$@"; }
+check "8 caracteres com acento são recusados com LC_ALL=C" oracle_rejected_in_locale C "ééééééa1" "$forte"
+check "acento é recusado também com 12 caracteres ou mais em C.UTF-8" oracle_rejected_in_locale C.UTF-8 "ééééééa1bcdef" "$forte"
+check "12 caracteres ASCII misturados continuam aceitos com LC_ALL=C" oracle_accepted_in_locale C "a1b2c3d4e5f6" "$forte"
+# A dica regera só o que falhou: regerar uma senha boa de um volume já criado daria ORA-01017
+oracle_hint() { ORACLE_PASSWORD="$1" ORACLE_APP_USER_PASSWORD="$2" check_oracle_passwords 2>&1 | grep -F 'export '; }
+hint_only_sys() {
+    local hint
+    hint=$(oracle_hint "Oracle_1234" "$forte")
+    [[ "$hint" == *'ORACLE_PASSWORD="$(openssl rand -hex 24)"'* && "$hint" != *ORACLE_APP_USER_PASSWORD* ]]
+}
+hint_both() {
+    local hint
+    hint=$(oracle_hint "" "")
+    [[ "$hint" == *'ORACLE_PASSWORD="$('* && "$hint" == *'ORACLE_APP_USER_PASSWORD="$('* ]]
+}
+check "com só ORACLE_PASSWORD fraca, a dica não regera a do vortex_user" hint_only_sys
+check "com as duas faltando, a dica gera as duas" hint_both
+
+# docker falso: imprime o JWT_SECRET e as senhas do Oracle que o comando recebeu
+docker() { echo "JWT_SECRET=${JWT_SECRET:-} ORACLE_PASSWORD=${ORACLE_PASSWORD:-} ORACLE_APP_USER_PASSWORD=${ORACLE_APP_USER_PASSWORD:-}"; }
+out=$(unset JWT_SECRET ORACLE_PASSWORD ORACLE_APP_USER_PASSWORD; compose_for_down -f x.yml down)
+check "down sem JWT_SECRET nem as senhas do Oracle recebe valores neutros (o Compose não para na interpolação)" \
+    test "$out" = "JWT_SECRET=nao-usado-no-down ORACLE_PASSWORD=nao-usado-no-down ORACLE_APP_USER_PASSWORD=nao-usado-no-down"
+out=$(JWT_SECRET="valor-real" ORACLE_PASSWORD="oracle-real" ORACLE_APP_USER_PASSWORD="app-real" compose_for_down -f x.yml down)
+check "down com os valores exportados usa os exportados" \
+    test "$out" = "JWT_SECRET=valor-real ORACLE_PASSWORD=oracle-real ORACLE_APP_USER_PASSWORD=app-real"
 unset -f docker
 
 # ----------------------------------------------------------------------------

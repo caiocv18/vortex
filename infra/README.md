@@ -84,7 +84,8 @@ infra/
 # Modo leve, o mais econômico (cerca de 650 MB no total)
 ./start-vortex.sh --modo leve -e dev -m none --no-interaction
 
-# Iniciar com opções específicas
+# Iniciar com opções específicas (o -e prd exige JWT_SECRET, ORACLE_PASSWORD e ORACLE_APP_USER_PASSWORD
+# fortes exportados antes; ver o README-LAUNCHER.md)
 ./start-vortex.sh -e prd -m kafka --logs
 
 # Iniciar apenas aplicação principal (o serviço de autorização sobe sempre)
@@ -100,7 +101,7 @@ infra/
 ## 🐳 Configurações Docker
 
 > [!IMPORTANT]
-> Os compose de prd (`docker-compose.yml`, `full`, `full-kafka` e `full-rabbitmq`) exigem `JWT_SECRET`: o backend no perfil `prd` recusa o segredo padrão. O Compose interpola o arquivo inteiro em todo comando, então sem ele até o `down` e o `up -d db` param com `required variable JWT_SECRET is missing a value`. Exporte antes: `export JWT_SECRET="$(openssl rand -base64 48)"`. O `./infra/scripts/start-oracle.sh` e o `./infra/scripts/stop-infra.sh` já cuidam disso sozinhos.
+> Os compose de prd (`docker-compose.yml`, `full`, `full-kafka` e `full-rabbitmq`) exigem `JWT_SECRET` (o backend no perfil `prd` recusa o segredo padrão) e as duas senhas do Oracle, `ORACLE_PASSWORD` (SYS e SYSTEM) e `ORACLE_APP_USER_PASSWORD` (`vortex_user`), sem padrão. O Compose interpola o arquivo inteiro em todo comando, então sem elas até o `down` e o `up -d db` param com `required variable ... is missing a value`. Exporte antes: `export JWT_SECRET="$(openssl rand -base64 48)" ORACLE_PASSWORD="$(openssl rand -hex 24)" ORACLE_APP_USER_PASSWORD="$(openssl rand -hex 24)"`. O `./infra/scripts/stop-infra.sh` passa valores neutros às três sozinho; o `./infra/scripts/start-oracle.sh` passa um neutro só ao `JWT_SECRET` e confere as duas senhas, que viram as do banco na primeira subida do volume.
 >
 > Eles também montam, só leitura, a chave pública do serviço de autorização (`backend/vortex-authorization-service/src/main/resources/jwt/publicKey.pem`) em `/app/keys/auth-public-key.pem`. Ela fica fora do git; o `start-vortex.sh` gera o par quando falta. Sem o arquivo, o `up` falha com o caminho, em vez de criar uma pasta no lugar.
 
@@ -225,8 +226,8 @@ docker exec vortex-rabbitmq rabbitmq-diagnostics status
 - Imagem: `gvenzl/oracle-free:23.26.3-slim-faststart` (Oracle Database Free 23ai, sem login no registry)
 - Porta: 1521
 - Serviço (PDB): FREEPDB1
-- Usuário da aplicação: vortex_user / vortex_password (`APP_USER`)
-- SYS e SYSTEM: senha de `ORACLE_PASSWORD` (padrão Oracle_1234)
+- Usuário da aplicação: vortex_user (`APP_USER`), com a senha de `ORACLE_APP_USER_PASSWORD` na primeira subida do volume, obrigatória e sem padrão
+- SYS e SYSTEM: senha de `ORACLE_PASSWORD` na primeira subida do volume, obrigatória e sem padrão
 - Volume: `vortex-oracle-data`
 
 ### Scripts de Inicialização

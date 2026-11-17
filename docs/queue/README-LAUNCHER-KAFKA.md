@@ -19,6 +19,7 @@ O script `start-vortex.sh` foi atualizado para suportar **Apache Kafka** como si
 # Especificar diretamente
 ./start-vortex.sh -e dev -m kafka
 ./start-vortex.sh -e dev -m sqs
+# prd: JWT_SECRET, ORACLE_PASSWORD e ORACLE_APP_USER_PASSWORD fortes exportados antes (ver README-LAUNCHER.md)
 ./start-vortex.sh -e prd -m none
 ```
 
@@ -53,7 +54,7 @@ Novos arquivos de compose:
 ### **Cenário 2: Produção com SQS**
 
 ```bash
-# Iniciar em modo produção com SQS
+# Iniciar em modo produção com SQS (JWT_SECRET e as duas senhas do Oracle exportadas antes)
 ./start-vortex.sh -e prd -m sqs --logs
 
 # Resultado:
@@ -210,7 +211,7 @@ curl http://localhost:8090
 
 ### **2. Produção com Monitoramento**
 ```bash
-# Iniciar produção com logs
+# Iniciar produção com logs (JWT_SECRET e as duas senhas do Oracle exportadas antes)
 ./start-vortex.sh -e prd -m kafka --logs
 
 # Em outro terminal, monitorar Kafka
