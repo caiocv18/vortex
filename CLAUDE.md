@@ -352,7 +352,7 @@ npm run test:coverage         # Coverage report
 - **Screenshots**: `docs/screenshots/`, light theme, page only (no browser chrome), taken with a throwaway account
 - **History**: `docs/archive/` keeps the early prompts, chats and reports as written, in Portuguese; link to it only as history
 - **License**: Apache-2.0 (`LICENSE`), also declared in the main app's pom and in the OpenAPI `info`
-- **Test credentials**: never in docs. The authorization service's test password survives only in the comments of `backend/vortex-authorization-service/src/main/resources/import.sql`, a file no profile loads, and in `SimpleAuthServiceTest`; the test-only `src/test/resources/import.sql` seeds the `USER` and `ADMIN` roles and no users
+- **Test credentials**: never in docs. Do not add a password hash or a real password in plain text under `src/main/resources`: SonarCloud's automatic analysis has reported both as blocker secrets (`secrets:S8215` for bcrypt hashes; `secrets:S6703` and `java:S6437` for a database password). The authorization service's sample password survives only in `SimpleAuthServiceTest`, as request data in a validation test; the test-only `src/test/resources/import.sql` seeds the `USER` and `ADMIN` roles and no users
 
 ### Code Coverage & Quality Assurance
 

@@ -74,7 +74,7 @@ The service uses a dedicated `auth` schema in PostgreSQL with the following tabl
 
 ## Test Users
 
-No profile seeds users. The service's tests load `src/test/resources/import.sql`, only in the `%test` profile, and it inserts just the `USER` and `ADMIN` roles; each test creates the users it needs. Every other profile uses `quarkus.hibernate-orm.schema-management.strategy=none`, so the accounts listed in `src/main/resources/import.sql` are never loaded. A local run has no seed users: sign up, then change your role as described in [Trying other roles locally](../security/roles.md#trying-other-roles-locally).
+No profile seeds users. The service's tests load `src/test/resources/import.sql`, only in the `%test` profile, and it inserts just the `USER` and `ADMIN` roles; each test creates the users it needs. Every other profile uses `quarkus.hibernate-orm.schema-management.strategy=none`, so Hibernate runs no load script outside tests. A local run has no seed users: sign up, then change your role as described in [Trying other roles locally](../security/roles.md#trying-other-roles-locally).
 
 ## Getting Started
 
