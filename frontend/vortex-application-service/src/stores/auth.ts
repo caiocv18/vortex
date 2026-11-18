@@ -1,60 +1,10 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import axios, { type AxiosResponse } from 'axios'
-import {
-  AUTH_LOGOUT_URL,
-  AUTH_REFRESH_URL,
-  AUTH_REQUEST_TIMEOUT_MS,
-  redirectToAuthPage,
-  type AuthPage,
-} from '@/api/authService'
+import { AUTH_LOGOUT_URL, redirectToAuthPage, type AuthPage } from '@/api/authService'
+import { postToAuthService, requestSessionRefresh, type User } from '@/api/authHttp'
 import { createLogger } from '@/utils/logger'
 
-export interface User {
-  id: string
-  email: string
-  username: string
-  roles: string[]
-  lastLogin?: string
-  isActive: boolean
-  isVerified: boolean
-}
-
-export interface LoginResponse {
-  accessToken: string
-  refreshToken: string
-  tokenType: string
-  expiresIn: number
-  user: User
-}
-
-// Envelope das respostas do serviço de autorização: { success, message, data }
-interface AuthServiceResponse<T> {
-  success: boolean
-  message?: string
-  data?: T
-}
-
-// POST ao backend do serviço de autorização que sempre termina em até AUTH_REQUEST_TIMEOUT_MS.
-// O axios global não tem timeout (o `timeout` de api/config.ts vale só para o apiClient), e o
-// refresh é single-flight: uma chamada pendurada deixava todo 401 esperando a mesma promise,
-// sem erro e sem redirecionamento. O timer rejeita a chamada mesmo que o transporte ignore o
-// abort; o abort cancela a requisição de verdade no browser.
-async function postToAuthService<T>(url: string, body: unknown): Promise<AxiosResponse<T>> {
-  const controller = new AbortController()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timedOut = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error(`Auth service did not answer within ${AUTH_REQUEST_TIMEOUT_MS} ms: ${url}`))
-      controller.abort()
-    }, AUTH_REQUEST_TIMEOUT_MS)
-  })
-  try {
-    return await Promise.race([axios.post<T>(url, body, { signal: controller.signal }), timedOut])
-  } finally {
-    clearTimeout(timer)
-  }
-}
+export type { User, LoginResponse } from '@/api/authHttp'
 
 export const useAuthStore = defineStore('auth', () => {
   const logger = createLogger('AuthStore')
@@ -192,14 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       logger.debug('Initiating token refresh')
-      const response = await postToAuthService<AuthServiceResponse<LoginResponse>>(AUTH_REFRESH_URL, {
-        refreshToken: storedRefreshToken
-      })
-
-      const payload = response.data?.data
-      if (response.data?.success === false || !payload?.accessToken) {
-        throw new Error(response.data?.message || 'Invalid refresh response')
-      }
+      const payload = await requestSessionRefresh(storedRefreshToken)
 
       // Update tokens and user
       token.value = payload.accessToken
