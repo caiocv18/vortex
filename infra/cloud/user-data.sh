@@ -34,7 +34,7 @@ trap 'rc=$?; log "abort: $BASH_COMMAND exited $rc (line $LINENO of the user data
 log "disable sshd"
 systemctl disable --now sshd
 
-if [ "$(uname -m)" != aarch64 ]; then
+if [[ "$(uname -m)" != aarch64 ]]; then
   log "abort: $(uname -m) instance, but the compose checksum is for aarch64"
   exit 1
 fi
@@ -46,10 +46,10 @@ dnf install -y docker git
 device="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${DATA_VOLUME_SERIAL}"
 log "wait for the data volume at $device"
 for _ in $(seq 1 60); do
-  [ -e "$device" ] && break
+  [[ -e "$device" ]] && break
   sleep 5
 done
-if [ ! -e "$device" ]; then
+if [[ ! -e "$device" ]]; then
   log "abort: data volume $DATA_VOLUME_SERIAL did not show up within 5 minutes"
   exit 1
 fi
@@ -68,7 +68,7 @@ blkid -p "$dev" >/dev/null 2>&1 || rc=$?
 case "$rc" in
   0)
     fstype=$(blkid -p -s TYPE -o value "$dev" || true)
-    if [ "$fstype" != xfs ]; then
+    if [[ "$fstype" != xfs ]]; then
       log "abort: $dev holds ${fstype:-a non-filesystem signature} instead of xfs; leaving it untouched"
       exit 1
     fi
@@ -106,7 +106,7 @@ systemctl daemon-reload
 log "data volume $uuid mounted at $DATA_DIR"
 
 # 4. 2 GiB of swap: the t4g.small has 2 GiB of memory for two JVMs and a database.
-if [ ! -f /swapfile ]; then
+if [[ ! -f /swapfile ]]; then
   dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
   chmod 600 /swapfile
   mkswap /swapfile
@@ -131,7 +131,7 @@ systemctl enable --now docker
 log "clone infra/cloud into $REPO_DIR"
 git clone --quiet --depth 1 --filter=blob:none --sparse "$REPO_URL" "$REPO_DIR"
 git -C "$REPO_DIR" sparse-checkout set infra/cloud
-if [ -d "$REPO_DIR/infra/cloud" ]; then
+if [[ -d "$REPO_DIR/infra/cloud" ]]; then
   log "infra/cloud checked out at $(git -C "$REPO_DIR" rev-parse --short HEAD)"
 else
   log "warning: infra/cloud is not on the default branch yet; nothing to run from $REPO_DIR"

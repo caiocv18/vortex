@@ -80,7 +80,7 @@ PORTS_OK=true
 check_port 9092 "Kafka" || PORTS_OK=false
 check_port 8090 "Kafka UI" || PORTS_OK=false
 
-if [ "$PORTS_OK" = false ]; then
+if [[ "$PORTS_OK" = false ]]; then
     print_color $RED "❌ Algumas portas estão em uso. Por favor, pare os processos antes de continuar."
     exit 1
 fi

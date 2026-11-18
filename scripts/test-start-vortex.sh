@@ -39,9 +39,15 @@ trap cleanup EXIT
 # Processo órfão (filho do init), como os que o --stop encontra de uma subida anterior: assim o
 # kill -0 não enxerga um zumbi deste shell. $1 executável (padrão sleep). Imprime o PID.
 spawn_orphan() {
-    local bin=${1:-sleep} pid
+    local bin=${1:-sleep} pid i
     pid=$( ("$bin" 300 > /dev/null 2>&1 & echo $!) )
     SPAWNED+=("$pid")
+    # O $! sai antes do exec: até ele, a cmdline ainda é a deste shell e o padrão do stop_pid_file
+    # não casa (no runner ubuntu-24.04 de 16/11/2026 o stop chegava antes do exec toda vez)
+    for ((i = 0; i < 50; i++)); do
+        [[ "$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)" == "$bin "* ]] && break
+        sleep 0.1
+    done
     echo "$pid"
 }
 
@@ -64,8 +70,18 @@ check "write_pid_file grava PID, instante de início e boot_id" \
     grep -Eq "^$p [0-9]+ $(kernel_boot_id)\$" "$WORK/a.pid"
 check "pid_file_live_pid devolve o PID quando é o mesmo processo" \
     test "$(pid_file_live_pid "$WORK/a.pid")" = "$p"
-stop_pid_file "$WORK/a.pid" "teste" "sleep" > /dev/null
-check "stop_pid_file encerra o processo que confere" wait_gone "$p"
+stop_pid_file "$WORK/a.pid" "teste" "sleep" > "$WORK/stop.out" 2>&1
+if wait_gone "$p"; then
+    ok "stop_pid_file encerra o processo que confere"
+else
+    nok "stop_pid_file encerra o processo que confere"
+    # O aviso do stop_pid_file diz por que nenhum sinal saiu; sem ele a falha no CI não tem pista
+    sed 's/^/      /' "$WORK/stop.out"
+    printf '      stat: %s\n      cmdline: %s\n      sleep: %s\n' \
+        "$(cat "/proc/$p/stat" 2>/dev/null)" \
+        "$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)" \
+        "$(readlink -f "$(command -v sleep)")"
+fi
 check "stop_pid_file apaga o pid file" test ! -e "$WORK/a.pid"
 
 p=$(spawn_orphan)

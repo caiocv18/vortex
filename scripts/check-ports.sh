@@ -111,7 +111,7 @@ for port in "${REQUIRED_PORTS[@]}"; do
     echo
 done
 
-if [ "$CONFLICTS_FOUND" = false ]; then
+if [[ "$CONFLICTS_FOUND" = false ]]; then
     echo "🎉 Nenhum processo do host em conflito com as portas do Vortex!"
 else
     echo "⚡ Verificação concluída. Execute novamente se necessário."
