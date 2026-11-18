@@ -127,7 +127,7 @@ describe('handleAuthCallback', () => {
     expect(window.location.href).toBe(`${window.location.origin}/movements`)
     expect(await callback.awaitAuthHandOff()).toBe(false)
 
-    expect(storage.length).toBe(0)
+    expect(storage).toHaveLength(0)
   })
 
   it('stores nothing when the service returns an incomplete session', async () => {
@@ -137,7 +137,7 @@ describe('handleAuthCallback', () => {
     callback.handleAuthCallback()
 
     expect(await callback.awaitAuthHandOff()).toBe(false)
-    expect(storage.length).toBe(0)
+    expect(storage).toHaveLength(0)
   })
 
   it('still accepts the old query form, decoding it exactly once', async () => {
@@ -157,7 +157,7 @@ describe('handleAuthCallback', () => {
     callback.handleAuthCallback()
 
     expect(window.location.href).toBe(`${window.location.origin}/movements?tab=2`)
-    expect(window.history.length).toBe(historyLength)
+    expect(window.history).toHaveLength(historyLength)
 
     setUrl(`/products?tab=2&authData=${encode(HAND_OFF)}&q=x#secao`)
     callback.handleAuthCallback()
@@ -203,7 +203,7 @@ describe('handleAuthCallback', () => {
 
     expect(await callback.awaitAuthHandOff()).toBe(false)
     expect(requestSessionRefresh).not.toHaveBeenCalled()
-    expect(storage.length).toBe(0)
+    expect(storage).toHaveLength(0)
   })
 
   it('leaves a URL without hand-off untouched and resolves the wait right away', async () => {
@@ -214,7 +214,7 @@ describe('handleAuthCallback', () => {
     expect(window.location.href).toBe(`${window.location.origin}/products?tab=2#secao`)
     expect(await callback.awaitAuthHandOff()).toBe(false)
     expect(requestSessionRefresh).not.toHaveBeenCalled()
-    expect(storage.length).toBe(0)
+    expect(storage).toHaveLength(0)
   })
 
   it('runs when authCallbackEntry is imported', async () => {
