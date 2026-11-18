@@ -77,7 +77,7 @@ print_header() {
 print_results() {
     local status=$1
     local test_name=$2
-    if [ $status -eq 0 ]; then
+    if [[ $status -eq 0 ]]; then
         print_color "$GREEN" "✓ $test_name PASSED"
     else
         print_color "$RED" "✗ $test_name FAILED"
@@ -159,7 +159,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check if authorization service directory exists
-if [ ! -d "$AUTH_SERVICE_DIR" ]; then
+if [[ ! -d "$AUTH_SERVICE_DIR" ]]; then
     print_color "$RED" "Error: Authorization service directory not found: $AUTH_SERVICE_DIR"
     exit 1
 fi
@@ -168,7 +168,7 @@ fi
 cd "$AUTH_SERVICE_DIR"
 
 # Create report directories if needed
-if [ "$GENERATE_REPORT" = true ] || [ "$COVERAGE" = true ]; then
+if [[ "$GENERATE_REPORT" = true || "$COVERAGE" = true ]]; then
     mkdir -p "$REPORT_DIR"
     mkdir -p "$COVERAGE_DIR"
 fi
@@ -178,7 +178,7 @@ MVN_CMD="mvn"
 MVN_ARGS=""
 
 # Add verbose flag
-if [ "$VERBOSE" = true ]; then
+if [[ "$VERBOSE" = true ]]; then
     MVN_ARGS="$MVN_ARGS -X"
 fi
 
@@ -186,17 +186,17 @@ fi
 MVN_ARGS="$MVN_ARGS -Dquarkus.profile=$PROFILE"
 
 # Add quick mode (skip slow tests)
-if [ "$QUICK_MODE" = true ]; then
+if [[ "$QUICK_MODE" = true ]]; then
     MVN_ARGS="$MVN_ARGS -Dquarkus.test.exclude-tags=slow"
 fi
 
 # Add filter if specified
-if [ -n "$FILTER" ]; then
+if [[ -n "$FILTER" ]]; then
     MVN_ARGS="$MVN_ARGS -Dtest=*${FILTER}*"
 fi
 
 # Add CI optimizations
-if [ "$CI_MODE" = true ]; then
+if [[ "$CI_MODE" = true ]]; then
     MVN_ARGS="$MVN_ARGS -B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 fi
 
@@ -206,11 +206,11 @@ run_unit_tests() {
     
     local test_cmd="$MVN_CMD test $MVN_ARGS -Dtest=PasswordRecoveryServiceTest"
     
-    if [ "$COVERAGE" = true ]; then
+    if [[ "$COVERAGE" = true ]]; then
         test_cmd="$test_cmd jacoco:report"
     fi
     
-    if [ "$VERBOSE" = true ]; then
+    if [[ "$VERBOSE" = true ]]; then
         print_color "$YELLOW" "Command: $test_cmd"
     fi
     
@@ -229,11 +229,11 @@ run_integration_tests() {
     
     local test_cmd="$MVN_CMD test $MVN_ARGS -Dtest=PasswordRecoveryResourceTest"
     
-    if [ "$COVERAGE" = true ]; then
+    if [[ "$COVERAGE" = true ]]; then
         test_cmd="$test_cmd jacoco:report"
     fi
     
-    if [ "$VERBOSE" = true ]; then
+    if [[ "$VERBOSE" = true ]]; then
         print_color "$YELLOW" "Command: $test_cmd"
     fi
     
@@ -252,11 +252,11 @@ run_security_tests() {
     
     local test_cmd="$MVN_CMD test $MVN_ARGS -Dtest=PasswordRecoverySecurityTest"
     
-    if [ "$COVERAGE" = true ]; then
+    if [[ "$COVERAGE" = true ]]; then
         test_cmd="$test_cmd jacoco:report"
     fi
     
-    if [ "$VERBOSE" = true ]; then
+    if [[ "$VERBOSE" = true ]]; then
         print_color "$YELLOW" "Command: $test_cmd"
     fi
     
@@ -275,11 +275,11 @@ run_validation_tests() {
     
     local test_cmd="$MVN_CMD test $MVN_ARGS -Dtest=PasswordRecoveryValidationTest"
     
-    if [ "$COVERAGE" = true ]; then
+    if [[ "$COVERAGE" = true ]]; then
         test_cmd="$test_cmd jacoco:report"
     fi
     
-    if [ "$VERBOSE" = true ]; then
+    if [[ "$VERBOSE" = true ]]; then
         print_color "$YELLOW" "Command: $test_cmd"
     fi
     
@@ -298,11 +298,11 @@ run_all_tests() {
     
     local test_cmd="$MVN_CMD test $MVN_ARGS -Dtest=PasswordRecoveryServiceTest,PasswordRecoveryResourceTest,PasswordRecoverySecurityTest,PasswordRecoveryValidationTest"
     
-    if [ "$COVERAGE" = true ]; then
+    if [[ "$COVERAGE" = true ]]; then
         test_cmd="$test_cmd jacoco:report"
     fi
     
-    if [ "$VERBOSE" = true ]; then
+    if [[ "$VERBOSE" = true ]]; then
         print_color "$YELLOW" "Command: $test_cmd"
     fi
     
@@ -320,7 +320,7 @@ generate_test_report() {
     print_header "Generating Test Report"
     
     # Copy surefire reports
-    if [ -d "target/surefire-reports" ]; then
+    if [[ -d "target/surefire-reports" ]]; then
         cp -r target/surefire-reports/* "$REPORT_DIR/" 2>/dev/null || true
         print_color "$GREEN" "Test reports copied to: $REPORT_DIR"
     fi
@@ -352,14 +352,14 @@ generate_test_report() {
 generate_coverage_report() {
     print_header "Generating Coverage Report"
     
-    if [ -d "target/site/jacoco" ]; then
+    if [[ -d "target/site/jacoco" ]]; then
         cp -r target/site/jacoco/* "$COVERAGE_DIR/" 2>/dev/null || true
         print_color "$GREEN" "Coverage report copied to: $COVERAGE_DIR"
         
         # Extract coverage percentage if available
-        if [ -f "$COVERAGE_DIR/index.html" ]; then
+        if [[ -f "$COVERAGE_DIR/index.html" ]]; then
             local coverage=$(grep -oP 'Total.*?(\d+)%' "$COVERAGE_DIR/index.html" | grep -oP '\d+' | head -1)
-            if [ -n "$coverage" ]; then
+            if [[ -n "$coverage" ]]; then
                 print_color "$MAGENTA" "Code Coverage: $coverage%"
             fi
         fi
@@ -386,12 +386,12 @@ print_color "$WHITE" "  Quick Mode: $QUICK_MODE"
 print_color "$WHITE" "  Coverage: $COVERAGE"
 print_color "$WHITE" "  CI Mode: $CI_MODE"
 
-if [ -n "$FILTER" ]; then
+if [[ -n "$FILTER" ]]; then
     print_color "$WHITE" "  Filter: $FILTER"
 fi
 
 # Run in watch mode if requested
-if [ "$WATCH_MODE" = true ]; then
+if [[ "$WATCH_MODE" = true ]]; then
     run_watch_mode
     exit $?
 fi
@@ -418,31 +418,31 @@ case $TEST_TYPE in
 esac
 
 # Generate reports if requested
-if [ "$GENERATE_REPORT" = true ]; then
+if [[ "$GENERATE_REPORT" = true ]]; then
     generate_test_report
 fi
 
-if [ "$COVERAGE" = true ]; then
+if [[ "$COVERAGE" = true ]]; then
     generate_coverage_report
 fi
 
 # Print final summary
 print_header "Test Execution Complete"
 
-if [ $TEST_EXIT_CODE -eq 0 ]; then
+if [[ $TEST_EXIT_CODE -eq 0 ]]; then
     print_color "$GREEN" "✓ All tests passed successfully!"
 else
     print_color "$RED" "✗ Some tests failed. Check the logs above for details."
 fi
 
 # Print report locations
-if [ "$GENERATE_REPORT" = true ] || [ "$COVERAGE" = true ]; then
+if [[ "$GENERATE_REPORT" = true || "$COVERAGE" = true ]]; then
     echo ""
     print_color "$BLUE" "Reports generated:"
-    if [ "$GENERATE_REPORT" = true ]; then
+    if [[ "$GENERATE_REPORT" = true ]]; then
         print_color "$BLUE" "  Test Reports: $REPORT_DIR"
     fi
-    if [ "$COVERAGE" = true ]; then
+    if [[ "$COVERAGE" = true ]]; then
         print_color "$BLUE" "  Coverage Report: $COVERAGE_DIR"
     fi
 fi
