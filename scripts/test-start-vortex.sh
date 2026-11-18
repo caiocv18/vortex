@@ -39,9 +39,15 @@ trap cleanup EXIT
 # Processo órfão (filho do init), como os que o --stop encontra de uma subida anterior: assim o
 # kill -0 não enxerga um zumbi deste shell. $1 executável (padrão sleep). Imprime o PID.
 spawn_orphan() {
-    local bin=${1:-sleep} pid
+    local bin=${1:-sleep} pid i
     pid=$( ("$bin" 300 > /dev/null 2>&1 & echo $!) )
     SPAWNED+=("$pid")
+    # O $! sai antes do exec: até ele, a cmdline ainda é a deste shell e o padrão do stop_pid_file
+    # não casa (no runner ubuntu-24.04 de 16/11/2026 o stop chegava antes do exec toda vez)
+    for ((i = 0; i < 50; i++)); do
+        [[ "$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)" == "$bin "* ]] && break
+        sleep 0.1
+    done
     echo "$pid"
 }
 
