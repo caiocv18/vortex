@@ -23,7 +23,7 @@ RUN npm run build
 
 # 2) Production stage: Nginx sem root para servir arquivos estáticos (Sonar docker:S6471).
 # A variante unprivileged do nginx já traz pid e cache em caminhos graváveis pelo UID 101
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine AS production
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine AS production
 
 # Arquivos de root e só legíveis: o processo serve o site, mas não o reescreve
 COPY --from=build /app/dist /usr/share/nginx/html
