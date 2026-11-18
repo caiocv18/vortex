@@ -21,17 +21,21 @@ COPY . .
 # Build da aplicação para produção
 RUN npm run build
 
-# 2) Production stage: Nginx para servir arquivos estáticos
-FROM nginx:1.30.6-alpine AS production
+# 2) Production stage: Nginx sem root para servir arquivos estáticos (Sonar docker:S6471).
+# A variante unprivileged do nginx já traz pid e cache em caminhos graváveis pelo UID 101
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine AS production
 
-# Copiar arquivos buildados para o Nginx
+# Arquivos de root e só legíveis: o processo serve o site, mas não o reescreve
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copiar configuração customizada do Nginx (opcional)
+# Configuração customizada do Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expor porta 80
-EXPOSE 80
+# Sem root não há porta abaixo de 1024: o nginx escuta na 8080
+EXPOSE 8080
+
+# UID do usuário nginx da imagem, explícito para não depender do padrão dela
+USER 101
 
 # Comando para iniciar o Nginx
 CMD ["nginx", "-g", "daemon off;"]

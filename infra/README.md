@@ -55,7 +55,7 @@ infra/
 | Oracle | `gvenzl/oracle-free:23.26.3-slim-faststart` | 3g (o teto de 2 GB do Oracle Free cobre só SGA e PGA) |
 | Backends (build) | `eclipse-temurin:27-jdk` | |
 | Backends (runtime) | `eclipse-temurin:27-jre-alpine` | 768m (app) / 512m (auth) |
-| Frontends (build / runtime) | `node:26.13.0-alpine` / `nginx:1.30.6-alpine` | 32m |
+| Frontends (build / runtime) | `node:26.13.0-alpine` / `nginxinc/nginx-unprivileged:1.30.6-alpine` (UID 101, porta 8080) | 32m |
 
 ## 🚀 Scripts Disponíveis
 

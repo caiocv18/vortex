@@ -167,8 +167,8 @@ services:
       vortex-app:
         condition: service_healthy
     ports:
-      # O nginx do container escuta na 80
-      - "3000:80"
+      # O nginx do container escuta na 8080, sem root
+      - "3000:8080"
     mem_limit: 32m
     restart: "no"
     networks:
