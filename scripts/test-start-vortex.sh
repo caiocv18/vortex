@@ -64,8 +64,18 @@ check "write_pid_file grava PID, instante de início e boot_id" \
     grep -Eq "^$p [0-9]+ $(kernel_boot_id)\$" "$WORK/a.pid"
 check "pid_file_live_pid devolve o PID quando é o mesmo processo" \
     test "$(pid_file_live_pid "$WORK/a.pid")" = "$p"
-stop_pid_file "$WORK/a.pid" "teste" "sleep" > /dev/null
-check "stop_pid_file encerra o processo que confere" wait_gone "$p"
+stop_pid_file "$WORK/a.pid" "teste" "sleep" > "$WORK/stop.out" 2>&1
+if wait_gone "$p"; then
+    ok "stop_pid_file encerra o processo que confere"
+else
+    nok "stop_pid_file encerra o processo que confere"
+    # O aviso do stop_pid_file diz por que nenhum sinal saiu; sem ele a falha no CI não tem pista
+    sed 's/^/      /' "$WORK/stop.out"
+    printf '      stat: %s\n      cmdline: %s\n      sleep: %s\n' \
+        "$(cat "/proc/$p/stat" 2>/dev/null)" \
+        "$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)" \
+        "$(readlink -f "$(command -v sleep)")"
+fi
 check "stop_pid_file apaga o pid file" test ! -e "$WORK/a.pid"
 
 p=$(spawn_orphan)
