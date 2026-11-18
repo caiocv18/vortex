@@ -10,7 +10,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci
+# --ignore-scripts (Sonar docker:S6505): nenhuma dependência do build precisa de script de
+# instalação; os binários nativos musl chegam por optionalDependencies, não por postinstall
+RUN npm ci --ignore-scripts
 
 # Copiar código fonte (o .dockerignore deixa o node_modules do host de fora: os binários
 # nativos do rolldown são de glibc e não rodam no Alpine/musl)
