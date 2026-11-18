@@ -6,7 +6,7 @@
 - **Frontend (React 19 + TypeScript)**: `3001`
   - Modo leve: `http://localhost:3001` (nginx estático `vortex-static`)
   - Modo dev: `http://localhost:3001` (Vite dev server)
-  - Docker: `http://localhost:3001` (container `vortex-auth-frontend`, nginx na 80)
+  - Docker: `http://localhost:3001` (container `vortex-auth-frontend`, nginx sem root na 8080)
   - Build Tool: Vite 8
   - UI: Tailwind CSS 4
 - **Backend (Quarkus 3.40 + Java 27)**: `8081`
@@ -19,7 +19,7 @@
 - **Frontend (Vue.js 3.5 + TypeScript)**: `5173` (leve e dev) / `4173` (preview, modo dev com prd) / `3000` (Docker)
   - Modo leve: `http://localhost:5173` (nginx estático `vortex-static`)
   - Modo dev: `http://localhost:5173` (Vite dev server, `--strictPort`)
-  - Docker: `http://localhost:3000` (container `vortex-frontend`, nginx na 80)
+  - Docker: `http://localhost:3000` (container `vortex-frontend`, nginx sem root na 8080)
   - Build Tool: Vite 8
   - UI: Vuetify 4
 - **Backend (Spring Boot 4.1 + Java 27)**: `8080`

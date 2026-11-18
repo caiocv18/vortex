@@ -26,6 +26,7 @@ RUN ./mvnw -B -q clean package -DskipTests
 FROM eclipse-temurin:27-jre-alpine AS runtime
 
 WORKDIR /app
+# De root e legível por todos: o processo lê o jar, mas nunca o reescreve
 COPY --from=build /app/target/*.jar app.jar
 
 # Flags do modo leve como padrão (sobrescreva JAVA_OPTS no compose para mudar):
@@ -34,4 +35,7 @@ ENV MALLOC_ARENA_MAX=2 \
     JAVA_OPTS="-XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:MaxMetaspaceSize=192m -Xmx320m"
 
 EXPOSE 8080
+# Sem root (Sonar docker:S6471), o mesmo UID da imagem canônica do módulo e da do serviço de
+# autorização; o app só grava em /tmp (nenhum perfil grava log em arquivo)
+USER 185
 ENTRYPOINT ["/bin/sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar \"$@\"", "--"]

@@ -19,17 +19,21 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:1.30.6-alpine
+# Production stage: nginx sem root (Sonar docker:S6471). A variante unprivileged já traz pid e
+# cache em caminhos graváveis pelo UID 101
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine
 
-# Copy built application
+# Copy built application (arquivos de root e só legíveis: o processo não reescreve o site)
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80
-EXPOSE 80
+# Sem root não há porta abaixo de 1024: o nginx escuta na 8080
+EXPOSE 8080
+
+# UID do usuário nginx da imagem, explícito para não depender do padrão dela
+USER 101
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
