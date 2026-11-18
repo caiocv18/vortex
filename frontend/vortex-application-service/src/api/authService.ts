@@ -33,7 +33,8 @@ export type AuthPage = 'login' | 'register'
  * O app de login volta para `returnUrl` quando ela é da origem desta aplicação; sem o parâmetro,
  * ou com URL de outra origem, volta para a URL padrão dele (a raiz desta aplicação).
  * A volta traz a sessão no fragmento (`#authData=...`), que handleAuthCallback
- * (utils/authCallback.ts) consome antes de o router ler a URL.
+ * (utils/authCallback.ts) consome antes de o router ler a URL: do fragmento só sai o refresh
+ * token, trocado no serviço; o localStorage recebe a resposta do serviço.
  */
 export function buildAuthPageUrl(page: AuthPage, returnUrl: string): string {
   return `${AUTH_FRONTEND_URL}/${page}?returnUrl=${encodeURIComponent(returnUrl)}`

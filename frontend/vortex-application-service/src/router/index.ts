@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { useAuthStore } from '@/stores/auth'
+import { awaitAuthHandOff } from '@/utils/authCallback'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -54,6 +55,10 @@ router.beforeEach(async (to, from) => {
   const requiresAuth = to.meta.requiresAuth !== false
   
   if (requiresAuth) {
+    // A sessão que voltou do login só chega ao localStorage depois da troca no serviço
+    // (utils/authCallback.ts); sem hand-off nesta carga de página, resolve na hora.
+    await awaitAuthHandOff()
+
     // First, check if we have stored tokens
     const hasAccessToken = localStorage.getItem('accessToken')
     const hasRefreshToken = localStorage.getItem('refreshToken')
