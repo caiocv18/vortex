@@ -18,8 +18,10 @@
     width: 100%;
   }
 
+  /* Sem !important: esta camada vem depois de vuetify-components, então já ganha dos
+     max-width por breakpoint do .v-container */
   .v-container--fluid {
-    max-width: 100% !important;
+    max-width: 100%;
   }
 
   /* Melhorar espaçamento das tabelas */
