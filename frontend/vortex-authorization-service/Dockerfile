@@ -1,6 +1,6 @@
 # Build stage
 # Node 26: react-router 8 (Node >= 22.22), vite 8, vitest 5 e jsdom 31 não aceitam mais o Node 18
-FROM node:26.13.0-alpine AS build
+FROM node:26.13.1-alpine AS build
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN npm run build
 
 # Production stage: nginx sem root (Sonar docker:S6471). A variante unprivileged já traz pid e
 # cache em caminhos graváveis pelo UID 101
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 
 # Copy built application (arquivos de root e só legíveis: o processo não reescreve o site)
 COPY --from=build /app/dist /usr/share/nginx/html
