@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useReducer, useEffect, ReactNode } from 'react';
 import {
   User,
   LoginRequest,
@@ -127,7 +127,9 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
     void checkInitialAuth();
   }, [refreshToken]);
 
-  const login = async (request: LoginRequest): Promise<void> => {
+  // The handlers below only use dispatch (stable), so useCallback keeps them stable across renders
+  // and the memoized context value changes only when the state does
+  const login = useCallback(async (request: LoginRequest): Promise<void> => {
     try {
       dispatch({ type: 'AUTH_START' });
       
@@ -153,12 +155,12 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
 
       const message = getApiErrorMessage(error, 'Login failed. Please try again.');
       toast.error(message);
-      
+
       throw error;
     }
-  };
+  }, []);
 
-  const register = async (request: RegisterRequest): Promise<void> => {
+  const register = useCallback(async (request: RegisterRequest): Promise<void> => {
     try {
       dispatch({ type: 'AUTH_START' });
       
@@ -184,12 +186,12 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
 
       const message = getApiErrorMessage(error, 'Registration failed. Please try again.');
       toast.error(message);
-      
+
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
@@ -203,9 +205,9 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
       dispatch({ type: 'LOGOUT' });
       toast.success('Logged out successfully');
     }
-  };
+  }, []);
 
-  const forgotPassword = async (request: ForgotPasswordRequest): Promise<void> => {
+  const forgotPassword = useCallback(async (request: ForgotPasswordRequest): Promise<void> => {
     try {
       await apiService.forgotPassword(request);
       toast.success('Password reset instructions have been sent to your email');
@@ -214,7 +216,7 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
       toast.error(message);
       throw error;
     }
-  };
+  }, []);
 
   // Identidade estável: o LoginForm o lista nas dependências do useEffect
   const forceReset = useCallback((): void => {
@@ -223,7 +225,7 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
     dispatch({ type: 'AUTH_FAILURE' });
   }, []);
 
-  const resetPassword = async (request: ResetPasswordRequest): Promise<void> => {
+  const resetPassword = useCallback(async (request: ResetPasswordRequest): Promise<void> => {
     try {
       await apiService.resetPassword(request);
       toast.success('Password reset successful! You can now login with your new password.');
@@ -232,9 +234,9 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
       toast.error(message);
       throw error;
     }
-  };
+  }, []);
 
-  const value: AuthContextType = {
+  const value = useMemo<AuthContextType>(() => ({
     user: state.user,
     isAuthenticated: state.isAuthenticated,
     isLoading: state.isLoading,
@@ -245,7 +247,7 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
     resetPassword,
     refreshToken,
     forceReset,
-  };
+  }), [state, login, register, logout, forgotPassword, resetPassword, refreshToken, forceReset]);
 
   // React 19: o próprio contexto serve de provider
   return <AuthContext value={value}>{children}</AuthContext>;
