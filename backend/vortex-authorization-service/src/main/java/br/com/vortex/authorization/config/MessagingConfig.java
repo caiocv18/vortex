@@ -11,7 +11,8 @@ public class MessagingConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MessagingConfig.class);
 
-    // Mesmo padrão do application.properties (AUTH_EVENT_ENABLED, desligado)
+    // Mesmo padrão do application.properties (AUTH_EVENT_ENABLED): desligado, salvo no perfil kafka
+    // (%kafka.auth.event.enabled liga por padrão)
     @ConfigProperty(name = "auth.event.enabled", defaultValue = "false")
     boolean eventEnabled;
 

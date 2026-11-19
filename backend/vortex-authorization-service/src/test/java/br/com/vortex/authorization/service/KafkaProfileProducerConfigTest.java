@@ -57,6 +57,22 @@ class KafkaProfileProducerConfigTest {
             "acks efetivo: " + config.getString(ProducerConfig.ACKS_CONFIG));
     }
 
+    @Test
+    @DisplayName("Events are on by default only in the kafka profile")
+    void eventsAreOnByDefaultOnlyInTheKafkaProfile() throws IOException {
+        Properties file = new Properties();
+        try (Reader reader = Files.newBufferedReader(MAIN_PROPERTIES, StandardCharsets.UTF_8)) {
+            file.load(reader);
+        }
+
+        assertEquals("false", resolveDefault(file.getProperty("auth.event.enabled")), "padrão sem perfil");
+        assertEquals("true", resolveDefault(file.getProperty("%kafka.auth.event.enabled")), "padrão no perfil kafka");
+        // A variável continua mandando: é a mesma nos dois
+        assertEquals(file.getProperty("auth.event.enabled").replace("false", "true"),
+            file.getProperty("%kafka.auth.event.enabled"));
+        assertNull(file.getProperty("%rabbitmq.auth.event.enabled"), "o rabbitmq segue desligado por padrão");
+    }
+
     private static String resolveDefault(String value) {
         Matcher matcher = EXPRESSION.matcher(value);
         return matcher.matches() ? matcher.group(1) : value;

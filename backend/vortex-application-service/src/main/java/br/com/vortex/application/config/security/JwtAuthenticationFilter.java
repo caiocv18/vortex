@@ -47,7 +47,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 logger.debug("Validation response: " + validationResponse);
                 
                 if (validationResponse != null && Boolean.TRUE.equals(validationResponse.get("valid"))) {
-                    // Try to get username, fallback to email if not present
+                    // Try to get username, fallback to email if not present. The principal becomes the userId of
+                    // the events (MovimentoController), and the data pipeline joins movements with the auth events
+                    // by the username: a movement made under the e-mail fallback never joins a login. The auth
+                    // service always puts the username claim in its tokens, so the fallback is not the normal path
                     String username = (String) validationResponse.get("username");
                     if (username == null) {
                         username = (String) validationResponse.get("email");

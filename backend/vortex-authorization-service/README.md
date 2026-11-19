@@ -368,7 +368,7 @@ MP_JWT_VERIFY_PUBLICKEY_LOCATION=file:/path/to/publicKey.pem
 # Sem a variável, nenhum proxy é confiável e o cabeçalho é ignorado.
 TRUSTED_PROXIES=10.0.0.5
 
-# Eventos de autenticação (precisa do perfil kafka ou rabbitmq)
+# Eventos de autenticação (precisa do perfil kafka ou rabbitmq; no kafka o padrão é true)
 AUTH_EVENT_ENABLED=false
 
 # Password Policy
@@ -391,7 +391,7 @@ AUTH_RATE_LIMIT_WINDOW_MINUTES=15
 - `prod` - PostgreSQL, configurações de produção
 
 ### Messaging Configuration
-Os eventos saem pelo canal `user-events` e ficam desligados por padrão. Para ligar: `AUTH_EVENT_ENABLED=true` e o perfil `kafka` (tópico `vortex-user-events`) ou `rabbitmq` (exchange `vortex.user.events`), por exemplo `-Dquarkus.profile=leve,kafka`.
+Os eventos saem pelo canal `user-events`. No perfil `kafka` (tópico `vortex-user-events`) eles ficam ligados por padrão, por exemplo com `-Dquarkus.profile=leve,kafka`: o pipeline de `data/` junta o `username` desses eventos com o `userId` dos movimentos do app. `AUTH_EVENT_ENABLED=false` desliga. Sem perfil de mensageria eles ficam desligados; no `rabbitmq` (exchange `vortex.user.events`) também, e ligam com `AUTH_EVENT_ENABLED=true`.
 
 ```properties
 # application.properties (perfil kafka)
