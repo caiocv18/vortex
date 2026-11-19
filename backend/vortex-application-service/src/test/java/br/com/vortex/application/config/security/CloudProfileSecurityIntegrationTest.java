@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.resttestclient.TestRestTemplate;
@@ -144,6 +145,18 @@ class CloudProfileSecurityIntegrationTest extends PostgresContainerSupport {
     @MethodSource("closedPathsWithAToken")
     void aValidTokenDoesNotOpenThemEither(String path, HttpStatus expected) {
         assertEquals(expected, get(path, "VIEWER").getStatusCode(), path);
+    }
+
+    /**
+     * O cloud nega {@code /actuator/**} inteiro ({@code anyRequest().denyAll()}), inclusive o health do Actuator: a
+     * sonda da nuvem é o {@code /health} próprio. Nem um token de ADMIN abre os endpoints do Actuator.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"/actuator", "/actuator/health", "/actuator/env", "/actuator/metrics",
+            "/actuator/heapdump"})
+    void actuatorEndpointsStayClosedEvenForAnAdmin(String path) {
+        assertFalse(get(path, null).getStatusCode().is2xxSuccessful(), path);
+        assertFalse(get(path, "ADMIN").getStatusCode().is2xxSuccessful(), path);
     }
 
     @Test

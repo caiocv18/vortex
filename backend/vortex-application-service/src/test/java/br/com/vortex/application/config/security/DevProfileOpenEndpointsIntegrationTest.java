@@ -16,6 +16,9 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * O outro lado do {@link CloudProfileSecurityIntegrationTest}: no perfil {@code dev} Swagger, {@code /v3/api-docs},
@@ -39,6 +42,29 @@ class DevProfileOpenEndpointsIntegrationTest {
     @ValueSource(strings = {"/swagger-ui/index.html", "/v3/api-docs", "/h2-console/", "/api/test/public"})
     void devKeepsDocsConsoleAndTestEndpointsOpen(String path) {
         assertEquals(HttpStatus.OK, restTemplate.getForEntity(path, String.class).getStatusCode(), path);
+    }
+
+    /** O health do Actuator responde sem token; os detalhes (componentes) ficam fechados. */
+    @Test
+    void devExposesTheActuatorHealthWithoutDetails() {
+        ResponseEntity<String> health = restTemplate.getForEntity("/actuator/health", String.class);
+
+        assertNotEquals(HttpStatus.NOT_FOUND, health.getStatusCode());
+        assertTrue(health.getBody().contains("\"status\""), health.getBody());
+        assertFalse(health.getBody().contains("\"components\""), health.getBody());
+    }
+
+    /**
+     * O SecurityConfig local termina em {@code anyRequest().permitAll()}: qualquer endpoint do Actuator exposto
+     * estaria aberto sem login. Só o health é exposto, então os outros nem existem. (Caminho sem handler sai hoje
+     * como 500, e não 404, porque o {@code GlobalExceptionHandler} trata o {@code NoResourceFoundException} como
+     * erro genérico; o que importa aqui é que nenhum responde 2xx.)
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"/actuator", "/actuator/env", "/actuator/metrics", "/actuator/info", "/actuator/beans",
+            "/actuator/configprops", "/actuator/loggers", "/actuator/heapdump", "/actuator/threaddump"})
+    void devExposesNoOtherActuatorEndpoint(String path) {
+        assertFalse(restTemplate.getForEntity(path, String.class).getStatusCode().is2xxSuccessful(), path);
     }
 
     /** A lista de origens do cloud não vaza para o dev: o frontend local continua passando no preflight. */
