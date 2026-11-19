@@ -122,8 +122,9 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
         dispatch({ type: 'AUTH_FAILURE' });
       }
     };
-    
-    checkInitialAuth();
+
+    // Fire and forget: checkInitialAuth catches its own errors, so it never rejects
+    void checkInitialAuth();
   }, [refreshToken]);
 
   const login = async (request: LoginRequest): Promise<void> => {
