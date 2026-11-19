@@ -69,29 +69,30 @@ class ApiService {
     );
   }
 
-  // Auth endpoints
-  async login(request: LoginRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
+  // Auth endpoints. Not async: axios' request() is itself async, so a failure still arrives as a
+  // rejected promise and never as a synchronous throw
+  login(request: LoginRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
     console.log('[ApiService] Attempting login...');
     return this.api.post('/api/auth/login', request);
   }
 
-  async register(request: RegisterRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
+  register(request: RegisterRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
     return this.api.post('/api/auth/register', request);
   }
 
-  async refreshToken(request: RefreshTokenRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
+  refreshToken(request: RefreshTokenRequest): Promise<AxiosResponse<ApiResponse<LoginResponse>>> {
     return this.api.post('/api/auth/refresh', request);
   }
 
-  async logout(request: RefreshTokenRequest): Promise<AxiosResponse<ApiResponse>> {
+  logout(request: RefreshTokenRequest): Promise<AxiosResponse<ApiResponse>> {
     return this.api.post('/api/auth/logout', request);
   }
 
-  async forgotPassword(request: ForgotPasswordRequest): Promise<AxiosResponse<ApiResponse>> {
+  forgotPassword(request: ForgotPasswordRequest): Promise<AxiosResponse<ApiResponse>> {
     return this.api.post('/api/auth/forgot-password', request);
   }
 
-  async resetPassword(request: ResetPasswordRequest): Promise<AxiosResponse<ApiResponse>> {
+  resetPassword(request: ResetPasswordRequest): Promise<AxiosResponse<ApiResponse>> {
     return this.api.post('/api/auth/reset-password', request);
   }
 
