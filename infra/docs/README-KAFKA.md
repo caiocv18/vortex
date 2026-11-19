@@ -205,6 +205,7 @@ curl -X POST http://localhost:8080/api/movimentos \
 | `vortex.alertas.estoque` | Alertas de estoque | 1 | 3 dias |
 | `vortex.auditoria` | Eventos de auditoria | 2 | 180 dias |
 | `vortex.relatorios.events` | Eventos de relatórios | 1 | 1 dia |
+| `vortex-user-events` | Eventos de conta do auth (cadastro, login, logout, senha), com `username`; ligado por padrão no perfil `kafka` | padrão do broker (criado sozinho) | padrão do broker |
 
 ## 🔧 Cenários Avançados
 
