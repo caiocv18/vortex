@@ -227,7 +227,13 @@ code {
   border: 2px solid #f3f3f3;
   border-top: 2px solid var(--primary-color);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+}
+
+/* The endless spin only for users who have not asked the system to reduce motion */
+@media (prefers-reduced-motion: no-preference) {
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
 }
 
 @keyframes spin {
