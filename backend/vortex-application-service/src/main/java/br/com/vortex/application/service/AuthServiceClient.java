@@ -3,6 +3,9 @@ package br.com.vortex.application.service;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import io.micrometer.context.ContextExecutorService;
+import io.micrometer.context.ContextSnapshotFactory;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
@@ -16,6 +19,8 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
@@ -30,21 +35,41 @@ public class AuthServiceClient {
 
     private final RestClient restClient;
     private final AuthTokenVerifier authTokenVerifier;
-    private final String authServiceUrl;
+    private final ExecutorService executor;
 
     /**
-     * @param restClientBuilder builder auto-configurado pelo Boot (conversores com o JsonMapper da aplicação)
+     * @param restClientBuilder builder auto-configurado pelo Boot (conversores com o JsonMapper da aplicação e a
+     *                          observação HTTP, que gera o span de cliente e o cabeçalho {@code traceparent})
      * @param authTokenVerifier validação local usada nos fallbacks (chave pública RS256 do serviço de autorização)
      * @param authServiceUrl URL base do serviço de autorização
      */
     public AuthServiceClient(RestClient.Builder restClientBuilder, AuthTokenVerifier authTokenVerifier,
                              @Value("${auth.service.url:http://localhost:8081}") String authServiceUrl) {
+        // A URL base fica no builder e cada chamada passa só o caminho: o caminho vira o nome do span e a tag uri
+        // da métrica http.client.requests, sem host nem porta.
         this.restClient = restClientBuilder
+                .baseUrl(authServiceUrl)
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect()
                         .build(HttpClientSettings.defaults().withTimeouts(CONNECT_TIMEOUT, READ_TIMEOUT)))
                 .build();
         this.authTokenVerifier = authTokenVerifier;
-        this.authServiceUrl = authServiceUrl;
+        this.executor = contextPropagatingExecutor();
+    }
+
+    /**
+     * Executor dos {@code supplyAsync}. Sem executor, o {@code supplyAsync} roda no {@code ForkJoinPool.commonPool()},
+     * que não conhece a observação do thread do servlet: a chamada ao auth abriria um trace novo, partido do trace
+     * da requisição. O {@link ContextExecutorService} captura o contexto (a observação corrente e, com ela, o span)
+     * no thread que submete e o restaura no thread que executa. Threads virtuais: a tarefa só espera rede.
+     */
+    static ExecutorService contextPropagatingExecutor() {
+        ContextSnapshotFactory snapshots = ContextSnapshotFactory.builder().build();
+        return ContextExecutorService.wrap(Executors.newVirtualThreadPerTaskExecutor(), () -> snapshots.captureAll());
+    }
+
+    @PreDestroy
+    void shutdownExecutor() {
+        executor.shutdown();
     }
 
     @CircuitBreaker(name = "auth-service", fallbackMethod = "validateTokenFallback")
@@ -55,7 +80,7 @@ public class AuthServiceClient {
             try {
                 // Use the alternative endpoint that doesn't trigger automatic JWT validation
                 ResponseEntity<Map<String, Object>> response = restClient.post()
-                        .uri(authServiceUrl + "/api/auth/validate-token")
+                        .uri("/api/auth/validate-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(Map.of("token", token))
                         .retrieve()
@@ -70,7 +95,7 @@ public class AuthServiceClient {
                 log.error("Error validating token with auth service: ", e);
                 throw new RuntimeException("Auth service validation failed", e);
             }
-        });
+        }, executor);
     }
 
     /**
@@ -96,7 +121,7 @@ public class AuthServiceClient {
                 log.error("Local token validation failed: {}", e.getMessage());
                 return Map.of("valid", false, "source", LOCAL_VALIDATION);
             }
-        });
+        }, executor);
     }
 
     @CircuitBreaker(name = "auth-service", fallbackMethod = "getUserInfoFallback")
@@ -106,7 +131,7 @@ public class AuthServiceClient {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 ResponseEntity<Map<String, Object>> response = restClient.get()
-                        .uri(authServiceUrl + "/auth/userinfo")
+                        .uri("/auth/userinfo")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .retrieve()
                         .toEntity(JSON_OBJECT);
@@ -120,7 +145,7 @@ public class AuthServiceClient {
                 log.error("Error getting user info from auth service: ", e);
                 throw new RuntimeException("Auth service user info failed", e);
             }
-        });
+        }, executor);
     }
 
     /** Fallback do userinfo: os dados vêm do próprio token, conferido como em {@link #validateTokenFallback}. */
@@ -137,7 +162,7 @@ public class AuthServiceClient {
                 log.error("Local token extraction failed: {}", e.getMessage());
                 return Map.of("error", "Invalid token", "source", LOCAL_TOKEN_EXTRACTION);
             }
-        });
+        }, executor);
     }
 
     /** Campos do usuário no formato do validate-token; o filtro usa o email quando falta o username. */

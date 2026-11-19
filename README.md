@@ -111,7 +111,7 @@ Each service has its own GitHub Actions workflow, which builds only when that se
 
 | Workflow | What it runs |
 |---|---|
-| `app-service` | `./mvnw -B -ntp verify`: unit and integration tests, PostgreSQL 18 through Testcontainers, JaCoCo gate at 47% of lines |
+| `app-service` | `./mvnw -B -ntp verify`: unit and integration tests, PostgreSQL 18 through Testcontainers, JaCoCo gate at 51% of lines |
 | `auth-service` | `./mvnw -B -ntp verify`: tests on H2, JaCoCo gates at 60% of lines and 50% of branches |
 | `front-app` | ESLint, `vue-tsc` type check, Vitest, production build |
 | `front-auth` | ESLint, type check, Vitest, production build |
@@ -127,6 +127,17 @@ cd frontend/vortex-application-service && npx eslint . && npm run type-check && 
 cd frontend/vortex-authorization-service && npm run lint && npm run type-check && npx vitest run
 cd data/pipeline && uv sync --locked && uv run ruff check . && uv run pytest
 ```
+
+## Observability
+
+Both backends emit traces, metrics and logs with OpenTelemetry, natively in Spring Boot and Quarkus, without the Java agent ([ADR 0009](docs/adr/0009-native-opentelemetry-without-an-agent.md)). One trace follows a request from the inventory API into the authorization service, with a span for every SQL statement on both sides, and every log line sent to Loki carries its trace id. The export is off by default; to see it locally:
+
+```bash
+docker compose -f infra/docker/docker-compose.observabilidade.yml up -d
+VORTEX_OTEL_ENABLED=true ./start-vortex.sh --modo leve -e dev -m none --no-interaction
+```
+
+Use the app for a moment, then open Grafana at http://localhost:3030: Explore → Tempo shows the traces, and a log line in Loki opens its trace through `trace_id`. The stack runs [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm) in one container and needs about 1.4 GB on top of the light mode. `VORTEX_OTEL_ENDPOINT` points the OTLP export (HTTP) somewhere else. Actuator exposes only `/actuator/health`, and the `cloud` profile closes `/actuator` entirely.
 
 ## Container images
 
@@ -166,6 +177,7 @@ The [architecture decision records](docs/adr/README.md) explain the choices that
 6. [An on-demand demo instance, reached only through Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
 7. [Static single-page apps on S3 and CloudFront](docs/adr/0007-static-spas-on-cloudfront.md)
 8. [A Beam pipeline into BigQuery, across two Google Cloud projects, with pseudonymization](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)
+9. [Native OpenTelemetry in both backends, without an agent, exported only on demand](docs/adr/0009-native-opentelemetry-without-an-agent.md)
 
 ## Repository layout
 

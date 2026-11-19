@@ -286,7 +286,7 @@ npm run test:coverage         # Coverage report
 - **API Testing**: Dedicated script `scripts/test-queue-endpoint.sh`
 - **Code Coverage**: 
   - JaCoCo plugin integrated with Maven (jacoco-maven-plugin 0.8.16) in both backends
-  - Quality gates: auth 60% line and 50% branch coverage; main app 47% line coverage (`jacoco.line.minimum`)
+  - Quality gates: auth 60% line and 50% branch coverage; main app 51% line coverage (`jacoco.line.minimum`)
   - Reports in HTML, XML, and CSV formats
   - Auth reports in `coverage-reports/auth-registration/` (local output of the scripts, ignored by git); main app reports in `backend/vortex-application-service/target/site/jacoco/`
 - **CI**: GitHub Actions, one workflow per service (see Code Coverage & Quality Assurance)
@@ -336,8 +336,9 @@ npm run test:coverage         # Coverage report
 - **Launcher tests**: `bash scripts/test-start-vortex.sh` (no Docker, JVM or network; sources the launcher, whose `main` runs only when executed).
 - **Ports**: `scripts/check-ports.sh --auto-kill` at startup checks 3001, 5173, 8080, 8081, 9092 and 5432, only listeners, skips container-published ports, TERM before KILL.
 - **Logging**: Centralized logs in `/logs/` directory (`backend.log`, `auth-backend.log`, `build-*.log`, `aot-train-*.log`, `startup-times.log`)
-- **Health Checks**: Validates service startup and readiness (`/health` and `/q/health`; there is no Actuator in the main backend)
-- **Docker**: waits up to 60 s for the engine (it starts with the WSL distro boot); Compose v2 everywhere. All containers are named `vortex-*`.
+- **Health Checks**: Validates service startup and readiness (`/health` and `/q/health`). The main backend has Actuator since ADR 0009, exposing only `/actuator/health` (no details, no discovery page); keep it that way, because the local security chain ends in `anyRequest().permitAll()`.
+- **Docker**: waits up to 60 s for the engine (it starts with the WSL distro boot); Compose v2 everywhere. All containers are named `vortex-*`, and `stop_all_services` (run before every start and by `--stop`) stops and removes every container whose name contains `vortex`. The observability container is named `otel-lgtm` on purpose so it survives that.
+- **Observability (ADR 0009)**: `VORTEX_OTEL_ENABLED=true` (only `true` or `false`; the auth fails to boot on anything else) turns on the OTLP export of both backends to `VORTEX_OTEL_ENDPOINT` (default `http://localhost:4318`, HTTP), for the backends that run on the host (`-e dev`); with `-e prd` the main backend runs in a container that gets neither variable. `infra/docker/docker-compose.observabilidade.yml` runs `grafana/otel-lgtm` (Grafana on 3030, ~1.4 GB). The `AuthServiceClient` must keep its context-propagating executor: `supplyAsync` without it splits the trace.
 - **WSL caveat**: the distro (and every JVM and container in it) shuts down when its last terminal closes.
 
 ### Authentication Flow
@@ -373,7 +374,7 @@ npm run test:coverage         # Coverage report
 - **Plugin Version**: jacoco-maven-plugin 0.8.16 (`jacoco.version` in both poms; Spring Boot's BOM does not manage it)
 - **Quality Gates**:
   - Auth: minimum 60% line coverage, 50% branch coverage (`BUNDLE`), set by the `jacoco.line.minimum` and `jacoco.branch.minimum` properties
-  - Main app: minimum 47% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-13 baseline of 47.9% (847/1769 lines, after the cloud profile tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests and 44% after the PostgreSQL profile tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
+  - Main app: minimum 51% line coverage (`BUNDLE`), set by the `jacoco.line.minimum` property from the 2026-11-19 baseline of 51.5% (924/1793 lines, after the observability tests) rounded down (it started at 31% on 2026-11-09, then 43% after the role matrix tests, 44% after the PostgreSQL profile tests and 47% after the cloud profile tests); override with `-Djacoco.line.minimum=...`. Raise it when coverage goes up, never lower it to make a build pass
 - **Report Formats**: HTML (visual), XML (CI/CD), CSV (data analysis)
 - **Location**: `coverage-reports/auth-registration/` and `coverage-reports/auth-password-recovery/` (auth scripts; local only, ignored by git, while CI keeps its reports as workflow artifacts); `target/site/jacoco/` (main app, `report` bound to the `test` phase, `check` to `verify`)
 - **Agent wiring (main app)**: the empty `<argLine/>` property plus `@{argLine}` in the surefire config lets `prepare-agent` add the JaCoCo agent; keep `@{argLine}` when touching the surefire flags, or `jacoco.exec` is never written and `jacoco:check` silently skips

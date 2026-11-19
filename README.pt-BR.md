@@ -109,7 +109,7 @@ Cada serviço tem o próprio workflow no GitHub Actions, que só compila quando 
 
 | Workflow | O que roda |
 |---|---|
-| `app-service` | `./mvnw -B -ntp verify`: testes unitários e de integração, PostgreSQL 18 pelo Testcontainers, gate do JaCoCo em 47% das linhas |
+| `app-service` | `./mvnw -B -ntp verify`: testes unitários e de integração, PostgreSQL 18 pelo Testcontainers, gate do JaCoCo em 51% das linhas |
 | `auth-service` | `./mvnw -B -ntp verify`: testes em H2, gates do JaCoCo em 60% das linhas e 50% dos branches |
 | `front-app` | ESLint, checagem de tipos com `vue-tsc`, Vitest, build de produção |
 | `front-auth` | ESLint, checagem de tipos, Vitest, build de produção |
@@ -125,6 +125,17 @@ cd frontend/vortex-application-service && npx eslint . && npm run type-check && 
 cd frontend/vortex-authorization-service && npm run lint && npm run type-check && npx vitest run
 cd data/pipeline && uv sync --locked && uv run ruff check . && uv run pytest
 ```
+
+## Observabilidade
+
+Os dois backends emitem traces, métricas e logs com OpenTelemetry, nativo no Spring Boot e no Quarkus, sem o agente Java ([ADR 0009](docs/adr/0009-native-opentelemetry-without-an-agent.md)). Um trace só acompanha a requisição da API de estoque até o serviço de autorização, com um span para cada comando SQL dos dois lados, e cada linha de log enviada ao Loki leva o id do trace. O export vem desligado; para ver localmente:
+
+```bash
+docker compose -f infra/docker/docker-compose.observabilidade.yml up -d
+VORTEX_OTEL_ENABLED=true ./start-vortex.sh --modo leve -e dev -m none --no-interaction
+```
+
+Use o app por um instante e abra o Grafana em http://localhost:3030: Explore → Tempo mostra os traces, e uma linha de log no Loki abre o trace dela pelo `trace_id`. A pilha roda o [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm) num contêiner só e pede cerca de 1,4 GB além do modo leve. `VORTEX_OTEL_ENDPOINT` aponta o export OTLP (HTTP) para outro destino. O Actuator expõe só o `/actuator/health`, e o perfil `cloud` fecha o `/actuator` inteiro.
 
 ## Imagens de contêiner
 
@@ -164,6 +175,7 @@ Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) expli
 6. [Instância de demo sob demanda, acessada só pelo Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
 7. [Aplicações de página única estáticas no S3 e no CloudFront](docs/adr/0007-static-spas-on-cloudfront.md)
 8. [Um pipeline Beam até o BigQuery, em dois projetos do Google Cloud, com pseudonimização](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)
+9. [OpenTelemetry nativo nos dois backends, sem agente, exportado só quando pedido](docs/adr/0009-native-opentelemetry-without-an-agent.md)
 
 ## Estrutura do repositório
 

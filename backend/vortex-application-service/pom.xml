@@ -35,6 +35,11 @@
 		<spring-cloud-aws.version>4.2.1</spring-cloud-aws.version>
 		<resilience4j.version>2.4.0</resilience4j.version>
 		<jjwt.version>0.13.0</jjwt.version>
+		<!-- Spans JDBC pela Micrometer Observation: a linha 2.x é a do Boot 4 (a 1.x é do Boot 3) -->
+		<datasource-micrometer.version>2.3.1</datasource-micrometer.version>
+		<!-- A 2.28.0-alpha é a que foi compilada contra o SDK 1.62.0 gerenciado pelo Boot 4.1.2. Só muda junto com
+		     o parent (o Dependabot ignora esta dependência): a do instrumentation que casa com o novo SDK -->
+		<opentelemetry-logback-appender.version>2.28.0-alpha</opentelemetry-logback-appender.version>
 		<!-- Sobrescreve o 23.26.3.0.0 gerenciado pelo Boot 4.1.2 -->
 		<oracle-database.version>23.26.4.0.0</oracle-database.version>
 		<!--
@@ -49,8 +54,8 @@
 		<argLine/>
 		<!-- Mesma versão do auth -->
 		<jacoco.version>0.8.16</jacoco.version>
-		<!-- Piso de cobertura de linhas do jacoco:check: linha de base de 13/11/2026 = 47,9% (847/1769), arredondada para baixo -->
-		<jacoco.line.minimum>0.4700</jacoco.line.minimum>
+		<!-- Piso de cobertura de linhas do jacoco:check: linha de base de 19/11/2026 = 51,5% (924/1793), arredondada para baixo -->
+		<jacoco.line.minimum>0.5100</jacoco.line.minimum>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -98,6 +103,27 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
+
+		<!-- Observabilidade: Actuator (só o health exposto), OpenTelemetry nativo do Boot sem agente,
+		     spans JDBC e o appender que leva o log do Logback ao OTLP -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.ttddyy.observation</groupId>
+			<artifactId>datasource-micrometer-spring-boot</artifactId>
+			<version>${datasource-micrometer.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry.instrumentation</groupId>
+			<artifactId>opentelemetry-logback-appender-1.0</artifactId>
+			<version>${opentelemetry-logback-appender.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springdoc</groupId>

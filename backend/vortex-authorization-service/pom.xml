@@ -108,10 +108,20 @@
             <artifactId>quarkus-smallrye-health</artifactId>
         </dependency>
         
-        <!-- Metrics -->
+        <!-- Observabilidade: OpenTelemetry nativo (traces, logs e spans JDBC), as métricas da API do
+             Micrometer exportadas pelo SDK do OpenTelemetry (no lugar do quarkus-micrometer, que não tinha
+             registry) e o log do console em JSON no perfil prod. Ver docs/adr/0009. -->
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-micrometer</artifactId>
+            <artifactId>quarkus-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-logging-json</artifactId>
         </dependency>
         
         <!-- Kafka for messaging -->
