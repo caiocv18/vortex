@@ -69,7 +69,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   // Declarado antes do efeito que o usa; useCallback deixa a identidade estável (dispatch é estável)
