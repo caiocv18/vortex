@@ -1315,12 +1315,11 @@ wait_for_kafka() {
 
     while [[ $attempt -le $max_attempts ]]; do
         # Container saudável (healthcheck do compose: listener aberto)...
-        if docker ps --filter "name=vortex-kafka" --filter "health=healthy" --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER"; then
-            # ...e o listener do host respondendo. A imagem nativa não traz as CLIs do Kafka.
-            if (exec 3<>/dev/tcp/127.0.0.1/9092) 2>/dev/null; then
-                print_color $GREEN "✅ Kafka broker está respondendo em localhost:9092!"
-                return 0
-            fi
+        # ...e o listener do host respondendo. A imagem nativa não traz as CLIs do Kafka.
+        if docker ps --filter "name=vortex-kafka" --filter "health=healthy" --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER" \
+            && (exec 3<>/dev/tcp/127.0.0.1/9092) 2>/dev/null; then
+            print_color $GREEN "✅ Kafka broker está respondendo em localhost:9092!"
+            return 0
         fi
 
         if [[ $attempt -eq $max_attempts ]]; then
@@ -1632,10 +1631,8 @@ start_databases() {
         print_color $GREEN "✅ Bancos de dados iniciados com sucesso!"
 
         # Mostrar informações dos bancos
-        if [[ "$ENVIRONMENT" == "prd" ]]; then
-            if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-db$"; then
-                print_color $GREEN "   🏛️  Oracle: localhost:1521/FREEPDB1 (vortex_user)"
-            fi
+        if [[ "$ENVIRONMENT" == "prd" ]] && docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-db$"; then
+            print_color $GREEN "   🏛️  Oracle: localhost:1521/FREEPDB1 (vortex_user)"
         fi
 
         if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-auth-db$"; then
