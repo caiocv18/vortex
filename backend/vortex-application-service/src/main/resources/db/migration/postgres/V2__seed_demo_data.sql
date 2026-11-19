@@ -51,31 +51,42 @@ FROM (
 JOIN tipo_produto t ON t.id = v.tipo_produto_id
 ON CONFLICT DO NOTHING;
 
+-- Um INSERT por tipo de movimento, com o tipo escrito uma vez só (Sonar plsql:S1192).
+-- Entradas: sem valor de venda
 INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id)
-SELECT v.id, v.data_movimento, v.tipo_movimentacao, v.quantidade_movimentada, v.valor_venda, v.produto_id
+SELECT v.id, v.data_movimento, 'ENTRADA', v.quantidade_movimentada, NULL, v.produto_id
 FROM (
     VALUES
-        (1, TIMESTAMP '2023-01-01 10:00:00', 'ENTRADA', 10, NULL, 1),
-        (2, TIMESTAMP '2023-01-01 11:00:00', 'ENTRADA', 5, NULL, 2),
-        (3, TIMESTAMP '2023-01-02 09:00:00', 'ENTRADA', 20, NULL, 3),
-        (4, TIMESTAMP '2023-01-02 10:00:00', 'ENTRADA', 15, NULL, 4),
-        (5, TIMESTAMP '2023-01-03 08:00:00', 'ENTRADA', 30, NULL, 5),
-        (6, TIMESTAMP '2023-01-03 09:00:00', 'ENTRADA', 25, NULL, 6),
-        (7, TIMESTAMP '2023-01-04 10:00:00', 'ENTRADA', 3, NULL, 7),
-        (8, TIMESTAMP '2023-01-04 11:00:00', 'ENTRADA', 4, NULL, 8),
-        (9, TIMESTAMP '2023-01-05 09:00:00', 'ENTRADA', 12, NULL, 9),
-        (10, TIMESTAMP '2023-01-05 10:00:00', 'ENTRADA', 8, NULL, 10),
-        (11, TIMESTAMP '2023-01-06 14:00:00', 'SAIDA', 2, 2025.00, 1),
-        (12, TIMESTAMP '2023-01-06 15:00:00', 'SAIDA', 1, 4050.00, 2),
-        (13, TIMESTAMP '2023-01-07 13:00:00', 'SAIDA', 5, 67.50, 3),
-        (14, TIMESTAMP '2023-01-07 14:00:00', 'SAIDA', 3, 108.00, 4),
-        (15, TIMESTAMP '2023-01-08 12:00:00', 'SAIDA', 10, 27.00, 5),
-        (16, TIMESTAMP '2023-01-08 13:00:00', 'SAIDA', 8, 10.80, 6),
-        (17, TIMESTAMP '2023-01-09 14:00:00', 'SAIDA', 1, 1620.00, 7),
-        (18, TIMESTAMP '2023-01-09 15:00:00', 'SAIDA', 2, 1080.00, 8),
-        (19, TIMESTAMP '2023-01-10 13:00:00', 'SAIDA', 4, 60.75, 9),
-        (20, TIMESTAMP '2023-01-10 14:00:00', 'SAIDA', 2, 162.00, 10)
-) AS v (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id)
+        (1, TIMESTAMP '2023-01-01 10:00:00', 10, 1),
+        (2, TIMESTAMP '2023-01-01 11:00:00', 5, 2),
+        (3, TIMESTAMP '2023-01-02 09:00:00', 20, 3),
+        (4, TIMESTAMP '2023-01-02 10:00:00', 15, 4),
+        (5, TIMESTAMP '2023-01-03 08:00:00', 30, 5),
+        (6, TIMESTAMP '2023-01-03 09:00:00', 25, 6),
+        (7, TIMESTAMP '2023-01-04 10:00:00', 3, 7),
+        (8, TIMESTAMP '2023-01-04 11:00:00', 4, 8),
+        (9, TIMESTAMP '2023-01-05 09:00:00', 12, 9),
+        (10, TIMESTAMP '2023-01-05 10:00:00', 8, 10)
+) AS v (id, data_movimento, quantidade_movimentada, produto_id)
+JOIN produto p ON p.id = v.produto_id
+ON CONFLICT DO NOTHING;
+
+-- Saídas
+INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id)
+SELECT v.id, v.data_movimento, 'SAIDA', v.quantidade_movimentada, v.valor_venda, v.produto_id
+FROM (
+    VALUES
+        (11, TIMESTAMP '2023-01-06 14:00:00', 2, 2025.00, 1),
+        (12, TIMESTAMP '2023-01-06 15:00:00', 1, 4050.00, 2),
+        (13, TIMESTAMP '2023-01-07 13:00:00', 5, 67.50, 3),
+        (14, TIMESTAMP '2023-01-07 14:00:00', 3, 108.00, 4),
+        (15, TIMESTAMP '2023-01-08 12:00:00', 10, 27.00, 5),
+        (16, TIMESTAMP '2023-01-08 13:00:00', 8, 10.80, 6),
+        (17, TIMESTAMP '2023-01-09 14:00:00', 1, 1620.00, 7),
+        (18, TIMESTAMP '2023-01-09 15:00:00', 2, 1080.00, 8),
+        (19, TIMESTAMP '2023-01-10 13:00:00', 4, 60.75, 9),
+        (20, TIMESTAMP '2023-01-10 14:00:00', 2, 162.00, 10)
+) AS v (id, data_movimento, quantidade_movimentada, valor_venda, produto_id)
 JOIN produto p ON p.id = v.produto_id
 ON CONFLICT DO NOTHING;
 
