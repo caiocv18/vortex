@@ -133,7 +133,7 @@ apiClient.interceptors.response.use(
       // Erro ao configurar a requisição
       console.error('❌ [API Error] Request setup error:', error.message)
     }
-    return Promise.reject(error)
+    throw error
   }
 )
 
