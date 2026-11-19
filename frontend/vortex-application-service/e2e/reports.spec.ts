@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { loadReports, reportProgressBars } from './support/waits'
 
 test.describe('Reports Page', () => {
+  // Every test starts once the profit report has arrived and rendered (cards, table and chart)
   test.beforeEach(async ({ page }) => {
-    await page.goto('/reports')
+    await loadReports(page, () => page.goto('/reports'))
   })
 
   test('displays page title and basic elements', async ({ page }) => {
@@ -43,8 +45,8 @@ test.describe('Reports Page', () => {
 
   test('displays currency values in correct format', async ({ page }) => {
     // Aguarda os cards carregarem
-    await page.waitForTimeout(3000)
-    
+    await expect(reportProgressBars(page)).toHaveCount(0)
+
     // Verifica se há valores monetários formatados corretamente
     const currencyValues = page.locator('text=/R\\$\\s*\\d+,\\d{2}/')
     
@@ -56,8 +58,8 @@ test.describe('Reports Page', () => {
 
   test('displays percentage values correctly', async ({ page }) => {
     // Aguarda os cards carregarem
-    await page.waitForTimeout(3000)
-    
+    await expect(reportProgressBars(page)).toHaveCount(0)
+
     // Verifica se há valores percentuais formatados corretamente
     const percentageValues = page.locator('text=/\\d+\\.\\d%/')
     
@@ -86,8 +88,8 @@ test.describe('Reports Page', () => {
 
   test('displays profit by product chart', async ({ page }) => {
     // Aguarda os gráficos carregarem
-    await page.waitForTimeout(5000)
-    
+    await expect(reportProgressBars(page)).toHaveCount(0)
+
     // Verifica se há um gráfico de lucro por produto
     const chartSection = page.locator('.v-card:has-text("Lucro por Produto")')
     
@@ -130,23 +132,21 @@ test.describe('Reports Page', () => {
 
   test('charts are responsive', async ({ page }) => {
     // Aguarda os gráficos carregarem
-    await page.waitForTimeout(5000)
-    
+    await expect(reportProgressBars(page)).toHaveCount(0)
+
     // Verifica se há gráficos na página
     const charts = page.locator('canvas')
-    
+
     if (await charts.count() > 0) {
       // Muda para viewport mobile
       await page.setViewportSize({ width: 375, height: 667 })
-      await page.waitForTimeout(1000)
-      
-      // Verifica se os gráficos ainda estão visíveis
+
+      // Verifica se os gráficos ainda estão visíveis (web-first assertion, waits for the resize)
       await expect(charts.first()).toBeVisible()
-      
+
       // Volta para desktop
       await page.setViewportSize({ width: 1280, height: 720 })
-      await page.waitForTimeout(1000)
-      
+
       // Verifica se os gráficos ainda estão visíveis
       await expect(charts.first()).toBeVisible()
     }
@@ -165,7 +165,7 @@ test.describe('Reports Page', () => {
 
   test('statistics cards show meaningful data', async ({ page }) => {
     // Aguarda os dados carregarem
-    await page.waitForTimeout(5000)
+    await expect(reportProgressBars(page)).toHaveCount(0)
     
     // Verifica se os cards não mostram valores padrão/zero
     // Vuetify 4 (tipografia MD3): text-h5 virou text-headline-small
@@ -188,7 +188,7 @@ test.describe('Reports Page', () => {
 
   test('page handles empty data gracefully', async ({ page }) => {
     // Aguarda a página carregar
-    await page.waitForTimeout(5000)
+    await expect(reportProgressBars(page)).toHaveCount(0)
     
     // Verifica se a página não mostra erros quando não há dados
     const errorMessages = page.locator('text=/erro|error/i')
@@ -224,8 +224,8 @@ test.describe('Reports Page', () => {
 
   test('charts legend is displayed correctly', async ({ page }) => {
     // Aguarda os gráficos carregarem
-    await page.waitForTimeout(5000)
-    
+    await expect(reportProgressBars(page)).toHaveCount(0)
+
     // Verifica se há gráficos com legendas
     const charts = page.locator('canvas')
     
@@ -243,7 +243,7 @@ test.describe('Reports Page', () => {
 
   test('data refreshes when page is reloaded', async ({ page }) => {
     // Aguarda o carregamento inicial
-    await page.waitForTimeout(5000)
+    await expect(reportProgressBars(page)).toHaveCount(0)
     
     // Pega o valor inicial de um dos cards
     const profitCard = page.locator('.v-card:has-text("Lucro Total") .text-headline-small')
@@ -253,9 +253,8 @@ test.describe('Reports Page', () => {
       initialValue = await profitCard.textContent() || ''
     }
     
-    // Recarrega a página
-    await page.reload()
-    await page.waitForTimeout(5000)
+    // Recarrega a página (and waits for the profit report to arrive again)
+    await loadReports(page, () => page.reload())
     
     // Verifica se os dados foram carregados novamente
     if (await profitCard.isVisible()) {

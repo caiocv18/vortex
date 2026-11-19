@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readStoredTheme, toggleRail, waitForStoredThemeChange } from './support/waits'
 
 test.describe('Navigation', () => {
   test.beforeEach(async ({ page }) => {
@@ -71,13 +72,14 @@ test.describe('Navigation', () => {
     // Pega o ícone inicial do tema
     const initialThemeIcon = page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
     const initialIconClass = await initialThemeIcon.getAttribute('class')
-    
+    const initialTheme = await readStoredTheme(page)
+
     // Clica no botão de tema no app bar
     await page.click('.v-app-bar .v-btn:has(.mdi-weather-sunny), .v-app-bar .v-btn:has(.mdi-weather-night)')
-    
-    // Aguarda a mudança de tema
-    await page.waitForTimeout(500)
-    
+
+    // Aguarda a mudança de tema (the stored theme changes)
+    await waitForStoredThemeChange(page, initialTheme)
+
     // Verifica se o ícone mudou
     const newThemeIcon = page.locator('.v-app-bar .v-btn .mdi-weather-sunny, .v-app-bar .v-btn .mdi-weather-night').first()
     // Asserção web-first (com retry): o ícone atual não tem mais a classe do ícone inicial
@@ -92,13 +94,14 @@ test.describe('Navigation', () => {
     // Verifica se o item de tema está presente no sidebar
     const sidebarThemeItem = page.locator('.v-navigation-drawer .v-list-item:has(.mdi-weather-sunny), .v-navigation-drawer .v-list-item:has(.mdi-weather-night)')
     await expect(sidebarThemeItem).toBeVisible()
-    
+    const initialTheme = await readStoredTheme(page)
+
     // Clica no item de tema no sidebar
     await sidebarThemeItem.click()
-    
-    // Aguarda a mudança de tema
-    await page.waitForTimeout(500)
-    
+
+    // Aguarda a mudança de tema (the stored theme changes)
+    await waitForStoredThemeChange(page, initialTheme)
+
     // Verifica se o tema foi salvo no localStorage
     const theme = await page.evaluate(() => localStorage.getItem('theme'))
     expect(['light', 'dark']).toContain(theme)
@@ -110,16 +113,14 @@ test.describe('Navigation', () => {
     await expect(railToggleButton).toBeVisible()
     
     // Clica para ativar o modo rail
-    await railToggleButton.click()
-    await page.waitForTimeout(300)
-    
+    await toggleRail(page, railToggleButton, true)
+
     // Verifica se o drawer ainda está visível (modo rail)
     await expect(page.locator('.v-navigation-drawer')).toBeVisible()
-    
+
     // Clica novamente para desativar o modo rail
-    await railToggleButton.click()
-    await page.waitForTimeout(300)
-    
+    await toggleRail(page, railToggleButton, false)
+
     // Verifica se o drawer ainda está visível (modo normal)
     await expect(page.locator('.v-navigation-drawer')).toBeVisible()
   })
@@ -135,18 +136,16 @@ test.describe('Navigation', () => {
 
   test('navigation drawer can be toggled via app bar button', async ({ page }) => {
     // Primeiro, ativa o modo rail para que o botão do app bar apareça
-    await page.click('.v-navigation-drawer .v-btn:has(.mdi-chevron-left)')
-    await page.waitForTimeout(300)
-    
+    await toggleRail(page, page.locator('.v-navigation-drawer .v-btn:has(.mdi-chevron-left)'), true)
+
     // Verifica se o botão de menu do app bar está visível
     const appBarMenuButton = page.locator('.v-app-bar .v-app-bar-nav-icon')
-    
+
     if (await appBarMenuButton.isVisible()) {
       // Clica no botão de menu do app bar
       await appBarMenuButton.click()
-      await page.waitForTimeout(300)
-      
-      // Verifica se o drawer ainda está visível
+
+      // Verifica se o drawer ainda está visível (web-first assertion, retries)
       await expect(page.locator('.v-navigation-drawer')).toBeVisible()
     }
   })

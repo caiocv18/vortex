@@ -35,11 +35,8 @@ test.describe('Products Page', () => {
     
     // Preenche o campo de pesquisa
     await page.getByLabel('Pesquisar').fill('produto')
-    
-    // Aguarda a filtragem
-    await page.waitForTimeout(1000)
-    
-    // Verifica se o campo de pesquisa foi preenchido
+
+    // Verifica se o campo de pesquisa foi preenchido (web-first assertion, waits for the value)
     await expect(page.getByLabel('Pesquisar')).toHaveValue('produto')
   })
 

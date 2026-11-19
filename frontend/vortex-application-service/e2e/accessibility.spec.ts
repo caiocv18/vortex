@@ -12,8 +12,9 @@ test.describe("Accessibility Tests", () => {
 
     for (const { path, expectedH1, expectedText } of pages) {
       await page.goto(path)
-      await page.waitForTimeout(2000)
-      
+      // Waits for the routed view to render before counting its headings
+      await expect(page.locator("main, .v-main")).toBeVisible()
+
       if (expectedH1) {
         const h1Elements = page.locator("h1")
         await expect(h1Elements).toHaveCount(1)

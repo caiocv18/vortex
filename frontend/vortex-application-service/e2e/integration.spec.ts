@@ -1,4 +1,10 @@
 import { test, expect } from '@playwright/test'
+import {
+  apiTestResult,
+  readStoredTheme,
+  toggleRail,
+  waitForStoredThemeChange,
+} from './support/waits'
 
 test.describe('Application Integration Tests', () => {
   test('complete application flow - navigation and basic functionality', async ({ page }) => {
@@ -19,7 +25,6 @@ test.describe('Application Integration Tests', () => {
     
     // Navega para Produtos via sidebar
     await page.click('.v-list-item:has-text("Produtos")')
-    await page.waitForTimeout(2000)
     await expect(page).toHaveURL(/\/products/)
     await expect(page.locator('h1:has-text("Produtos")')).toBeVisible()
     
@@ -61,20 +66,19 @@ test.describe('Application Integration Tests', () => {
       await page.goto(path)
       
       // Pega o tema inicial
-      const initialTheme = await page.evaluate(() => localStorage.getItem('theme'))
-      
+      const initialTheme = await readStoredTheme(page)
+
       // Clica no botão de tema no app bar
       const themeButton = page.locator('.v-app-bar .v-btn:has(.mdi-weather-sunny), .v-app-bar .v-btn:has(.mdi-weather-night)').first()
       await themeButton.click()
-      await page.waitForTimeout(500)
-      
-      // Verifica se o tema mudou
-      const newTheme = await page.evaluate(() => localStorage.getItem('theme'))
+
+      // Verifica se o tema mudou (waits for the stored theme to change)
+      const newTheme = await waitForStoredThemeChange(page, initialTheme)
       expect(newTheme).not.toBe(initialTheme)
-      
+
       // Volta ao tema original
       await page.click('.v-app-bar .v-btn:has(.mdi-weather-sunny), .v-app-bar .v-btn:has(.mdi-weather-night)')
-      await page.waitForTimeout(500)
+      await waitForStoredThemeChange(page, newTheme)
     }
   })
 
@@ -129,16 +133,14 @@ test.describe('Application Integration Tests', () => {
       // Ativa o modo rail
       const railToggle = page.locator('.v-navigation-drawer .v-btn:has(.mdi-chevron-left)')
       if (await railToggle.isVisible()) {
-        await railToggle.click()
-        await page.waitForTimeout(300)
-        
+        await toggleRail(page, railToggle, true)
+
         // Verifica se o drawer ainda está visível (em modo rail)
         await expect(page.locator('.v-navigation-drawer')).toBeVisible()
-        
+
         // Desativa o modo rail
-        await railToggle.click()
-        await page.waitForTimeout(300)
-        
+        await toggleRail(page, railToggle, false)
+
         // Verifica se o drawer ainda está visível (modo normal)
         await expect(page.locator('.v-navigation-drawer')).toBeVisible()
       }
@@ -166,9 +168,8 @@ test.describe('Application Integration Tests', () => {
 
       // Preenche o campo de pesquisa
       await searchInput.fill('teste')
-      await page.waitForTimeout(1000)
 
-      // Verifica se o valor foi preenchido
+      // Verifica se o valor foi preenchido (web-first assertion, retries until it matches)
       await expect(searchInput).toHaveValue('teste')
 
       // Limpa o campo
@@ -198,9 +199,9 @@ test.describe('Application Integration Tests', () => {
     for (const { path, buttonText, dialogTitle } of dialogPages) {
       await page.goto(path)
       
-      // Aguarda a página carregar
-      await page.waitForTimeout(2000)
-      
+      // Aguarda a página carregar (the table renders together with the "new" button)
+      await expect(page.locator('.v-data-table')).toBeVisible({ timeout: 10000 })
+
       // Clica no botão para abrir o diálogo
       const newButton = page.locator(`button:has-text("${buttonText}")`)
       if (await newButton.isVisible()) {
@@ -263,9 +264,8 @@ test.describe('Application Integration Tests', () => {
       for (const viewport of viewports) {
         await page.setViewportSize(viewport)
         await page.goto(path)
-        await page.waitForTimeout(1000)
-        
-        // Verifica se o elemento principal está visível
+
+        // Verifica se o elemento principal está visível (web-first assertion, waits for the page)
         await expect(page.locator(key)).toBeVisible()
         
         // Sidebar ('.v-navigation-drawer'): em mobile pode estar oculto, então não falhamos
@@ -281,8 +281,8 @@ test.describe('Application Integration Tests', () => {
     await expect(page.locator('text=Teste de Conexão com API')).toBeVisible()
     
     // Aguarda o resultado do teste aparecer
-    await page.waitForTimeout(5000)
-    
+    await expect(apiTestResult(page)).toBeVisible({ timeout: 10000 })
+
     // Verifica se há algum resultado (sucesso ou erro)
     const hasSuccess = await page.locator('text=Conexão com API bem-sucedida!').isVisible()
     const hasError = await page.locator('text=Erro ao conectar com a API').isVisible()
@@ -294,8 +294,10 @@ test.describe('Application Integration Tests', () => {
     const testButton = page.locator('button:has-text("Testar Novamente")')
     if (await testButton.isVisible()) {
       await testButton.click()
-      await page.waitForTimeout(3000)
-      
+      // The button shows its loading state during the new attempt; the result returns when it ends
+      await expect(testButton).not.toHaveClass(/v-btn--loading/, { timeout: 10000 })
+      await expect(apiTestResult(page)).toBeVisible()
+
       // Verifica se houve uma nova tentativa
       const hasNewResult = await page.locator('text=Conexão com API bem-sucedida!').isVisible() ||
                           await page.locator('text=Erro ao conectar com a API').isVisible()
