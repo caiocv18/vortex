@@ -143,8 +143,9 @@ def test_the_required_options_are_checked_first(tmp_path):
 
 
 def test_an_unknown_zone_is_refused(tmp_path):
+    argv = options(tmp_path, "--source_timezone=Mars/Olympus")
     with pytest.raises(ValueError, match="source_timezone"):
-        run(options(tmp_path, "--source_timezone=Mars/Olympus"), key_loader=TEST_KEY_LOADER)
+        run(argv, key_loader=TEST_KEY_LOADER)
 
 
 def test_main_reports_a_bad_command_line_without_a_traceback():

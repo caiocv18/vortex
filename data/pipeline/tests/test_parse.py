@@ -146,8 +146,9 @@ def test_bad_movements_are_rejected_with_a_reason(line, message):
 
 
 def test_a_nan_literal_is_not_a_number():
+    line = movement().replace('"valorVenda": 3.5', '"valorVenda": NaN')
     with pytest.raises(InvalidRecordError, match="valorVenda must be a number"):
-        parse_movement(movement().replace('"valorVenda": 3.5', '"valorVenda": NaN'), CONTEXT)
+        parse_movement(line, CONTEXT)
 
 
 def test_a_user_event_fills_every_raw_column_and_drops_secrets():
@@ -171,8 +172,9 @@ def test_a_user_event_without_extra_fields_has_no_attributes():
 
 
 def test_an_unknown_user_event_is_rejected():
+    line = user_event(eventType="user.deleted")
     with pytest.raises(InvalidRecordError, match="known authorization event"):
-        parse_user_event(user_event(eventType="user.deleted"), CONTEXT)
+        parse_user_event(line, CONTEXT)
 
 
 def test_json_text_turns_decimals_into_numbers():

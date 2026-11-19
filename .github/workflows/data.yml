@@ -61,8 +61,11 @@ jobs:
           working-directory: data/pipeline
           cache-dependency-glob: data/pipeline/uv.lock
       - name: Install dependencies
-        # --locked fails when pyproject.toml changed without `uv lock`: the lockfile is the contract
-        run: uv sync --locked
+        # --locked fails when pyproject.toml changed without `uv lock`: the lockfile is the contract.
+        # No --no-build: google-apitools (pulled by apache-beam[gcp]) ships only an sdist, and the
+        # project itself is built by uv_build. Every sdist is pinned by hash in uv.lock, so the
+        # build scripts that run here are the reviewed ones
+        run: uv sync --locked # NOSONAR githubactions:S8541, sdists pinned by hash in uv.lock (see above)
       - name: Lint
         run: |
           uv run --no-sync ruff check --output-format github .

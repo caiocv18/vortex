@@ -11,7 +11,10 @@ set -euo pipefail
 
 data_dir=$(cd "$(dirname "$0")/.." && pwd)
 stack="$data_dir/../infra/terraform/gcp/data"
-output() { terraform -chdir="$stack" output -raw "$1"; }
+output() {
+  local name=$1
+  terraform -chdir="$stack" output -raw "$name"
+}
 sandbox() { uv run --frozen --project "$data_dir/pipeline" python -m vortex_pipeline.bigquery_sandbox "$@"; }
 
 newest_run() {
