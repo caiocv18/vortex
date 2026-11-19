@@ -6,6 +6,17 @@ import { createLogger } from '@/utils/logger'
 
 export type { User, LoginResponse } from '@/api/authHttp'
 
+// Não depende do estado da store: fica fora do setup e a store só o reexpõe
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const currentTime = Date.now() / 1000
+    return payload.exp < currentTime
+  } catch {
+    return true
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const logger = createLogger('AuthStore')
   
@@ -108,16 +119,6 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err: unknown) {
       logger.error('Authentication validation failed', err)
       return false
-    }
-  }
-
-  function isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      const currentTime = Date.now() / 1000
-      return payload.exp < currentTime
-    } catch {
-      return true
     }
   }
 
