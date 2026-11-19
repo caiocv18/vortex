@@ -1,6 +1,6 @@
 # Terraform
 
-Infrastructure as code for the AWS account that hosts the Vortex portfolio. The account runs on the AWS Free plan, and the whole project has a ceiling of **US$ 10/month** in gross cost.
+Infrastructure as code for the AWS account that hosts the Vortex portfolio, and for the Google Cloud projects of its data pipeline. The AWS account runs on the AWS Free plan, and the whole project has a ceiling of **US$ 10/month** in gross cost.
 
 | Stack | State key | What it owns |
 |---|---|---|
@@ -8,8 +8,9 @@ Infrastructure as code for the AWS account that hosts the Vortex portfolio. The 
 | `foundation/` | `foundation/terraform.tfstate` | The public Route 53 zone of the portfolio domain and the gross monthly cost budget |
 | `demo/` | `demo/terraform.tfstate` | The on-demand demo instance, reached only through Session Manager, with its network, role and data volume ([ADR 0006](../../docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)) |
 | `site/` | `site/terraform.tfstate` | The two single-page apps on private S3 buckets behind CloudFront, with their certificate, headers policy, routing function and DNS records ([ADR 0007](../../docs/adr/0007-static-spas-on-cloudfront.md)) |
+| `gcp/data/` | `gcp/data/terraform.tfstate` | On Google Cloud: a folder with the ingestion and analytics projects, the BigQuery datasets, tables and views of the data pipeline, and its service accounts ([ADR 0008](../../docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)) |
 
-A later stack gets its own folder and state key.
+A later stack gets its own folder and state key. Google Cloud stacks live under `gcp/` and keep their state in the same bucket.
 
 ## Decisions
 
@@ -131,6 +132,31 @@ aws s3 rm "s3://$(terraform -chdir=infra/terraform/site output -raw app_bucket)"
 aws s3 rm "s3://$(terraform -chdir=infra/terraform/site output -raw login_bucket)" --recursive
 ```
 
+## Google Cloud data
+
+The `gcp/data` stack creates a `vortex` folder in the Google Cloud organization, an ingestion and an analytics project, the BigQuery datasets, tables and views of the data pipeline, and its service accounts ([ADR 0008](../../docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)). Its state goes to the same S3 bucket, so it needs the AWS profile as well as Google credentials.
+
+Prerequisites:
+
+- A Cloud Identity organization with a verified domain. The verification TXT value goes into `apex_txt_records` in the foundation's `terraform.tfvars`, because Route 53 keeps a single TXT record set per name.
+- The Google Cloud CLI, and an operator account with Organization Administrator, Folder Admin and Project Creator on the organization, signed in with `gcloud auth login` and `gcloud auth application-default login`. The organization forbids service account keys: Terraform runs with the operator's Application Default Credentials.
+- `org_id` and `operator_member` in `gcp/data/terraform.tfvars` (git-ignored).
+
+```sh
+cd infra/terraform/gcp/data
+cp terraform.tfvars.example terraform.tfvars
+terraform init -backend-config=../../backend.hcl
+terraform plan -out=data.tfplan
+terraform apply data.tfplan
+gcloud auth application-default set-quota-project "$(terraform output -raw ingest_project_id)"
+```
+
+The last command gives the operator's credentials a quota project, which the IAM Credentials API requires when `data/scripts/sandbox.sh` impersonates the service accounts.
+
+Without `billing_account`, both projects stay in the BigQuery sandbox: every table and partition expires in 60 days, and the next apply recreates the expired tables. The datasets declare that expiration, so the plan shows no drift. The projects have `deletion_policy = "PREVENT"` and the tables `deletion_protection`, so a destroy needs both turned off first.
+
+Dataset grants use `google_bigquery_dataset_access` only: `google_bigquery_dataset_iam_*` would rewrite the access list and drop the authorized dataset that lets the analytics views read `vortex_curated`. If the sandbox refuses that authorized dataset, plan B is READER on `vortex_curated` for `analyst-reader` until billing, and `data/scripts/sandbox.sh prove` then fails on purpose.
+
 ## Checks
 
 ```sh
@@ -140,10 +166,12 @@ terraform -chdir=bootstrap init -backend=false -input=false
 terraform -chdir=foundation init -backend=false -input=false
 terraform -chdir=demo init -backend=false -input=false
 terraform -chdir=site init -backend=false -input=false
+terraform -chdir=gcp/data init -backend=false -input=false
 terraform -chdir=bootstrap validate
 terraform -chdir=foundation validate
 terraform -chdir=demo validate
 terraform -chdir=site validate
+terraform -chdir=gcp/data validate
 tflint --init --config "$PWD/.tflint.hcl"
 tflint --recursive --config "$PWD/.tflint.hcl"
 checkov -d . --framework terraform --quiet
@@ -165,5 +193,6 @@ Every `#checkov:skip` in the code states why the control does not pay for itself
 | Site alias records (A, AAAA, HTTPS) | free: Route 53 does not charge alias queries to CloudFront |
 | Site certificate (ACM) | free |
 | Site buckets (a few MB) and invalidations (the first 1,000 paths a month are free) | cents |
+| Google Cloud projects without billing (BigQuery sandbox) | free: 10 GB of storage and 1 TB of queries a month |
 
 Domain registration is paid by card: AWS credits do not cover it.

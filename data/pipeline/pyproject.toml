@@ -1,0 +1,40 @@
+[project]
+name = "vortex-pipeline"
+version = "0.1.1"
+description = "Batch pipeline that takes Vortex events to BigQuery, with personal data pseudonymized on the way"
+license = "Apache-2.0"
+# One minor only: Dataflow runs the workers on the launcher's Python minor
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "apache-beam[gcp]==2.77.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "S", "SIM", "PT", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--cov=vortex_pipeline", "--cov-branch", "--cov-report=term-missing"]
+
+[tool.coverage.report]
+# Floor from the first measured run, rounded down (2026-11-16: 426 statements and 102 branches, all
+# covered); raise it when coverage goes up, never lower it
+fail_under = 100

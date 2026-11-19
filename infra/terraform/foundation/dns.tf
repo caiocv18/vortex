@@ -9,3 +9,15 @@ resource "aws_route53_zone" "primary" {
     prevent_destroy = true
   }
 }
+
+# Route 53 keeps one TXT record set per name, so every apex TXT value lives here.
+# The first is the Cloud Identity domain verification of the Google Cloud organization.
+resource "aws_route53_record" "apex_txt" {
+  count = length(var.apex_txt_records) > 0 ? 1 : 0
+
+  zone_id = aws_route53_zone.primary.zone_id
+  name    = var.domain_name
+  type    = "TXT"
+  ttl     = 300
+  records = var.apex_txt_records
+}

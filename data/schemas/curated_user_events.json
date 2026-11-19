@@ -1,0 +1,14 @@
+[
+  {"name": "event_id", "type": "STRING", "mode": "REQUIRED", "description": "eventId set by the authorization service; views deduplicate on it"},
+  {"name": "event_type", "type": "STRING", "mode": "REQUIRED", "description": "user.created, user.logged_in, user.logged_out, password.changed, password.reset_requested or email.verified"},
+  {"name": "schema_version", "type": "STRING", "mode": "NULLABLE", "description": "version field of the event"},
+  {"name": "event_ts", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "When the event was produced, in UTC; partition column"},
+  {"name": "user_key", "type": "STRING", "mode": "NULLABLE", "description": "Pseudonym of the user: HMAC-SHA256 of the normalized username, joins with curated_movements.user_key"},
+  {"name": "email_key", "type": "STRING", "mode": "NULLABLE", "description": "Pseudonym of the e-mail address: HMAC-SHA256 of the normalized address, under a purpose of its own"},
+  {"name": "ip_prefix", "type": "STRING", "mode": "NULLABLE", "description": "Client network: the IPv4 /24 or IPv6 /48 that holds the address"},
+  {"name": "attributes", "type": "STRING", "mode": "NULLABLE", "description": "Allowlisted fields of the event as JSON text (roles, methods, reasons)"},
+  {"name": "hmac_key_version", "type": "STRING", "mode": "REQUIRED", "description": "Version of the HMAC key that produced user_key and email_key"},
+  {"name": "source_file", "type": "STRING", "mode": "REQUIRED", "description": "Landing file the line came from"},
+  {"name": "run_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline run that wrote the row"},
+  {"name": "ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Start of that pipeline run, in UTC"}
+]

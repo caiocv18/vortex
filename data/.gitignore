@@ -1,0 +1,10 @@
+# The HMAC key (data/scripts/generate-hmac-key.sh); the root .gitignore covers it too
+.env
+# Pipeline runs: the raw files and the quarantine hold personal data
+out/
+pipeline/.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml

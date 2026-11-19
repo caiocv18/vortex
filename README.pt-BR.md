@@ -7,6 +7,7 @@
 [![front-app](https://github.com/caiocv18/vortex/actions/workflows/front-app.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/front-app.yml)
 [![front-auth](https://github.com/caiocv18/vortex/actions/workflows/front-auth.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/front-auth.yml)
 [![launcher](https://github.com/caiocv18/vortex/actions/workflows/launcher.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/launcher.yml)
+[![data](https://github.com/caiocv18/vortex/actions/workflows/data.yml/badge.svg?branch=master)](https://github.com/caiocv18/vortex/actions/workflows/data.yml)
 [![cobertura do app-service](https://raw.githubusercontent.com/caiocv18/vortex/badges/app-service/coverage.svg)](https://github.com/caiocv18/vortex/actions/workflows/app-service.yml)
 
 O Vortex é um sistema de controle de estoque construído como TCC de uma pós-graduação da PUCRS em desenvolvimento full-stack. Ele cadastra tipos de produto, produtos e movimentações de entrada e saída, e gera relatórios de produtos por tipo e de lucro por produto. Quatro serviços dividem o trabalho: uma API Spring Boot para o estoque, um serviço Quarkus para cadastro e login, e um frontend para cada um.
@@ -113,6 +114,7 @@ Cada serviço tem o próprio workflow no GitHub Actions, que só compila quando 
 | `front-app` | ESLint, checagem de tipos com `vue-tsc`, Vitest, build de produção |
 | `front-auth` | ESLint, checagem de tipos, Vitest, build de produção |
 | `launcher` | ShellCheck, `bash -n` e o bit de execução em todo script, mais os testes do próprio launcher |
+| `data` | uv com as dependências travadas, Ruff e pytest com cobertura de branches: testes unitários mais uma execução ponta a ponta do pipeline Beam no DirectRunner |
 
 O badge de cobertura conta instruções (C0 do JaCoCo) do serviço de aplicação, então difere do gate por linhas. Para rodar as mesmas verificações localmente:
 
@@ -121,6 +123,7 @@ cd backend/vortex-application-service && ./mvnw verify        # precisa de Docke
 cd backend/vortex-authorization-service && ./mvnw verify
 cd frontend/vortex-application-service && npx eslint . && npm run type-check && npx vitest run
 cd frontend/vortex-authorization-service && npm run lint && npm run type-check && npx vitest run
+cd data/pipeline && uv sync --locked && uv run ruff check . && uv run pytest
 ```
 
 ## Imagens de contêiner
@@ -143,6 +146,12 @@ curl http://localhost:8080/health
 
 O serviço de autorização precisa do PostgreSQL e do par de chaves do JWT. A imagem não leva nenhum dos dois, então cada implantação os fornece em tempo de execução.
 
+## Pipeline de dados
+
+Um pipeline Apache Beam em Python leva os eventos de estoque e de conta ao BigQuery no Google Cloud ([ADR 0008](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md), em inglês). Os eventos crus, com dados pessoais, ficam 30 dias num projeto de ingestão. Os curados trocam username e e-mail por pseudônimos HMAC-SHA256 e o endereço IP pela rede dele. Analistas leem só views num segundo projeto, autorizadas no dataset curado, e os pseudônimos continuam cruzando: o mesmo usuário tem o mesmo `user_key` nas movimentações e nos logins.
+
+Hoje ele roda no DirectRunner e carrega no sandbox do BigQuery, sem billing. Dataflow, Cloud Storage e uma policy tag nas colunas cruas chegam com o billing, atrás de um orçamento e de um kill-switch. Como rodar: [data/README.md](data/README.md) (em inglês).
+
 ## Decisões
 
 Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) explicam as escolhas que moldam o código:
@@ -154,6 +163,7 @@ Os [registros de decisão de arquitetura](docs/adr/README.md) (em inglês) expli
 5. [Ruleset do master sem bypass, Dependabot com cooldown e releases imutáveis](docs/adr/0005-master-ruleset-dependabot-and-immutable-releases.md)
 6. [Instância de demo sob demanda, acessada só pelo Session Manager](docs/adr/0006-on-demand-demo-instance-behind-session-manager.md)
 7. [Aplicações de página única estáticas no S3 e no CloudFront](docs/adr/0007-static-spas-on-cloudfront.md)
+8. [Um pipeline Beam até o BigQuery, em dois projetos do Google Cloud, com pseudonimização](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)
 
 ## Estrutura do repositório
 
@@ -164,6 +174,7 @@ backend/
 frontend/
   vortex-application-service/     App de estoque em Vue
   vortex-authorization-service/   App de login em React
+data/                             Pipeline Beam, schemas das tabelas e scripts (Google Cloud)
 infra/                            Arquivos do Docker Compose, Oracle, Kafka, RabbitMQ, SQS, Terraform
 scripts/                          Scripts de teste, de memória e de manutenção
 docs/
