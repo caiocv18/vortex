@@ -76,7 +76,7 @@ services:
       - vortex-kafka-network
 
   kafka-connect:
-    image: confluentinc/cp-kafka-connect:8.4.0
+    image: confluentinc/cp-kafka-connect:8.4.1
     hostname: kafka-connect
     container_name: vortex-kafka-connect
     profiles: ["connect"]
@@ -108,7 +108,7 @@ services:
       - vortex-kafka-network
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:8.4.0
+    image: confluentinc/cp-schema-registry:8.4.1
     hostname: schema-registry
     container_name: vortex-schema-registry
     profiles: ["schema-registry"]
@@ -129,7 +129,7 @@ services:
       - vortex-kafka-network
 
   ksqldb-server:
-    image: confluentinc/cp-ksqldb-server:8.4.0
+    image: confluentinc/cp-ksqldb-server:8.4.1
     hostname: ksqldb-server
     container_name: vortex-ksqldb-server
     profiles: ["ksqldb"]
@@ -160,7 +160,7 @@ services:
     # A imagem nativa do broker não traz as CLIs; este container traz (kafka-topics,
     # kafka-console-producer, kafka-consumer-groups...). Ex.:
     #   docker exec vortex-kafka-tools kafka-topics --bootstrap-server kafka:19092 --list
-    image: confluentinc/cp-kafka:8.4.0
+    image: confluentinc/cp-kafka:8.4.1
     container_name: vortex-kafka-tools
     profiles: ["tools"]
     depends_on:
