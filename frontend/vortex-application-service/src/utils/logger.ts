@@ -15,8 +15,8 @@ interface LogEntry {
 }
 
 class Logger {
-  private source: string
-  private level: LogLevel
+  private readonly source: string
+  private readonly level: LogLevel
 
   constructor(source: string) {
     this.source = source
