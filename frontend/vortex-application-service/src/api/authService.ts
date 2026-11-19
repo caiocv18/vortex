@@ -3,7 +3,7 @@
 // estavam fixos no código (api/config.ts e stores/auth.ts).
 // Este módulo não importa store nem cliente HTTP, para não criar import circular.
 
-const withoutTrailingSlash = (url: string) => url.replace(/\/+$/, '')
+import { withoutTrailingSlash } from '@/utils/url'
 
 /** Backend do serviço de autorização (login, refresh e logout de tokens). */
 export const AUTH_BACKEND_URL = withoutTrailingSlash(

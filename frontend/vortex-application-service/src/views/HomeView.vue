@@ -38,7 +38,8 @@ const testApi = async () => {
 }
 
 onMounted(() => {
-  testApi()
+  // testApi trata os próprios erros; o mount não espera pela chamada
+  void testApi()
 })
 </script>
 

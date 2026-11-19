@@ -6,6 +6,17 @@ import { createLogger } from '@/utils/logger'
 
 export type { User, LoginResponse } from '@/api/authHttp'
 
+// Não depende do estado da store: fica fora do setup e a store só o reexpõe
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const currentTime = Date.now() / 1000
+    return payload.exp < currentTime
+  } catch {
+    return true
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const logger = createLogger('AuthStore')
   
@@ -93,7 +104,8 @@ export const useAuthStore = defineStore('auth', () => {
         const refreshed = await attemptTokenRefresh()
         if (!refreshed) {
           logger.warn('Token refresh failed, initiating logout')
-          logout()
+          // Sem await, como antes: checkAuth responde false já, e o logout segue para o redirecionamento
+          void logout()
           return false
         }
       }
@@ -110,26 +122,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      const currentTime = Date.now() / 1000
-      return payload.exp < currentTime
-    } catch {
-      return true
-    }
-  }
-
   // Single-flight: guard de rota, checkAuth e o interceptor 401 de api/config.ts
   // compartilham a mesma chamada a POST /api/auth/refresh enquanto ela estiver em andamento.
   // A chamada termina em até AUTH_REQUEST_TIMEOUT_MS (postToAuthService), então a promise
   // compartilhada sempre se resolve e a próxima renovação começa do zero.
   function attemptTokenRefresh(): Promise<boolean> {
-    if (!refreshInFlight) {
-      refreshInFlight = refreshTokens().finally(() => {
-        refreshInFlight = null
-      })
-    }
+    refreshInFlight ??= refreshTokens().finally(() => {
+      refreshInFlight = null
+    })
     return refreshInFlight
   }
 

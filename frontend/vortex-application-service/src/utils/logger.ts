@@ -15,8 +15,8 @@ interface LogEntry {
 }
 
 class Logger {
-  private source: string
-  private level: LogLevel
+  private readonly source: string
+  private readonly level: LogLevel
 
   constructor(source: string) {
     this.source = source
@@ -116,7 +116,8 @@ class Logger {
     
     const entry = this.createLogEntry(LogLevel.WARN, message, data)
     this.logToConsole(entry)
-    this.logToRemote(entry)
+    // Fire-and-forget: logToRemote handles its own failures
+    void this.logToRemote(entry)
   }
 
   error(message: string, data?: unknown): void {
@@ -124,12 +125,13 @@ class Logger {
     
     const entry = this.createLogEntry(LogLevel.ERROR, message, data)
     this.logToConsole(entry)
-    this.logToRemote(entry)
+    void this.logToRemote(entry)
   }
 
   // Utility methods for common scenarios
   apiCall(method: string, url: string, status?: number): void {
-    this.debug(`API ${method} ${url}${status ? ` - ${status}` : ''}`)
+    const statusSuffix = status ? ` - ${status}` : ''
+    this.debug(`API ${method} ${url}${statusSuffix}`)
   }
 
   userAction(action: string, details?: unknown): void {

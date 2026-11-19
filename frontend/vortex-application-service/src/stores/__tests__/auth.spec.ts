@@ -57,7 +57,7 @@ describe('auth store', () => {
     expect(redirectToAuthPage).toHaveBeenNthCalledWith(1, 'register')
     expect(redirectToAuthPage).toHaveBeenNthCalledWith(2, 'login')
     // O sessionStorage é por origem: o app de login nunca o lia, então não se grava mais nada nele
-    expect(session.length).toBe(0)
+    expect(session).toHaveLength(0)
   })
 
   it('gives up on a refresh the auth service never answers and lets the next refresh start over', async () => {
