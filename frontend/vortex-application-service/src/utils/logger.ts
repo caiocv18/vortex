@@ -130,7 +130,8 @@ class Logger {
 
   // Utility methods for common scenarios
   apiCall(method: string, url: string, status?: number): void {
-    this.debug(`API ${method} ${url}${status ? ` - ${status}` : ''}`)
+    const statusSuffix = status ? ` - ${status}` : ''
+    this.debug(`API ${method} ${url}${statusSuffix}`)
   }
 
   userAction(action: string, details?: unknown): void {
