@@ -1,9 +1,9 @@
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+// Same helper as the app (src/utils/url.ts imports nothing from Vite, so it runs under Playwright's Node)
+import { withoutTrailingSlash } from '../../src/utils/url'
 
 // Constantes de autenticação compartilhadas pelo setup (auth.setup.ts) e pelos specs.
-
-const withoutTrailingSlash = (url: string) => url.replace(/\/+$/, '')
 
 /** Backend do serviço de autorização (Quarkus): register, login e refresh. */
 export const AUTH_API_URL = withoutTrailingSlash(
