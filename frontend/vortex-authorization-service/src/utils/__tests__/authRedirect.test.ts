@@ -6,6 +6,7 @@ import {
   getReturnUrl,
   rememberReturnUrl,
   RETURN_URL_STORAGE_KEY,
+  withoutTrailingSlash,
 } from '@/utils/authRedirect';
 import type { User } from '@/types/auth';
 
@@ -112,6 +113,28 @@ describe('buildAuthRedirectUrl (hand-off para a aplicação Vue)', () => {
     expect(parsed.searchParams.get('tab')).toBe('2');
     expect([...hashParams.keys()]).toEqual(['authData']);
     expect(authData).toEqual(data);
+  });
+});
+
+describe('withoutTrailingSlash', () => {
+  it.each([
+    ['http://localhost:3000/', 'http://localhost:3000'],
+    ['http://localhost:3000///', 'http://localhost:3000'],
+    ['http://localhost:3000', 'http://localhost:3000'],
+    ['http://localhost:3000/app/', 'http://localhost:3000/app'],
+    ['http://localhost:3000//app', 'http://localhost:3000//app'],
+    ['/', ''],
+    ['///', ''],
+    ['', ''],
+  ])('%s becomes %s (only the trailing run of slashes goes)', (input, expected) => {
+    expect(withoutTrailingSlash(input)).toBe(expected);
+  });
+
+  it('handles a long run of slashes followed by another character in linear time', () => {
+    const input = `http://x${'/'.repeat(50_000)}a`;
+
+    expect(withoutTrailingSlash(input)).toBe(input);
+    expect(withoutTrailingSlash(`${input}${'/'.repeat(50_000)}`)).toBe(input);
   });
 });
 
