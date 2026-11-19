@@ -126,11 +126,9 @@ export const useAuthStore = defineStore('auth', () => {
   // A chamada termina em até AUTH_REQUEST_TIMEOUT_MS (postToAuthService), então a promise
   // compartilhada sempre se resolve e a próxima renovação começa do zero.
   function attemptTokenRefresh(): Promise<boolean> {
-    if (!refreshInFlight) {
-      refreshInFlight = refreshTokens().finally(() => {
-        refreshInFlight = null
-      })
-    }
+    refreshInFlight ??= refreshTokens().finally(() => {
+      refreshInFlight = null
+    })
     return refreshInFlight
   }
 
