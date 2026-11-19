@@ -42,12 +42,6 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isLoading: false,
       };
     case 'AUTH_FAILURE':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      };
     case 'LOGOUT':
       return {
         ...state,
