@@ -66,6 +66,14 @@ export MALLOC_ARENA_MAX=2
 # Espera do TERM antes do KILL ao parar processos (segundos)
 STOP_TIMEOUT=15
 
+# Main application's component and service names (-c value, log and pid file prefix)
+readonly MAIN_BACKEND="backend"
+readonly MAIN_FRONTEND="frontend"
+readonly MESSAGING_RABBITMQ="rabbitmq"
+readonly KAFKA_CONTAINER="vortex-kafka"
+# docker ps --format that prints only the container names
+readonly DOCKER_NAMES_FORMAT="{{.Names}}"
+
 APP_BACKEND_DIR="backend/vortex-application-service"
 AUTH_BACKEND_DIR="backend/vortex-authorization-service"
 APP_FRONTEND_DIR="frontend/vortex-application-service"
@@ -1020,7 +1028,7 @@ choose_messaging() {
                 break
                 ;;
             2)
-                MESSAGING_SYSTEM="rabbitmq"
+                MESSAGING_SYSTEM="$MESSAGING_RABBITMQ"
                 print_color $GREEN "✅ RabbitMQ selecionado"
                 break
                 ;;
@@ -1064,13 +1072,13 @@ choose_components() {
                 print_color $GREEN "✅ Executando Backend + Frontend"
                 return
                 ;;
-            "backend")
+            "$MAIN_BACKEND")
                 RUN_BACKEND=true
                 RUN_FRONTEND=false
                 print_color $GREEN "✅ Executando apenas Backend"
                 return
                 ;;
-            "frontend")
+            "$MAIN_FRONTEND")
                 RUN_BACKEND=false
                 RUN_FRONTEND=true
                 print_color $GREEN "✅ Executando apenas Frontend"
@@ -1307,7 +1315,7 @@ wait_for_kafka() {
 
     while [[ $attempt -le $max_attempts ]]; do
         # Container saudável (healthcheck do compose: listener aberto)...
-        if docker ps --filter "name=vortex-kafka" --filter "health=healthy" --format "{{.Names}}" | grep -q "vortex-kafka"; then
+        if docker ps --filter "name=vortex-kafka" --filter "health=healthy" --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER"; then
             # ...e o listener do host respondendo. A imagem nativa não traz as CLIs do Kafka.
             if (exec 3<>/dev/tcp/127.0.0.1/9092) 2>/dev/null; then
                 print_color $GREEN "✅ Kafka broker está respondendo em localhost:9092!"
@@ -1387,7 +1395,7 @@ start_kafka() {
         fi
 
         # Verificar se Kafka está rodando
-        if docker ps --format "{{.Names}}" | grep -q "vortex-kafka"; then
+        if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER"; then
             print_color $GREEN "✅ Kafka iniciado com sucesso"
             print_color $GREEN "   📡 Kafka Broker: localhost:9092 (containers: kafka:19092)"
             print_color $GREEN "   🌐 Kafka UI (opcional): docker compose -f infra/docker/docker-compose.kafka-simple.yml --profile ui up -d kafka-ui"
@@ -1401,7 +1409,7 @@ start_kafka() {
 
 # Função para iniciar RabbitMQ
 start_rabbitmq() {
-    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "$MESSAGING_RABBITMQ" ]]; then
         # Se vai usar o compose completo com RabbitMQ, não iniciar separadamente
         if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
             print_color $BLUE "🐰 RabbitMQ será iniciado junto com a stack completa..."
@@ -1423,7 +1431,7 @@ start_rabbitmq() {
             ensure_port_free 15672 "RabbitMQ Management" || return 1
 
             # Iniciar RabbitMQ
-            if ! safe_docker_compose "infra/docker/docker-compose.rabbitmq.yml" "up -d" "rabbitmq"; then
+            if ! safe_docker_compose "infra/docker/docker-compose.rabbitmq.yml" "up -d" "$MESSAGING_RABBITMQ"; then
                 print_color $RED "❌ Falha ao iniciar RabbitMQ via docker compose!"
                 return 1
             fi
@@ -1441,7 +1449,7 @@ start_rabbitmq() {
         fi
 
         # Verificar se RabbitMQ está rodando
-        if docker ps --format "{{.Names}}" | grep -q "vortex-rabbitmq"; then
+        if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "vortex-rabbitmq"; then
             print_color $GREEN "✅ RabbitMQ iniciado com sucesso"
             print_color $GREEN "   🌐 Management UI: http://localhost:15672"
             print_color $GREEN "   📡 AMQP Port: localhost:5672"
@@ -1551,8 +1559,8 @@ start_databases() {
     print_color $BLUE "🐘 Iniciando PostgreSQL para serviço de autorização..."
 
     # Verificar se o container já existe
-    if docker ps -a --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
-        if ! docker ps --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+    if docker ps -a --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-auth-db$"; then
+        if ! docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-auth-db$"; then
             print_color $YELLOW "🔄 PostgreSQL já existe mas está parado. Iniciando..."
             docker start vortex-auth-db > /dev/null
         else
@@ -1574,7 +1582,7 @@ start_databases() {
     fi
 
     # Aguardar PostgreSQL estar pronto
-    if docker ps --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+    if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-auth-db$"; then
         wait_for_postgresql || return 1
         databases_started=true
 
@@ -1597,8 +1605,8 @@ start_databases() {
         print_color $BLUE "🏛️  Iniciando Oracle Database Free..."
 
         # Verificar se o container já existe
-        if docker ps -a --format "{{.Names}}" | grep -q "^vortex-db$"; then
-            if ! docker ps --format "{{.Names}}" | grep -q "^vortex-db$"; then
+        if docker ps -a --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-db$"; then
+            if ! docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-db$"; then
                 print_color $YELLOW "🔄 Oracle já existe mas está parado. Iniciando..."
                 docker start vortex-db > /dev/null
             else
@@ -1611,7 +1619,7 @@ start_databases() {
         fi
 
         # Aguardar Oracle estar pronto
-        if docker ps --format "{{.Names}}" | grep -q "^vortex-db$"; then
+        if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-db$"; then
             wait_for_oracle || return 1
             databases_started=true
         else
@@ -1625,12 +1633,12 @@ start_databases() {
 
         # Mostrar informações dos bancos
         if [[ "$ENVIRONMENT" == "prd" ]]; then
-            if docker ps --format "{{.Names}}" | grep -q "^vortex-db$"; then
+            if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-db$"; then
                 print_color $GREEN "   🏛️  Oracle: localhost:1521/FREEPDB1 (vortex_user)"
             fi
         fi
 
-        if docker ps --format "{{.Names}}" | grep -q "^vortex-auth-db$"; then
+        if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-auth-db$"; then
             print_color $GREEN "   🐘 PostgreSQL: localhost:5432 (vortex_auth/vortex_auth_password)"
         fi
     else
@@ -1868,7 +1876,7 @@ build_frontend_if_needed() {
 }
 
 build_app_frontend_if_needed() {
-    build_frontend_if_needed "frontend" "Frontend principal" "$APP_FRONTEND_DIR" \
+    build_frontend_if_needed "$MAIN_FRONTEND" "Frontend principal" "$APP_FRONTEND_DIR" \
         "VITE_API_BASE_URL=$FRONT_VITE_API_BASE_URL" \
         "VITE_AUTH_BACKEND_URL=$FRONT_VITE_AUTH_BACKEND_URL" \
         "VITE_AUTH_SERVICE_URL=$FRONT_VITE_AUTH_SERVICE_URL"
@@ -1885,7 +1893,7 @@ build_leve_artifacts() {
     generate_theme_config
     build_backend_if_needed "auth-backend" "Backend de autorização" "$AUTH_BACKEND_DIR" "target/quarkus-app/quarkus-run.jar" || return 1
     if [[ "$RUN_BACKEND" == "true" && "$ENVIRONMENT" == "dev" ]]; then
-        build_backend_if_needed "backend" "Backend principal" "$APP_BACKEND_DIR" "target/*.jar" || return 1
+        build_backend_if_needed "$MAIN_BACKEND" "Backend principal" "$APP_BACKEND_DIR" "target/*.jar" || return 1
     fi
     build_auth_frontend_if_needed || return 1
     if [[ "$RUN_FRONTEND" == "true" ]]; then
@@ -2114,7 +2122,7 @@ start_backend_leve() {
     # 3) Execução, sempre a partir do target/leve/<jar>
     LAUNCH_ENV=("${APP_MSG_ENV[@]}" "${APP_AUTH_ENV[@]}")
     LAUNCH_ARGS=(-jar "$jar_rel" "--spring.profiles.active=$profiles")
-    launch_leve_jvm "backend" "Backend principal (perfis $profiles)" "$dir" "$aot_rel" \
+    launch_leve_jvm "$MAIN_BACKEND" "Backend principal (perfis $profiles)" "$dir" "$aot_rel" \
         "http://localhost:8080/health" "$APP_JVM_FLAGS"
 }
 
@@ -2165,7 +2173,7 @@ start_auth_backend_dev() {
     fi
     auth_messaging_env
 
-    if [[ "$MESSAGING_SYSTEM" == "kafka" ]] && ! docker ps --format "{{.Names}}" | grep -q "vortex-kafka"; then
+    if [[ "$MESSAGING_SYSTEM" == "kafka" ]] && ! docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER"; then
         print_color $YELLOW "⚠️  Kafka não está rodando. Serviço de autorização pode ter problemas de conectividade."
     fi
 
@@ -2231,7 +2239,7 @@ start_backend_dev() {
 
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         # Verificar se Kafka está rodando antes de iniciar o backend
-        if ! docker ps --format "{{.Names}}" | grep -q "vortex-kafka"; then
+        if ! docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER"; then
             print_color $YELLOW "⚠️  Kafka não está rodando. Tentando iniciar..."
             if ! start_kafka; then
                 print_color $RED "❌ Falha ao iniciar Kafka. Backend pode ter problemas de conectividade."
@@ -2253,7 +2261,7 @@ start_backend_dev() {
     # Aguardar healthcheck do backend
     if wait_for_backend_healthcheck "localhost" "8080" 300 "$pid"; then
         record_child_jvm_pid 8080 "$pid" logs/backend-jvm.pid
-        record_startup_time "backend" "não (spring-boot:run)" "$WAIT_ELAPSED_MS" logs/backend.log
+        record_startup_time "$MAIN_BACKEND" "não (spring-boot:run)" "$WAIT_ELAPSED_MS" logs/backend.log
         return 0
     fi
     tail -30 logs/backend.log
@@ -2269,7 +2277,7 @@ start_backend_prd() {
     # RABBITMQ_HOST para vortex-rabbitmq; aqui só se liga (RABBITMQ_ENABLED=true).
     local spring_profiles kafka_enabled=false rabbitmq_enabled=false
     spring_profiles=$(app_spring_profiles prd)
-    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "$MESSAGING_RABBITMQ" ]]; then
         rabbitmq_enabled=true
     fi
 
@@ -2277,7 +2285,7 @@ start_backend_prd() {
     if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
         kafka_enabled=true
         if [[ ! ( "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ) ]]; then
-            if ! docker ps --format "{{.Names}}" | grep -q "vortex-kafka"; then
+            if ! docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "$KAFKA_CONTAINER"; then
                 print_color $YELLOW "⚠️  Kafka não está rodando. Iniciando Kafka primeiro..."
                 if ! start_kafka; then
                     print_color $RED "❌ Falha ao iniciar Kafka. Backend não pode ser iniciado."
@@ -2298,7 +2306,7 @@ start_backend_prd() {
         if [[ "$MESSAGING_SYSTEM" == "kafka" && -f "infra/docker/docker-compose.full-kafka.yml" ]]; then
             compose_file="infra/docker/docker-compose.full-kafka.yml"
             print_color $BLUE "🚀 Usando stack completa com Kafka integrado..."
-        elif [[ "$MESSAGING_SYSTEM" == "rabbitmq" && -f "infra/docker/docker-compose.full-rabbitmq.yml" ]]; then
+        elif [[ "$MESSAGING_SYSTEM" == "$MESSAGING_RABBITMQ" && -f "infra/docker/docker-compose.full-rabbitmq.yml" ]]; then
             compose_file="infra/docker/docker-compose.full-rabbitmq.yml"
             print_color $BLUE "🐰 Usando stack completa com RabbitMQ integrado..."
         fi
@@ -2408,17 +2416,17 @@ start_frontend() {
     fi
 
     if [[ "$ENVIRONMENT" == "dev" ]]; then
-        ensure_node_modules "frontend" "Frontend principal" "$APP_FRONTEND_DIR" || return 1
+        ensure_node_modules "$MAIN_FRONTEND" "Frontend principal" "$APP_FRONTEND_DIR" || return 1
         print_color $GREEN "🔥 Iniciando servidor de desenvolvimento Vite na porta 5173..."
         if [[ "${VITE_DEVTOOLS:-}" == "true" ]]; then
             print_color $YELLOW "   🧩 VITE_DEVTOOLS=true: Vue DevTools ligado (gasta mais memória)"
         fi
-        start_vite_server "frontend" "Frontend dev server" "$APP_FRONTEND_DIR" 5173
+        start_vite_server "$MAIN_FRONTEND" "Frontend dev server" "$APP_FRONTEND_DIR" 5173
     else
         print_color $GREEN "🏗️  Fazendo build do frontend para produção..."
         build_app_frontend_if_needed || return 1
         print_color $GREEN "📦 Servindo frontend com preview na porta 4173..."
-        start_vite_server "frontend" "Frontend preview" "$APP_FRONTEND_DIR" 4173 preview
+        start_vite_server "$MAIN_FRONTEND" "Frontend preview" "$APP_FRONTEND_DIR" 4173 preview
     fi
 }
 
@@ -2471,16 +2479,16 @@ show_status() {
 
         if [[ "$MESSAGING_SYSTEM" == "kafka" ]]; then
             local kafka_container
-            kafka_container=$(docker ps --format "{{.Names}}" | grep -m1 -E "^vortex-kafka(-simple)?$" || true)
+            kafka_container=$(docker ps --format "$DOCKER_NAMES_FORMAT" | grep -m1 -E "^vortex-kafka(-simple)?$" || true)
             if [[ -n "$kafka_container" ]]; then
                 print_color $GREEN "   ✅ Kafka rodando ($kafka_container, nativo, KRaft)"
                 print_color $GREEN "   📡 Broker: localhost:9092"
-                if docker ps --format "{{.Names}}" | grep -q "^vortex-kafka-ui"; then
+                if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-kafka-ui"; then
                     print_color $GREEN "   🌐 Kafka UI: http://localhost:8090"
                 fi
 
                 # Verificar saúde do Kafka
-                if docker ps --filter "name=$kafka_container" --filter "health=healthy" --format "{{.Names}}" | grep -q "$kafka_container"; then
+                if docker ps --filter "name=$kafka_container" --filter "health=healthy" --format "$DOCKER_NAMES_FORMAT" | grep -q "$kafka_container"; then
                     print_color $GREEN "   💚 Status: Saudável"
                 else
                     print_color $YELLOW "   ⚠️  Status: Inicializando..."
@@ -2491,8 +2499,8 @@ show_status() {
             fi
         fi
 
-        if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
-            if docker ps --format "{{.Names}}" | grep -q "vortex-rabbitmq"; then
+        if [[ "$MESSAGING_SYSTEM" == "$MESSAGING_RABBITMQ" ]]; then
+            if docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "vortex-rabbitmq"; then
                 print_color $GREEN "   ✅ RabbitMQ rodando"
                 print_color $GREEN "   📡 AMQP: localhost:5672"
                 print_color $GREEN "   🌐 Management UI: http://localhost:15672"
@@ -2544,7 +2552,7 @@ show_status() {
                 print_color $RED "   ❌ Não responde em http://localhost:5173"
             fi
         # Verificar se está rodando via Docker
-        elif docker ps --format "{{.Names}}" | grep -q "^vortex-frontend$"; then
+        elif docker ps --format "$DOCKER_NAMES_FORMAT" | grep -q "^vortex-frontend$"; then
             print_color $GREEN "   ✅ Rodando no Docker"
             print_color $GREEN "   🌐 App: http://localhost:3000"
         elif [[ -f "logs/frontend.pid" ]]; then
@@ -2589,7 +2597,7 @@ show_status() {
         print_color $YELLOW "   ./infra/kafka/fix-kafka-issues.sh                           # Correção automática de problemas"
     fi
 
-    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "$MESSAGING_RABBITMQ" ]]; then
         print_color $CYAN "
 📨 COMANDOS RABBITMQ:
 ════════════════════════════════════════════════════════════════"
@@ -2759,13 +2767,13 @@ main() {
     fi
 
     # Validar sistema de mensageria se fornecido
-    if [[ -n "$MESSAGING_SYSTEM" && "$MESSAGING_SYSTEM" != "kafka" && "$MESSAGING_SYSTEM" != "rabbitmq" && "$MESSAGING_SYSTEM" != "sqs" && "$MESSAGING_SYSTEM" != "none" ]]; then
+    if [[ -n "$MESSAGING_SYSTEM" && "$MESSAGING_SYSTEM" != "kafka" && "$MESSAGING_SYSTEM" != "$MESSAGING_RABBITMQ" && "$MESSAGING_SYSTEM" != "sqs" && "$MESSAGING_SYSTEM" != "none" ]]; then
         print_color $RED "❌ Sistema de mensageria inválido: $MESSAGING_SYSTEM. Use 'kafka', 'rabbitmq', 'sqs' ou 'none'."
         exit 1
     fi
 
     # Validar componentes se fornecido
-    if [[ -n "$COMPONENTS" && "$COMPONENTS" != "full" && "$COMPONENTS" != "backend" && "$COMPONENTS" != "frontend" ]]; then
+    if [[ -n "$COMPONENTS" && "$COMPONENTS" != "full" && "$COMPONENTS" != "$MAIN_BACKEND" && "$COMPONENTS" != "$MAIN_FRONTEND" ]]; then
         print_color $RED "❌ Componentes inválidos: $COMPONENTS. Use 'full', 'backend' ou 'frontend'."
         exit 1
     fi
@@ -2836,7 +2844,7 @@ main() {
     fi
 
     # TERCEIRO: Iniciar RabbitMQ se necessário (apenas se não for integrado com stack completa)
-    if [[ "$MESSAGING_SYSTEM" == "rabbitmq" ]]; then
+    if [[ "$MESSAGING_SYSTEM" == "$MESSAGING_RABBITMQ" ]]; then
         if [[ "$ENVIRONMENT" == "prd" && "$RUN_FRONTEND" == "true" && "$NPM_AVAILABLE" == "false" ]]; then
             print_color $BLUE "📦 RabbitMQ será iniciado integrado com a stack completa..."
         else
