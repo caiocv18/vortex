@@ -3,9 +3,11 @@ import { useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Link } from 'react-router';
-import { Eye, EyeOff, Lock, Mail, User, LoaderCircle, CircleCheckBig, CircleX } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, LoaderCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegisterRequest } from '@/types/auth';
+import { confirmPasswordSchema, passwordSchema } from '@/utils/passwordRules';
+import { PasswordRequirementList } from '@/components/PasswordRequirementList';
 
 const schema = yup.object({
   email: yup
@@ -18,35 +20,11 @@ const schema = yup.object({
     .min(3, 'Username must be at least 3 characters')
     .max(100, 'Username must not exceed 100 characters')
     .matches(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens'),
-  password: yup
-    .string()
-    .required('Password is required')
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password must not exceed 128 characters')
-    .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .matches(/[0-9]/, 'Password must contain at least one number')
-    .matches(/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/, 'Password must contain at least one special character'),
-  confirmPassword: yup
-    .string()
-    .required('Please confirm your password')
-    .oneOf([yup.ref('password')], 'Passwords must match'),
+  password: passwordSchema,
+  confirmPassword: confirmPasswordSchema,
 });
 
 type FormData = yup.InferType<typeof schema>;
-
-interface PasswordRequirement {
-  label: string;
-  test: (password: string) => boolean;
-}
-
-const passwordRequirements: PasswordRequirement[] = [
-  { label: 'At least 8 characters', test: (pwd) => pwd.length >= 8 },
-  { label: 'One uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
-  { label: 'One lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
-  { label: 'One number', test: (pwd) => /[0-9]/.test(pwd) },
-  { label: 'One special character', test: (pwd) => /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(pwd) },
-];
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -181,25 +159,7 @@ export function RegisterForm() {
             </div>
             
             {/* Password requirements */}
-            {watchedPassword && (
-              <div className="mt-2 space-y-1">
-                {passwordRequirements.map((req, index) => {
-                  const isValid = req.test(watchedPassword);
-                  return (
-                    <div key={index} className="flex items-center text-xs">
-                      {isValid ? (
-                        <CircleCheckBig className="h-3 w-3 text-green-500 mr-1" />
-                      ) : (
-                        <CircleX className="h-3 w-3 text-red-500 mr-1" />
-                      )}
-                      <span className={isValid ? 'text-green-600' : 'text-red-600'}>
-                        {req.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {watchedPassword && <PasswordRequirementList password={watchedPassword} />}
             
             {errors.password && (
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>

@@ -21,7 +21,15 @@ export interface AuthRedirectData {
   user: User;
 }
 
-const withoutTrailingSlash = (url: string) => url.replace(/\/+$/, '');
+// Same result as url.replace(/\/+$/, ''), in linear time: that regex retries from every slash of
+// a long run of slashes that is not at the end of the string
+export function withoutTrailingSlash(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') {
+    end--;
+  }
+  return url.slice(0, end);
+}
 
 function parseHttpUrl(value: string): URL | null {
   try {
@@ -58,7 +66,7 @@ export function toAllowedReturnUrl(candidate: string | null | undefined): string
     return null;
   }
   const url = parseHttpUrl(candidate);
-  if (!url || url.origin !== new URL(getMainAppUrl()).origin) {
+  if (url?.origin !== new URL(getMainAppUrl()).origin) {
     return null;
   }
   url.hash = '';
