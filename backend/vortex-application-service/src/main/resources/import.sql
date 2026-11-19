@@ -32,29 +32,13 @@ INSERT INTO produto (id, descricao, valor_fornecedor, quantidade_em_estoque, tip
 INSERT INTO produto (id, descricao, valor_fornecedor, quantidade_em_estoque, tipo_produto_id) VALUES (19, 'Vaso Decorativo', 45.00, 14, 10);
 INSERT INTO produto (id, descricao, valor_fornecedor, quantidade_em_estoque, tipo_produto_id) VALUES (20, 'Quadro Artístico', 120.00, 6, 10);
 
--- Inserir movimentos de estoque (entradas)
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (1, '2023-01-01 10:00:00', 'ENTRADA', 10, NULL, 1);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (2, '2023-01-01 11:00:00', 'ENTRADA', 5, NULL, 2);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (3, '2023-01-02 09:00:00', 'ENTRADA', 20, NULL, 3);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (4, '2023-01-02 10:00:00', 'ENTRADA', 15, NULL, 4);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (5, '2023-01-03 08:00:00', 'ENTRADA', 30, NULL, 5);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (6, '2023-01-03 09:00:00', 'ENTRADA', 25, NULL, 6);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (7, '2023-01-04 10:00:00', 'ENTRADA', 3, NULL, 7);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (8, '2023-01-04 11:00:00', 'ENTRADA', 4, NULL, 8);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (9, '2023-01-05 09:00:00', 'ENTRADA', 12, NULL, 9);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (10, '2023-01-05 10:00:00', 'ENTRADA', 8, NULL, 10);
+-- Inserir movimentos de estoque: um INSERT por tipo, com o tipo escrito uma vez só (Sonar plsql:S1192).
+-- O Hibernate pula em silêncio o statement que falha; o ImportSqlSeedTest confere as 20 linhas.
+-- Entradas (sem valor de venda)
+INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) SELECT e.id, CAST(e.quando AS TIMESTAMP), 'ENTRADA', e.qtd, NULL, e.produto FROM (VALUES (1, '2023-01-01 10:00:00', 10, 1), (2, '2023-01-01 11:00:00', 5, 2), (3, '2023-01-02 09:00:00', 20, 3), (4, '2023-01-02 10:00:00', 15, 4), (5, '2023-01-03 08:00:00', 30, 5), (6, '2023-01-03 09:00:00', 25, 6), (7, '2023-01-04 10:00:00', 3, 7), (8, '2023-01-04 11:00:00', 4, 8), (9, '2023-01-05 09:00:00', 12, 9), (10, '2023-01-05 10:00:00', 8, 10)) AS e (id, quando, qtd, produto);
 
--- Inserir movimentos de estoque (saídas)
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (11, '2023-01-06 14:00:00', 'SAIDA', 2, 2025.00, 1);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (12, '2023-01-06 15:00:00', 'SAIDA', 1, 4050.00, 2);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (13, '2023-01-07 13:00:00', 'SAIDA', 5, 67.50, 3);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (14, '2023-01-07 14:00:00', 'SAIDA', 3, 108.00, 4);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (15, '2023-01-08 12:00:00', 'SAIDA', 10, 27.00, 5);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (16, '2023-01-08 13:00:00', 'SAIDA', 8, 10.80, 6);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (17, '2023-01-09 14:00:00', 'SAIDA', 1, 1620.00, 7);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (18, '2023-01-09 15:00:00', 'SAIDA', 2, 1080.00, 8);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (19, '2023-01-10 13:00:00', 'SAIDA', 4, 60.75, 9);
-INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) VALUES (20, '2023-01-10 14:00:00', 'SAIDA', 2, 162.00, 10);
+-- Saídas
+INSERT INTO movimento_estoque (id, data_movimento, tipo_movimentacao, quantidade_movimentada, valor_venda, produto_id) SELECT s.id, CAST(s.quando AS TIMESTAMP), 'SAIDA', s.qtd, s.venda, s.produto FROM (VALUES (11, '2023-01-06 14:00:00', 2, 2025.00, 1), (12, '2023-01-06 15:00:00', 1, 4050.00, 2), (13, '2023-01-07 13:00:00', 5, 67.50, 3), (14, '2023-01-07 14:00:00', 3, 108.00, 4), (15, '2023-01-08 12:00:00', 10, 27.00, 5), (16, '2023-01-08 13:00:00', 8, 10.80, 6), (17, '2023-01-09 14:00:00', 1, 1620.00, 7), (18, '2023-01-09 15:00:00', 2, 1080.00, 8), (19, '2023-01-10 13:00:00', 4, 60.75, 9), (20, '2023-01-10 14:00:00', 2, 162.00, 10)) AS s (id, quando, qtd, venda, produto);
 
 -- Reiniciar sequências
 ALTER SEQUENCE tipo_produto_seq RESTART WITH 11;

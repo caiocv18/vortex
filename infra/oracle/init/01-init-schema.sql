@@ -13,26 +13,6 @@ GRANT CREATE TABLE TO vortex_user;
 GRANT CREATE SEQUENCE TO vortex_user;
 GRANT UNLIMITED TABLESPACE TO vortex_user;
 
--- Conectar como o usuário da aplicação
--- ALTER SESSION SET CURRENT_SCHEMA = vortex_user;
-
--- Criar sequências para as tabelas (caso não existam)
-DECLARE
-    seq_count NUMBER;
-BEGIN
-    SELECT COUNT(*) INTO seq_count FROM user_sequences WHERE sequence_name = 'TIPO_PRODUTO_SEQ';
-    IF seq_count = 0 THEN
-        EXECUTE IMMEDIATE 'CREATE SEQUENCE tipo_produto_seq START WITH 1 INCREMENT BY 1';
-    END IF;
-    
-    SELECT COUNT(*) INTO seq_count FROM user_sequences WHERE sequence_name = 'PRODUTO_SEQ';
-    IF seq_count = 0 THEN
-        EXECUTE IMMEDIATE 'CREATE SEQUENCE produto_seq START WITH 1 INCREMENT BY 1';
-    END IF;
-    
-    SELECT COUNT(*) INTO seq_count FROM user_sequences WHERE sequence_name = 'MOVIMENTO_ESTOQUE_SEQ';
-    IF seq_count = 0 THEN
-        EXECUTE IMMEDIATE 'CREATE SEQUENCE movimento_estoque_seq START WITH 1 INCREMENT BY 1';
-    END IF;
-END;
-/ 
+-- Tabelas e sequences não são criadas aqui: o Hibernate (ddl-auto=update) as cria no schema do vortex_user quando o
+-- backend sobe. Um CREATE SEQUENCE neste script rodaria como SYS e criaria a sequence no schema do SYS, que o
+-- vortex_user não enxerga (ORA-02289, medido em 19/11/2026 com gvenzl/oracle-free:23.26.3-slim-faststart). 

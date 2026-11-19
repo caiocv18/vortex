@@ -415,6 +415,11 @@ case $TEST_TYPE in
     all)
         run_all_tests || TEST_EXIT_CODE=$?
         ;;
+    *)
+        # The option parser only sets known types; this guards future edits
+        print_color "$RED" "Unknown test type: $TEST_TYPE"
+        exit 2
+        ;;
 esac
 
 # Generate reports if requested

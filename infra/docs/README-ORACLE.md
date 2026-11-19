@@ -38,13 +38,12 @@ A imagem antiga (`container-registry.oracle.com/database/enterprise`) exigia log
 ### 3. Scripts de Inicialização Oracle
 
 Scripts em `infra/oracle/init/`, montados em `/container-entrypoint-initdb.d` (só leitura):
-- `01-init-schema.sql`: privilégios e sequências do `vortex_user`, que a imagem cria antes, a partir de `APP_USER` e `APP_USER_PASSWORD`
-- `02-insert-data.sql`: inserção de dados iniciais
+- `01-init-schema.sql`: privilégios do `vortex_user`, que a imagem cria antes, a partir de `APP_USER` e `APP_USER_PASSWORD`
 
-Eles rodam **uma vez só**, na primeira inicialização do volume, como `SYS` no CDB (por isso cada um começa com `ALTER SESSION SET CONTAINER = FREEPDB1`). Erro de SQL num script não derruba o container.
+Ele roda **uma vez só**, na primeira inicialização do volume, como `SYS` no CDB (por isso começa com `ALTER SESSION SET CONTAINER = FREEPDB1`). Erro de SQL no script não derruba o container.
 
 > [!NOTE]
-> O `02-insert-data.sql` insere em tabelas que o Hibernate só cria quando o backend sobe (`ddl-auto=update`). Na primeira inicialização do volume essas inserções falham sem derrubar nada, como já acontecia com a imagem antiga.
+> Tabelas e sequences são do Hibernate (`ddl-auto=update`), criadas no schema do `vortex_user` quando o backend sobe. Até 19/11/2026 havia também um `02-insert-data.sql` com dados de exemplo e um bloco de sequences no `01`: os dois rodavam como `SYS` antes de as tabelas existirem, então os INSERTs falhavam (`ORA-00942: table or view "SYS"."TIPO_PRODUTO" does not exist`) e as sequences nasciam no schema do `SYS`, invisíveis ao `vortex_user` (`ORA-02289`). Saíram por isso; o banco Oracle começa vazio.
 
 ### 4. Docker Compose
 
@@ -140,10 +139,7 @@ As seguintes tabelas são criadas automaticamente pelo Hibernate:
 
 ## Dados de Teste
 
-O `02-insert-data.sql` traz:
-- 10 tipos de produto
-- 20 produtos de exemplo
-- 20 movimentos de estoque (10 entradas + 10 saídas)
+O perfil `prd` (Oracle) começa sem dados. Os 10 tipos, 20 produtos e 20 movimentos de exemplo existem no H2 (`import.sql`, perfis padrão e `dev`) e no PostgreSQL (migração Flyway `V2__seed_demo_data.sql`, perfil `postgres`).
 
 ## Troubleshooting
 

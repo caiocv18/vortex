@@ -27,8 +27,7 @@ infra/
 │   └── application-rabbitmq-test.properties # Configurações de teste
 ├── oracle/                 # Oracle Database
 │   └── init/                          # Scripts de inicialização (/container-entrypoint-initdb.d)
-│       ├── 01-init-schema.sql        # Usuário, privilégios e sequências
-│       └── 02-insert-data.sql        # Dados iniciais
+│       └── 01-init-schema.sql        # Privilégios do vortex_user
 ├── sqs/                   # Amazon SQS (futuro)
 ├── docs/                  # Documentação de infraestrutura
 │   ├── README-KAFKA.md               # Documentação do Kafka
@@ -231,9 +230,7 @@ docker exec vortex-rabbitmq rabbitmq-diagnostics status
 - Volume: `vortex-oracle-data`
 
 ### Scripts de Inicialização
-Os scripts em `oracle/init/` são executados automaticamente na primeira inicialização do volume:
-1. `01-init-schema.sql` - Usuário, privilégios e sequências
-2. `02-insert-data.sql` - Dados iniciais
+O `oracle/init/01-init-schema.sql` roda automaticamente na primeira inicialização do volume e dá os privilégios do `vortex_user`. Tabelas e sequences ficam com o Hibernate; o banco começa sem dados.
 
 Detalhes em [docs/README-ORACLE.md](docs/README-ORACLE.md).
 
