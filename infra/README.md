@@ -1,6 +1,6 @@
 # 🏗️ Infraestrutura Vortex
 
-Esta pasta contém todos os componentes de infraestrutura do projeto Vortex, organizados de forma modular e reutilizável. Todos os arquivos usam o **Docker Compose v2** (`docker compose`, sem hífen), toda imagem tem versão fixa, todo serviço tem `mem_limit` e `restart: "no"`, e todo container se chama `vortex-...`.
+Esta pasta contém todos os componentes de infraestrutura do projeto Vortex, organizados de forma modular e reutilizável. Todos os arquivos usam o **Docker Compose v2** (`docker compose`, sem hífen), toda imagem tem versão fixa, todo serviço tem `mem_limit` e `restart: "no"`, e todo container se chama `vortex-...`, menos o `otel-lgtm` da observabilidade: o launcher para e remove todo container com "vortex" no nome antes de subir, e esse tem de sobreviver às reinicializações.
 
 ## 📁 Estrutura
 
@@ -17,6 +17,7 @@ infra/
 │   ├── docker-compose.kafka.yml       # Kafka + Confluent Platform 8.4 atrás de profiles
 │   ├── docker-compose.kafka-simple.yml # Kafka nativo em KRaft (o do launcher)
 │   ├── docker-compose.rabbitmq.yml    # RabbitMQ standalone
+│   ├── docker-compose.observabilidade.yml # grafana/otel-lgtm (Grafana na 3030, OTLP 4317/4318), subido à mão; ADR 0009
 │   ├── nginx/static.conf              # Servidor estático dos dois frontends (5173 e 3001)
 │   └── Dockerfile.backend             # Build do backend (JDK 27, roda na JRE 27 Alpine)
 ├── kafka/                  # Apache Kafka

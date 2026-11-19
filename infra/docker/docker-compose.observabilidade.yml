@@ -1,0 +1,36 @@
+# Observabilidade local: grafana/otel-lgtm, um container só com coletor OpenTelemetry, Tempo (traces),
+# Loki (logs), Prometheus (métricas) e Grafana, com as fontes de dados já ligadas (do log no Loki ao trace
+# no Tempo pelo trace_id). Ver docs/adr/0009.
+#
+#   docker compose -f infra/docker/docker-compose.observabilidade.yml up -d
+#   VORTEX_OTEL_ENABLED=true ./start-vortex.sh -e dev   (antes ou depois do compose; o launcher não derruba este container)
+#   Grafana: http://localhost:3030 (sem login; o Grafana desta imagem é só para a máquina local)
+#   docker compose -f infra/docker/docker-compose.observabilidade.yml down
+#
+# Os backends que rodam no host (modos leve e dev do launcher, ambiente dev) mandam OTLP por HTTP para
+# localhost:4318 (VORTEX_OTEL_ENDPOINT troca o destino). No ambiente prd o backend principal roda em
+# container, sem as duas variáveis e sem alcançar o localhost do host: só o auth exporta.
+# As portas só escutam no loopback e o Grafana entra como admin anônimo (o Explore pede Editor). Contra
+# DNS rebinding, o Grafana recusa qualquer Host que não seja localhost. A 3030 evita a 3000, que é do
+# frontend nos stacks full. Os dados ficam na camada do container e somem no "down".
+# Não subir junto com o Airflow na VM de 6 GB.
+name: observabilidade
+
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.41.0
+    # Sem "vortex" no nome de propósito: o start-vortex.sh para e remove todo container cujo nome contém
+    # "vortex" antes de subir (e no --stop), e o otel-lgtm tem de sobreviver às reinicializações do Vortex.
+    container_name: otel-lgtm
+    restart: "no"
+    # Medido em 19/11/2026: 416 MB parado, 1,35 GB depois de alguns traces do relatório. O README da imagem
+    # pede 2 GB (1 GB não basta).
+    mem_limit: 2g
+    environment:
+      GF_SERVER_DOMAIN: localhost
+      GF_SERVER_ROOT_URL: http://localhost:3030/
+      GF_SERVER_ENFORCE_DOMAIN: "true"
+    ports:
+      - "127.0.0.1:3030:3000"   # Grafana
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
