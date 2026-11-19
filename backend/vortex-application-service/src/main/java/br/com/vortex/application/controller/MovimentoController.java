@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,10 +52,21 @@ public class MovimentoController {
     })
     public ResponseEntity<MovimentoEstoqueDTO> criar(
             @Parameter(description = "Dados do movimento de estoque a ser criado", required = true)
-            @Valid @RequestBody MovimentoEstoqueDTO movimentoEstoqueDTO) {
+            @Valid @RequestBody MovimentoEstoqueDTO movimentoEstoqueDTO,
+            @Parameter(hidden = true) Authentication authentication) {
 
-        MovimentoEstoqueDTO createdMovimento = movimentoEstoqueService.criar(movimentoEstoqueDTO);
+        MovimentoEstoqueDTO createdMovimento = movimentoEstoqueService.criar(movimentoEstoqueDTO, usuarioDe(authentication));
         return new ResponseEntity<>(createdMovimento, HttpStatus.CREATED);
+    }
+
+    /**
+     * Usuário que vai no {@code userId} dos eventos: o principal que o JwtAuthenticationFilter montou, que é o
+     * username da validação do token. O pipeline de dados junta movimentos e logins pelo HMAC desse username
+     * (normalizado), então ele precisa ser o mesmo texto que o auth publica no {@code username} dos eventos.
+     * Sem autenticação (chamada direta, fora da cadeia HTTP) o evento sai sem usuário.
+     */
+    private static String usuarioDe(Authentication authentication) {
+        return authentication == null ? null : authentication.getName();
     }
 
     /**
