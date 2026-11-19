@@ -82,7 +82,7 @@ export interface ChartThemeColors {
 export function withAlpha(hex: string, alpha: number): string {
   let digits = hex.trim().replace(/^#/, '')
   if (digits.length === 3 || digits.length === 4) {
-    digits = [...digits.slice(0, 3)].map((d) => d + d).join('')
+    digits = Array.from(digits.slice(0, 3), (d) => d + d).join('')
   }
   const value = Number.parseInt(digits.slice(0, 6), 16)
   if (digits.length < 6 || Number.isNaN(value)) return hex
