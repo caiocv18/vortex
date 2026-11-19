@@ -93,7 +93,8 @@ export const useAuthStore = defineStore('auth', () => {
         const refreshed = await attemptTokenRefresh()
         if (!refreshed) {
           logger.warn('Token refresh failed, initiating logout')
-          logout()
+          // Sem await, como antes: checkAuth responde false já, e o logout segue para o redirecionamento
+          void logout()
           return false
         }
       }

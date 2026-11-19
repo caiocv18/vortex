@@ -116,7 +116,8 @@ class Logger {
     
     const entry = this.createLogEntry(LogLevel.WARN, message, data)
     this.logToConsole(entry)
-    this.logToRemote(entry)
+    // Fire-and-forget: logToRemote handles its own failures
+    void this.logToRemote(entry)
   }
 
   error(message: string, data?: unknown): void {
@@ -124,7 +125,7 @@ class Logger {
     
     const entry = this.createLogEntry(LogLevel.ERROR, message, data)
     this.logToConsole(entry)
-    this.logToRemote(entry)
+    void this.logToRemote(entry)
   }
 
   // Utility methods for common scenarios
