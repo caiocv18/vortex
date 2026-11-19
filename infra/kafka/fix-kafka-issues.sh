@@ -22,9 +22,10 @@ print_color() {
 }
 
 print_header() {
+    local title="$1"
     echo
     print_color $BLUE "================================"
-    print_color $BLUE "$1"
+    print_color $BLUE "$title"
     print_color $BLUE "================================"
     echo
 }

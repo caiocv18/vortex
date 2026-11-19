@@ -177,7 +177,8 @@ now_ms() {
 }
 
 fmt_secs() {
-    awk -v ms="$1" 'BEGIN { printf "%.1f", ms / 1000 }'
+    local millis="$1"
+    awk -v ms="$millis" 'BEGIN { printf "%.1f", ms / 1000 }'
 }
 
 java_version_line() {
@@ -189,11 +190,13 @@ java_major_version() {
 }
 
 http_status() {
-    curl -s -o /dev/null -m 3 -w '%{http_code}' "$1" 2>/dev/null || true
+    local url="$1"
+    curl -s -o /dev/null -m 3 -w '%{http_code}' "$url" 2>/dev/null || true
 }
 
 http_ok() {
-    [[ "$(http_status "$1")" == "200" ]]
+    local url="$1"
+    [[ "$(http_status "$url")" == "200" ]]
 }
 
 # Espera um GET devolver 200. $1 url, $2 timeout em segundos, $3 PID opcional (falha cedo se o
@@ -257,9 +260,9 @@ kernel_boot_id() {
 
 # Grava o pid file de um processo que acabou de ser iniciado. $1 arquivo, $2 PID
 write_pid_file() {
-    local start
-    start=$(proc_start_ticks "$2") || start="?"
-    printf '%s %s %s\n' "$2" "$start" "$(kernel_boot_id)" > "$1"
+    local pid_file="$1" pid="$2" start
+    start=$(proc_start_ticks "$pid") || start="?"
+    printf '%s %s %s\n' "$pid" "$start" "$(kernel_boot_id)" > "$pid_file"
 }
 
 # 0 se o PID do pid file ainda é o MESMO processo: vivo, mesmo boot e mesmo instante de início.
@@ -275,9 +278,9 @@ pid_identity_matches() {
 
 # Imprime o PID do pid file só se ele ainda é o processo que o launcher iniciou
 pid_file_live_pid() {
-    local pid="" start="" boot=""
-    [[ -f "$1" ]] || return 1
-    read -r pid start boot _ < "$1" || true
+    local pid_file="$1" pid="" start="" boot=""
+    [[ -f "$pid_file" ]] || return 1
+    read -r pid start boot _ < "$pid_file" || true
     pid_identity_matches "$pid" "$start" "$boot" || return 1
     echo "$pid"
 }
@@ -325,7 +328,8 @@ container_on_port() {
 }
 
 listen_pids() {
-    lsof -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | sort -u | tr '\n' ' '
+    local port="$1"
+    lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -u | tr '\n' ' '
 }
 
 # TERM nos PIDs, até 10 s de espera, KILL no que sobrar
@@ -501,11 +505,13 @@ check_prerequisites() {
 
 # DER da chave pública (para comparar par de chaves sem depender da formatação do PEM)
 public_key_der_sha() {
-    openssl pkey -pubin -in "$1" -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1
+    local key_file="$1"
+    openssl pkey -pubin -in "$key_file" -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1
 }
 
 private_key_public_der_sha() {
-    openssl pkey -in "$1" -pubout -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1
+    local key_file="$1"
+    openssl pkey -in "$key_file" -pubout -outform DER 2>/dev/null | sha256sum | cut -d' ' -f1
 }
 
 # Par de chaves RSA do JWT do serviço de autorização (privateKey.pem e publicKey.pem). Ficam fora
@@ -607,9 +613,10 @@ ensure_auth_jwt_keys() {
 # mv que nunca sobrescreve: falha (e deixa a origem) se o destino já existe. Não depende do
 # código de saída do "mv -n", que mudou entre versões do coreutils.
 move_no_clobber() {
-    [[ -e "$2" ]] && return 1
-    mv -n "$1" "$2" 2>/dev/null || true
-    [[ ! -e "$1" && -e "$2" ]]
+    local from="$1" to="$2"
+    [[ -e "$to" ]] && return 1
+    mv -n "$from" "$to" 2>/dev/null || true
+    [[ ! -e "$from" && -e "$to" ]]
 }
 
 # No ambiente prd o backend principal (SecurityConfigurationValidator, perfil prd) recusa subir
@@ -752,8 +759,9 @@ compose_for_down() {
 
 # "down" de uma stack, SEM -v (volumes ficam), incluindo os serviços atrás de profiles
 compose_down() {
-    [[ -f "$1" ]] || return 0
-    compose_for_down -f "$1" --profile '*' down > /dev/null 2>&1 || true
+    local compose_file="$1"
+    [[ -f "$compose_file" ]] || return 0
+    compose_for_down -f "$compose_file" --profile '*' down > /dev/null 2>&1 || true
 }
 
 # Stack prd (backend + Oracle): docker-compose.yml + override, como um "docker compose" sem -f
@@ -1670,8 +1678,9 @@ wait_for_auth_healthcheck() {
 
 # Perfis Spring: base (dev|prd) + leve (só modo leve no dev) + mensageria
 app_spring_profiles() {
-    local profiles="$1"
-    if [[ "$RUN_MODE" == "leve" && "$1" == "dev" ]]; then
+    local base_profile="$1"
+    local profiles="$base_profile"
+    if [[ "$RUN_MODE" == "leve" && "$base_profile" == "dev" ]]; then
         profiles+=",leve"
     fi
     case "$MESSAGING_SYSTEM" in
@@ -1903,7 +1912,8 @@ aot_cache_stale() {
 
 # 0 se o log mostra a JVM recusando o cache AOT (texto do HotSpot com -XX:AOTMode=on)
 aot_cache_rejected_in_log() {
-    grep -q "Unable to use AOT cache" "$1" 2>/dev/null
+    local log_file="$1"
+    grep -q "Unable to use AOT cache" "$log_file" 2>/dev/null
 }
 
 # Sobe uma JVM do modo leve (com o cache AOT se existir) e espera o health.
@@ -2652,7 +2662,8 @@ show_logs() {
 
 # Falha de subida: avisa e sai (o que já subiu continua de pé até o --stop)
 abort_start() {
-    print_color $RED "❌ $1"
+    local message="$1"
+    print_color $RED "❌ $message"
     print_color $YELLOW "💡 Para parar o que já subiu: ./start-vortex.sh --stop"
     exit 1
 }
@@ -2727,7 +2738,8 @@ main() {
                 exit 0
                 ;;
             *)
-                print_color $RED "❌ Opção desconhecida: $1"
+                local unknown_option="$1"
+                print_color $RED "❌ Opção desconhecida: $unknown_option"
                 show_help
                 exit 1
                 ;;

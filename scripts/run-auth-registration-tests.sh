@@ -64,9 +64,10 @@ print_color() {
 
 # Function to print section headers
 print_header() {
+    local title="$1"
     echo ""
     print_color "$CYAN" "========================================"
-    print_color "$CYAN" "$1"
+    print_color "$CYAN" "$title"
     print_color "$CYAN" "========================================"
     echo ""
 }

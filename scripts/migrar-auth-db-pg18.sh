@@ -59,7 +59,8 @@ falha() { printf '❌ %s\n' "$*" >&2; exit 1; }
 
 # psql no container: $1 container, $2 SQL. Saída sem cabeçalho nem alinhamento.
 sql() {
-    docker exec "$1" psql -U "$DB_USER" -d "$DB_NAME" -tAq -v ON_ERROR_STOP=1 -c "$2"
+    local container="$1" query="$2"
+    docker exec "$container" psql -U "$DB_USER" -d "$DB_NAME" -tAq -v ON_ERROR_STOP=1 -c "$query"
 }
 
 # Pronto de verdade: pelo TCP do loopback do container. Num volume novo o entrypoint da imagem
@@ -83,8 +84,9 @@ esperar_postgres() {
 
 # Usuários em auth.users (0 se a tabela não existe)
 contar_usuarios() {
-    if [[ "$(sql "$1" "select to_regclass('auth.users') is not null")" == "t" ]]; then
-        sql "$1" "select count(*) from auth.users"
+    local container="$1"
+    if [[ "$(sql "$container" "select to_regclass('auth.users') is not null")" == "t" ]]; then
+        sql "$container" "select count(*) from auth.users"
     else
         echo 0
     fi
