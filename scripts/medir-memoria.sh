@@ -19,7 +19,8 @@ pad() {
 }
 
 rss_kb() {
-    awk '/^VmRSS:/ { print $2 }' "/proc/$1/status" 2>/dev/null
+    local pid="$1"
+    awk '/^VmRSS:/ { print $2 }' "/proc/$pid/status" 2>/dev/null
 }
 
 # PID e todos os descendentes
@@ -48,8 +49,8 @@ proc_start_ticks() {
 # O pid file do launcher é "PID início boot_id": só conta o PID que ainda é o mesmo processo
 # (um PID reaproveitado depois de a distro reiniciar seria de outro programa)
 pid_file_pid() {
-    local pid="" start="" boot=""
-    read -r pid start boot _ < "$1" 2>/dev/null || true
+    local pid_file="$1" pid="" start="" boot=""
+    read -r pid start boot _ < "$pid_file" 2>/dev/null || true
     [[ "$pid" =~ ^[0-9]+$ ]] || return 1
     [[ "$boot" == "$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)" ]] || return 1
     [[ "$(proc_start_ticks "$pid")" == "$start" ]] || return 1
@@ -57,7 +58,8 @@ pid_file_pid() {
 }
 
 label_for() {
-    case "$1" in
+    local name="$1"
+    case "$name" in
         backend) echo "Backend principal" ;;
         backend-jvm) echo "  JVM filha do spring-boot:run" ;;
         auth-backend) echo "Backend de autorização" ;;
@@ -67,13 +69,14 @@ label_for() {
         aot-train-backend) echo "Treino AOT do backend" ;;
         aot-train-auth) echo "Treino AOT do auth" ;;
         network-monitor) echo "Monitor de redes Docker" ;;
-        *) echo "$1" ;;
+        *) echo "$name" ;;
     esac
 }
 
 # Converte "123.4MiB", "1.2GiB", "512KiB", "800kB", "1.1GB" em MB
 to_mb() {
-    awk -v v="$1" 'BEGIN {
+    local size="$1"
+    awk -v v="$size" 'BEGIN {
         n = v; sub(/[A-Za-z]+$/, "", n); u = v; sub(/^[0-9.]+/, "", u)
         f = 1
         if (u == "B") f = 1 / 1048576

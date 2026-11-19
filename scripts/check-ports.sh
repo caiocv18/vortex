@@ -20,9 +20,9 @@ PORT_SERVICES=(
 )
 
 service_name() {
-    local service
+    local port="$1" service
     for service in "${PORT_SERVICES[@]}"; do
-        if [[ $service == "$1":* ]]; then
+        if [[ $service == "$port":* ]]; then
             echo "${service#*:}"
             return
         fi
@@ -36,11 +36,13 @@ port_container() {
 }
 
 listen_pids() {
-    lsof -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | sort -u
+    local port="$1"
+    lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | sort -u
 }
 
 port_listening() {
-    ss -ltnH "sport = :$1" 2>/dev/null | grep -q .
+    local port="$1"
+    ss -ltnH "sport = :$port" 2>/dev/null | grep -q .
 }
 
 # TERM, até 10 s de espera, KILL no que sobrar

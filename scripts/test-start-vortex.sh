@@ -51,11 +51,11 @@ spawn_orphan() {
     echo "$pid"
 }
 
-alive() { kill -0 "$1" 2>/dev/null; }
-gone() { ! alive "$1"; }
+alive() { local pid="$1"; kill -0 "$pid" 2>/dev/null; }
+gone() { local pid="$1"; ! alive "$pid"; }
 wait_gone() {
-    local i
-    for ((i = 0; i < 40; i++)); do gone "$1" && return 0; sleep 0.1; done
+    local pid="$1" i
+    for ((i = 0; i < 40; i++)); do gone "$pid" && return 0; sleep 0.1; done
     return 1
 }
 
@@ -181,8 +181,11 @@ check "outra morte na validação: o erro real aparece na saída" \
 
 # ----------------------------------------------------------------------------
 echo "== chaves JWT do auth"
-sha() { sha256sum "$1" | cut -d' ' -f1; }
-pair_ok() { [[ "$(private_key_public_der_sha "$1/privateKey.pem")" == "$(public_key_der_sha "$1/publicKey.pem")" ]]; }
+sha() { local file="$1"; sha256sum "$file" | cut -d' ' -f1; }
+pair_ok() {
+    local key_dir="$1"
+    [[ "$(private_key_public_der_sha "$key_dir/privateKey.pem")" == "$(public_key_der_sha "$key_dir/publicKey.pem")" ]]
+}
 
 k="$WORK/k1"
 ensure_auth_jwt_keys "$k/jwt" "$k/legado" > /dev/null
@@ -315,8 +318,9 @@ check "AUTH_JWT_ISSUER segue o JWT_ISSUER do auth" test "${APP_AUTH_ENV[1]}" = "
 # ----------------------------------------------------------------------------
 echo "== PostgreSQL do auth: aviso do volume antigo"
 docker() {
-    [[ "$1 $2" == "volume inspect" ]] || return 99
-    [[ " $MOCK_VOLUMES " == *" $3 "* ]]
+    local subcommand="$1" action="$2" volume="$3"
+    [[ "$subcommand $action" == "volume inspect" ]] || return 99
+    [[ " $MOCK_VOLUMES " == *" $volume "* ]]
 }
 out=$(MOCK_VOLUMES="docker_auth-db-data" warn_auth_db_legacy_volume)
 check "volume novo ainda não existe e o antigo sim: avisa e aponta o script de migração" \
