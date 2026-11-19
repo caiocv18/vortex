@@ -43,24 +43,21 @@ test.describe('Movements Page', () => {
     
     // Clica no filtro de Entradas
     await page.click('button:has-text("Entradas")')
-    await page.waitForTimeout(1000)
-    
-    // Verifica se o botão Entradas está selecionado
+
+    // Verifica se o botão Entradas está selecionado (web-first assertion, waits for the class)
     const entradasButton = page.locator('button:has-text("Entradas")')
     await expect(entradasButton).toHaveClass(/v-btn--active/)
-    
+
     // Clica no filtro de Saídas
     await page.click('button:has-text("Saídas")')
-    await page.waitForTimeout(1000)
-    
+
     // Verifica se o botão Saídas está selecionado
     const saidasButton = page.locator('button:has-text("Saídas")')
     await expect(saidasButton).toHaveClass(/v-btn--active/)
-    
+
     // Volta para Todos
     await page.click('button:has-text("Todos")')
-    await page.waitForTimeout(1000)
-    
+
     // Verifica se o botão Todos está selecionado
     const todosButton = page.locator('button:has-text("Todos")')
     await expect(todosButton).toHaveClass(/v-btn--active/)
@@ -73,11 +70,8 @@ test.describe('Movements Page', () => {
     // Preenche o campo de pesquisa
     const searchInput = page.getByLabel('Pesquisar por produto')
     await searchInput.fill('produto')
-    
-    // Aguarda a filtragem
-    await page.waitForTimeout(1000)
-    
-    // Verifica se o campo de pesquisa foi preenchido
+
+    // Verifica se o campo de pesquisa foi preenchido (web-first assertion, waits for the value)
     await expect(searchInput).toHaveValue('produto')
   })
 

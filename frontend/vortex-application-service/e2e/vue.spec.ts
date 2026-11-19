@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { apiTestResult } from './support/waits';
 
 // See here how to get started:
 // https://playwright.dev/docs/intro
@@ -11,10 +12,7 @@ test.describe('Home Page', () => {
     // Verifica o título da página
     await expect(page).toHaveTitle(/Home - Sistema de Estoque/);
     
-    // Aguarda a página carregar
-    await page.waitForTimeout(2000)
-    
-    // Verifica o card de boas-vindas
+    // Verifica o card de boas-vindas (web-first assertions, they wait for the page)
     await expect(page.locator('text=Bem-vindo ao Sistema de Estoque')).toBeVisible();
     await expect(page.locator('text=Sistema de gerenciamento de estoque Vortex')).toBeVisible();
   });
@@ -25,7 +23,7 @@ test.describe('Home Page', () => {
     await expect(page.locator('button:has-text("Testar Novamente")')).toBeVisible();
     
     // Aguarda o resultado do teste de API aparecer
-    await page.waitForTimeout(3000);
+    await expect(apiTestResult(page)).toBeVisible({ timeout: 10000 });
     
     // Verifica se há algum resultado (sucesso ou erro)
     const hasSuccess = await page.locator('text=Conexão com API bem-sucedida!').isVisible();
