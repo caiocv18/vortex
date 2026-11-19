@@ -66,7 +66,7 @@ export function toAllowedReturnUrl(candidate: string | null | undefined): string
     return null;
   }
   const url = parseHttpUrl(candidate);
-  if (!url || url.origin !== new URL(getMainAppUrl()).origin) {
+  if (url?.origin !== new URL(getMainAppUrl()).origin) {
     return null;
   }
   url.hash = '';
