@@ -327,6 +327,23 @@ out=$(MOCK_VOLUMES="" warn_auth_db_legacy_volume)
 check "instalação nova (sem volume antigo): nenhum aviso" test -z "$out"
 unset -f docker
 
+# ----------------------------------------------------------------------------
+echo "== componentes (-c) e perfis de mensageria"
+components_of() {
+    (BACKEND_ONLY="" FRONTEND_ONLY="" COMPONENTS="$1" NO_INTERACTION=true choose_components > /dev/null &&
+        echo "$RUN_BACKEND $RUN_FRONTEND")
+}
+check "-c full roda backend e frontend" test "$(components_of full)" = "true true"
+check "-c backend roda só o backend" test "$(components_of backend)" = "true false"
+check "-c frontend roda só o frontend" test "$(components_of frontend)" = "false true"
+out=$(BACKEND_ONLY="" FRONTEND_ONLY="" COMPONENTS="todos" NO_INTERACTION=true choose_components 2>&1)
+rc=$?
+check "choose_components com valor desconhecido sai com 1, sem cair no padrão completo" test "$rc" -eq 1
+check "...e diz o valor recebido e os aceitos, como o main" \
+    bash -c '[[ "$1" == *todos* && "$1" == *"$2"* ]]' _ "$out" "Use 'full', 'backend' ou 'frontend'."
+check "mensageria none não acrescenta perfil" test "$(MESSAGING_SYSTEM=none RUN_MODE=dev app_spring_profiles prd)" = "prd"
+check "mensageria kafka acrescenta o perfil kafka" test "$(MESSAGING_SYSTEM=kafka RUN_MODE=dev app_spring_profiles prd)" = "prd,kafka"
+
 echo ""
 echo "Resultado: $PASS ok, $FAIL falha(s)"
 [[ $FAIL -eq 0 ]]

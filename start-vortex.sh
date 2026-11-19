@@ -1068,6 +1068,11 @@ choose_components() {
                 print_color $GREEN "✅ Executando apenas Frontend"
                 return
                 ;;
+            *)
+                # O main já recusa o -c inválido antes daqui; isto só protege quem chamar a função direto
+                print_color $RED "❌ Componentes inválidos: $COMPONENTS. Use 'full', 'backend' ou 'frontend'."
+                exit 1
+                ;;
         esac
     fi
 
@@ -1671,6 +1676,7 @@ app_spring_profiles() {
     fi
     case "$MESSAGING_SYSTEM" in
         kafka|rabbitmq|sqs) profiles+=",$MESSAGING_SYSTEM" ;;
+        *) ;; # none (ou vazio): sem perfil de mensageria
     esac
     echo "$profiles"
 }
