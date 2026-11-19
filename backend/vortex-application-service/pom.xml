@@ -32,7 +32,7 @@
 	<properties>
 		<java.version>27</java.version>
 		<springdoc.version>3.2.0</springdoc.version>
-		<spring-cloud-aws.version>4.2.1</spring-cloud-aws.version>
+		<spring-cloud-aws.version>4.2.2</spring-cloud-aws.version>
 		<resilience4j.version>2.4.0</resilience4j.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<!-- Spans JDBC pela Micrometer Observation: a linha 2.x é a do Boot 4 (a 1.x é do Boot 3) -->
@@ -79,7 +79,7 @@
 			<dependency>
 				<groupId>at.yawk.lz4</groupId>
 				<artifactId>lz4-java</artifactId>
-				<version>1.11.4</version>
+				<version>1.14.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
