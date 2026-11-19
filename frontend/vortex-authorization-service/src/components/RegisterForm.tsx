@@ -3,10 +3,11 @@ import { useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Link } from 'react-router';
-import { Eye, EyeOff, Lock, Mail, User, LoaderCircle, CircleCheckBig, CircleX } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, LoaderCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegisterRequest } from '@/types/auth';
-import { confirmPasswordSchema, passwordRequirements, passwordSchema } from '@/utils/passwordRules';
+import { confirmPasswordSchema, passwordSchema } from '@/utils/passwordRules';
+import { PasswordRequirementList } from '@/components/PasswordRequirementList';
 
 const schema = yup.object({
   email: yup
@@ -158,25 +159,7 @@ export function RegisterForm() {
             </div>
             
             {/* Password requirements */}
-            {watchedPassword && (
-              <div className="mt-2 space-y-1">
-                {passwordRequirements.map((req, index) => {
-                  const isValid = req.test(watchedPassword);
-                  return (
-                    <div key={index} className="flex items-center text-xs">
-                      {isValid ? (
-                        <CircleCheckBig className="h-3 w-3 text-green-500 mr-1" />
-                      ) : (
-                        <CircleX className="h-3 w-3 text-red-500 mr-1" />
-                      )}
-                      <span className={isValid ? 'text-green-600' : 'text-red-600'}>
-                        {req.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {watchedPassword && <PasswordRequirementList password={watchedPassword} />}
             
             {errors.password && (
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
