@@ -12,7 +12,7 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
 
 class ApiService {
-  private api: AxiosInstance;
+  private readonly api: AxiosInstance;
 
   constructor() {
     this.api = axios.create({
