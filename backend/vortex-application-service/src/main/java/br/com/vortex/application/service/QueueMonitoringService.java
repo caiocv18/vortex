@@ -5,7 +5,7 @@ import br.com.vortex.application.dto.QueueInfoDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,8 +28,9 @@ import java.util.Map;
 @Service
 public class QueueMonitoringService {
 
-    @Autowired(required = false)
-    private RabbitTemplate rabbitTemplate;
+    private static final String TIMESTAMP = "timestamp";
+
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${message.broker.type:none}")
     private String brokerType;
@@ -42,6 +43,13 @@ public class QueueMonitoringService {
 
     @Value("${rabbitmq.exchange.name:vortex.exchange}")
     private String exchangeName;
+
+    /**
+     * O RabbitTemplate é opcional: sem o RabbitMQ o campo fica nulo.
+     */
+    public QueueMonitoringService(ObjectProvider<RabbitTemplate> rabbitTemplate) {
+        this.rabbitTemplate = rabbitTemplate.getIfAvailable();
+    }
 
     /**
      * Lista todas as filas configuradas no sistema.
@@ -95,7 +103,7 @@ public class QueueMonitoringService {
         status.put("brokerType", brokerType);
         status.put("rabbitmqEnabled", rabbitmqEnabled);
         status.put("kafkaEnabled", kafkaEnabled);
-        status.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
+        status.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
 
         if (rabbitmqEnabled && rabbitTemplate != null) {
             try {
@@ -305,7 +313,7 @@ public class QueueMonitoringService {
     public Map<String, Object> buscarMensagens(String nomeFila, int quantidade) {
         Map<String, Object> resultado = new HashMap<>();
         resultado.put("nomeFila", nomeFila);
-        resultado.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
+        resultado.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
         resultado.put("quantidadeSolicitada", quantidade);
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
@@ -365,7 +373,7 @@ public class QueueMonitoringService {
     public Map<String, Object> publicarMensagemTeste(String nomeFila, Map<String, Object> mensagem) {
         Map<String, Object> resultado = new HashMap<>();
         resultado.put("nomeFila", nomeFila);
-        resultado.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
+        resultado.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
             resultado.put("status", "BROKER_DISABLED");
