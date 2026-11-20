@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.entity;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import jakarta.transaction.Transactional;
@@ -35,7 +36,7 @@ public class PasswordResetToken extends PanacheEntityBase {
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
+            createdAt = OffsetDateTime.now(BusinessTime.ZONE);
         }
         if (used == null) {
             used = false;
@@ -48,7 +49,7 @@ public class PasswordResetToken extends PanacheEntityBase {
 
     public static PasswordResetToken findValidToken(String token) {
         return find("token = ?1 AND used = false AND expiresAt > ?2", 
-                   token, OffsetDateTime.now()).firstResult();
+                   token, OffsetDateTime.now(BusinessTime.ZONE)).firstResult();
     }
 
     /**
@@ -58,7 +59,7 @@ public class PasswordResetToken extends PanacheEntityBase {
      */
     public static boolean consume(UUID tokenId) {
         return update("used = true WHERE id = ?1 AND used = false AND expiresAt > ?2",
-                      tokenId, OffsetDateTime.now()) == 1;
+                      tokenId, OffsetDateTime.now(BusinessTime.ZONE)) == 1;
     }
 
     @Transactional
@@ -73,7 +74,7 @@ public class PasswordResetToken extends PanacheEntityBase {
     public boolean isValid() {
         return !Boolean.TRUE.equals(used) && 
                expiresAt != null && 
-               expiresAt.isAfter(OffsetDateTime.now());
+               expiresAt.isAfter(OffsetDateTime.now(BusinessTime.ZONE));
     }
 
     public void markAsUsed() {

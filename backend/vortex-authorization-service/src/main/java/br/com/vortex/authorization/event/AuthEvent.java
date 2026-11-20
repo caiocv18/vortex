@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.event;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -36,7 +37,7 @@ public abstract class AuthEvent {
 
     public AuthEvent() {
         this.eventId = UUID.randomUUID();
-        this.timestamp = OffsetDateTime.now();
+        this.timestamp = OffsetDateTime.now(BusinessTime.ZONE);
     }
 
     public AuthEvent(String eventType, UUID userId, String userEmail, String ipAddress, String userAgent) {

@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.dto;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import java.time.OffsetDateTime;
 
 public class ApiResponse<T> {
@@ -10,7 +11,7 @@ public class ApiResponse<T> {
     public OffsetDateTime timestamp;
 
     public ApiResponse() {
-        this.timestamp = OffsetDateTime.now();
+        this.timestamp = OffsetDateTime.now(BusinessTime.ZONE);
     }
 
     public ApiResponse(boolean success, String message) {

@@ -1,5 +1,6 @@
 package br.com.vortex.application.dto;
 
+import br.com.vortex.application.config.BusinessTime;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.AllArgsConstructor;
@@ -34,7 +35,7 @@ public abstract class KafkaEventDTO {
     /**
      * Timestamp do evento
      */
-    private LocalDateTime timestamp = LocalDateTime.now();
+    private LocalDateTime timestamp = LocalDateTime.now(BusinessTime.ZONE);
     
     /**
      * Tipo do evento

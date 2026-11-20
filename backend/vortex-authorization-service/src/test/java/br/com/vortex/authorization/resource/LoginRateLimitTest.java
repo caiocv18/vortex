@@ -1,8 +1,10 @@
 package br.com.vortex.authorization.resource;
 
 import br.com.vortex.authorization.TrustedLoopbackProxyTestProfile;
+import br.com.vortex.authorization.config.BusinessTime;
 import br.com.vortex.authorization.dto.RegisterRequest;
 import br.com.vortex.authorization.entity.LoginAttempt;
+import br.com.vortex.authorization.service.RateLimitService;
 import br.com.vortex.authorization.util.TestDataBuilder;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
@@ -49,6 +51,10 @@ class LoginRateLimitTest {
     private static final String IP_C = "198.51.100.30";
     private static final String IP_D = "198.51.100.40";
     private static final String IP_E = "198.51.100.50";
+    private static final String IP_F = "198.51.100.60";
+
+    @Inject
+    RateLimitService rateLimitService;
 
     @Inject
     @ConfigProperty(name = "auth.rate-limit.login-attempts")
@@ -107,6 +113,20 @@ class LoginRateLimitTest {
 
         recordFailures(user.email, IP_C, maxAttempts, OffsetDateTime.now().minusMinutes(1));
         login(user.email, user.password, IP_C).statusCode(401).body("message", is(TOO_MANY));
+    }
+
+    @Test
+    @DisplayName("Lockout checks count recent failures by e-mail and by IP, each on its own")
+    void lockoutChecksCountByEmailAndByIp() {
+        RegisterRequest user = registerUser();
+        RegisterRequest other = registerUser();
+
+        recordFailures(user.email, IP_F, maxAttempts, OffsetDateTime.now(BusinessTime.ZONE).minusMinutes(1));
+
+        assertTrue(rateLimitService.isEmailBlocked(user.email));
+        assertTrue(rateLimitService.isIpBlocked(IP_F));
+        assertFalse(rateLimitService.isEmailBlocked(other.email));
+        assertFalse(rateLimitService.isIpBlocked(IP_A));
     }
 
     @Test
