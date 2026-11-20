@@ -1,5 +1,6 @@
 package br.com.vortex.application.exception;
 
+import br.com.vortex.application.config.BusinessTime;
 import br.com.vortex.application.config.DeploymentProfiles;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,7 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException exception, WebRequest webRequest) {
         
         ErrorDetails errorDetails = new ErrorDetails(
-                LocalDateTime.now(),
+                LocalDateTime.now(BusinessTime.ZONE),
                 exception.getMessage(),
                 webRequest.getDescription(false),
                 "RESOURCE_NOT_FOUND");
@@ -54,7 +55,7 @@ public class GlobalExceptionHandler {
             EstoqueInsuficienteException exception, WebRequest webRequest) {
         
         ErrorDetails errorDetails = new ErrorDetails(
-                LocalDateTime.now(),
+                LocalDateTime.now(BusinessTime.ZONE),
                 exception.getMessage(),
                 webRequest.getDescription(false),
                 "ESTOQUE_INSUFICIENTE");
@@ -77,7 +78,7 @@ public class GlobalExceptionHandler {
         });
         
         ValidationErrorDetails errorDetails = new ValidationErrorDetails(
-                LocalDateTime.now(),
+                LocalDateTime.now(BusinessTime.ZONE),
                 "Erro de validação",
                 webRequest.getDescription(false),
                 "VALIDATION_ERROR",
@@ -127,7 +128,7 @@ public class GlobalExceptionHandler {
         }
         
         ErrorDetails errorDetails = new ErrorDetails(
-                LocalDateTime.now(),
+                LocalDateTime.now(BusinessTime.ZONE),
                 userMessage,
                 webRequest.getDescription(false),
                 "INTERNAL_SERVER_ERROR",

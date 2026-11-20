@@ -1,5 +1,6 @@
 package br.com.vortex.application.service;
 
+import br.com.vortex.application.config.BusinessTime;
 import br.com.vortex.application.dto.MovimentoEstoqueDTO;
 import br.com.vortex.application.dto.MovimentoEstoqueMessageDTO;
 import br.com.vortex.application.exception.EstoqueInsuficienteException;
@@ -97,7 +98,7 @@ public class MovimentoEstoqueService {
         responseDTO.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
         responseDTO.setQuantidadeMovimentada(movimentoEstoqueDTO.getQuantidadeMovimentada());
         responseDTO.setProdutoId(movimentoEstoqueDTO.getProdutoId());
-        responseDTO.setDataMovimento(LocalDateTime.now());
+        responseDTO.setDataMovimento(LocalDateTime.now(BusinessTime.ZONE));
 
         // Envia auditoria
         sqsProducerService.enviarAuditoria(
@@ -126,7 +127,7 @@ public class MovimentoEstoqueService {
         Integer estoqueAnterior = produto.getQuantidadeEmEstoque();
         
         MovimentoEstoque movimentoEstoque = new MovimentoEstoque();
-        movimentoEstoque.setDataMovimento(LocalDateTime.now());
+        movimentoEstoque.setDataMovimento(LocalDateTime.now(BusinessTime.ZONE));
         movimentoEstoque.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
         movimentoEstoque.setQuantidadeMovimentada(movimentoEstoqueDTO.getQuantidadeMovimentada());
         movimentoEstoque.setProduto(produto);

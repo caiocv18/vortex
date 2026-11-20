@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.entity;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
@@ -33,7 +34,7 @@ public class RefreshToken extends PanacheEntityBase {
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
+            createdAt = OffsetDateTime.now(BusinessTime.ZONE);
         }
         if (revoked == null) {
             revoked = false;
@@ -46,7 +47,7 @@ public class RefreshToken extends PanacheEntityBase {
 
     public static RefreshToken findValidToken(String token) {
         return find("token = ?1 AND revoked = false AND expiresAt > ?2", 
-                   token, OffsetDateTime.now()).firstResult();
+                   token, OffsetDateTime.now(BusinessTime.ZONE)).firstResult();
     }
 
     public static void revokeAllUserTokens(UUID userId) {
@@ -56,7 +57,7 @@ public class RefreshToken extends PanacheEntityBase {
     public boolean isValid() {
         return !Boolean.TRUE.equals(revoked) && 
                expiresAt != null && 
-               expiresAt.isAfter(OffsetDateTime.now());
+               expiresAt.isAfter(OffsetDateTime.now(BusinessTime.ZONE));
     }
 
     public void revoke() {

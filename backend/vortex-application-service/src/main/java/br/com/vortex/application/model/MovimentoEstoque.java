@@ -1,5 +1,6 @@
 package br.com.vortex.application.model;
 
+import br.com.vortex.application.config.BusinessTime;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -27,7 +28,7 @@ public class MovimentoEstoque {
     private Long id;
 
     @Column(nullable = false)
-    private LocalDateTime dataMovimento = LocalDateTime.now();
+    private LocalDateTime dataMovimento = LocalDateTime.now(BusinessTime.ZONE);
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

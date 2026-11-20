@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.service;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import br.com.vortex.authorization.entity.LoginAttempt;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
@@ -33,7 +34,7 @@ public class RateLimitService {
     }
 
     public boolean isAllowed(String email, String ipAddress) {
-        OffsetDateTime windowStart = OffsetDateTime.now().minusMinutes(windowMinutes);
+        OffsetDateTime windowStart = OffsetDateTime.now(BusinessTime.ZONE).minusMinutes(windowMinutes);
         
         long recentFailedAttempts = LoginAttempt.countRecentFailedAttempts(email, ipAddress, windowStart);
         
@@ -41,7 +42,7 @@ public class RateLimitService {
     }
 
     public boolean isEmailBlocked(String email) {
-        OffsetDateTime windowStart = OffsetDateTime.now().minusMinutes(lockoutMinutes);
+        OffsetDateTime windowStart = OffsetDateTime.now(BusinessTime.ZONE).minusMinutes(lockoutMinutes);
         
         long recentFailedAttempts = LoginAttempt.countRecentFailedAttemptsByEmail(email, windowStart);
         
@@ -49,7 +50,7 @@ public class RateLimitService {
     }
 
     public boolean isIpBlocked(String ipAddress) {
-        OffsetDateTime windowStart = OffsetDateTime.now().minusMinutes(lockoutMinutes);
+        OffsetDateTime windowStart = OffsetDateTime.now(BusinessTime.ZONE).minusMinutes(lockoutMinutes);
         
         long recentFailedAttempts = LoginAttempt.countRecentFailedAttemptsByIp(ipAddress, windowStart);
         

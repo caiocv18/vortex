@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.entity;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
@@ -29,7 +30,7 @@ public class LoginAttempt extends PanacheEntityBase {
     @PrePersist
     public void prePersist() {
         if (attemptedAt == null) {
-            attemptedAt = OffsetDateTime.now();
+            attemptedAt = OffsetDateTime.now(BusinessTime.ZONE);
         }
         if (success == null) {
             success = false;

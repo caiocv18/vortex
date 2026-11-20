@@ -1,5 +1,6 @@
 package br.com.vortex.application.service;
 
+import br.com.vortex.application.config.BusinessTime;
 import br.com.vortex.application.dto.QueueInfoDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
@@ -94,7 +95,7 @@ public class QueueMonitoringService {
         status.put("brokerType", brokerType);
         status.put("rabbitmqEnabled", rabbitmqEnabled);
         status.put("kafkaEnabled", kafkaEnabled);
-        status.put("timestamp", LocalDateTime.now());
+        status.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
 
         if (rabbitmqEnabled && rabbitTemplate != null) {
             try {
@@ -154,7 +155,7 @@ public class QueueMonitoringService {
                 fila.setTaxaMensagens(0.0);
                 fila.setDuravel(true);
                 fila.setExchange(exchangeName);
-                fila.setUltimaAtualizacao(LocalDateTime.now());
+                fila.setUltimaAtualizacao(LocalDateTime.now(BusinessTime.ZONE));
                 
                 filas.add(fila);
             }
@@ -199,7 +200,7 @@ public class QueueMonitoringService {
             fila.setConsumidores(1);
             fila.setTaxaMensagens(0.0);
             fila.setDuravel(true);
-            fila.setUltimaAtualizacao(LocalDateTime.now());
+            fila.setUltimaAtualizacao(LocalDateTime.now(BusinessTime.ZONE));
             
             filas.add(fila);
         }
@@ -220,7 +221,7 @@ public class QueueMonitoringService {
         fila.setTaxaMensagens(0.0);
         fila.setDuravel(true);
         fila.setExchange(exchangeName);
-        fila.setUltimaAtualizacao(LocalDateTime.now());
+        fila.setUltimaAtualizacao(LocalDateTime.now(BusinessTime.ZONE));
         
         return fila;
     }
@@ -237,7 +238,7 @@ public class QueueMonitoringService {
         fila.setConsumidores(1);
         fila.setTaxaMensagens(0.0);
         fila.setDuravel(true);
-        fila.setUltimaAtualizacao(LocalDateTime.now());
+        fila.setUltimaAtualizacao(LocalDateTime.now(BusinessTime.ZONE));
         
         return fila;
     }
@@ -268,7 +269,7 @@ public class QueueMonitoringService {
             fila.setConsumidores(0);
             fila.setTaxaMensagens(0.0);
             fila.setDuravel(false);
-            fila.setUltimaAtualizacao(LocalDateTime.now());
+            fila.setUltimaAtualizacao(LocalDateTime.now(BusinessTime.ZONE));
             
             filas.add(fila);
         }
@@ -289,7 +290,7 @@ public class QueueMonitoringService {
         fila.setConsumidores(0);
         fila.setTaxaMensagens(0.0);
         fila.setDuravel(false);
-        fila.setUltimaAtualizacao(LocalDateTime.now());
+        fila.setUltimaAtualizacao(LocalDateTime.now(BusinessTime.ZONE));
         
         return fila;
     }
@@ -304,7 +305,7 @@ public class QueueMonitoringService {
     public Map<String, Object> buscarMensagens(String nomeFila, int quantidade) {
         Map<String, Object> resultado = new HashMap<>();
         resultado.put("nomeFila", nomeFila);
-        resultado.put("timestamp", LocalDateTime.now());
+        resultado.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
         resultado.put("quantidadeSolicitada", quantidade);
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
@@ -328,7 +329,7 @@ public class QueueMonitoringService {
                 msgInfo.put("indice", i + 1);
                 msgInfo.put("conteudo", mensagem);
                 msgInfo.put("tipo", mensagem.getClass().getSimpleName());
-                msgInfo.put("timestampRecebimento", LocalDateTime.now());
+                msgInfo.put("timestampRecebimento", LocalDateTime.now(BusinessTime.ZONE));
                 mensagens.add(msgInfo);
             }
             
@@ -364,7 +365,7 @@ public class QueueMonitoringService {
     public Map<String, Object> publicarMensagemTeste(String nomeFila, Map<String, Object> mensagem) {
         Map<String, Object> resultado = new HashMap<>();
         resultado.put("nomeFila", nomeFila);
-        resultado.put("timestamp", LocalDateTime.now());
+        resultado.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
             resultado.put("status", "BROKER_DISABLED");
@@ -376,7 +377,7 @@ public class QueueMonitoringService {
             // Adiciona metadados à mensagem
             Map<String, Object> mensagemCompleta = new HashMap<>(mensagem);
             mensagemCompleta.put("_test", true);
-            mensagemCompleta.put("_timestamp", LocalDateTime.now());
+            mensagemCompleta.put("_timestamp", LocalDateTime.now(BusinessTime.ZONE));
             mensagemCompleta.put("_source", "QueueController");
             
             // Determina a routing key baseada no nome da fila

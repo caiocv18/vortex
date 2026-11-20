@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.entity;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
@@ -60,10 +61,10 @@ public class User extends PanacheEntityBase {
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
+            createdAt = OffsetDateTime.now(BusinessTime.ZONE);
         }
         if (updatedAt == null) {
-            updatedAt = OffsetDateTime.now();
+            updatedAt = OffsetDateTime.now(BusinessTime.ZONE);
         }
         if (isActive == null) {
             isActive = true;
@@ -75,7 +76,7 @@ public class User extends PanacheEntityBase {
 
     @PreUpdate
     public void preUpdate() {
-        updatedAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now(BusinessTime.ZONE);
     }
 
     public static User findByEmail(String email) {
