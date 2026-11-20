@@ -46,7 +46,7 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     if (!token) {
-      navigate('/login');
+      void navigate('/login');
     }
   }, [token, navigate]);
 
@@ -54,7 +54,7 @@ export function ResetPasswordPage() {
   useEffect(() => {
     if (!resetSucceeded) return;
     const timeoutId = setTimeout(() => {
-      navigate('/login');
+      void navigate('/login');
     }, 3000);
     return () => clearTimeout(timeoutId);
   }, [resetSucceeded, navigate]);
