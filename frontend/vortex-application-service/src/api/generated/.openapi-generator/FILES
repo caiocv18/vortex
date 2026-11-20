@@ -7,6 +7,9 @@ configuration.ts
 docs/LucroPorProdutoDTO.md
 docs/MovimentoEstoque.md
 docs/MovimentosDeEstoqueApi.md
+docs/PageMetadata.md
+docs/PagedModelMovimentoEstoque.md
+docs/PagedModelProdutoDTO.md
 docs/ProdutoDTO.md
 docs/ProdutoPorTipoDTO.md
 docs/ProdutosApi.md

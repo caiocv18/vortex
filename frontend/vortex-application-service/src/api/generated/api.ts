@@ -28,50 +28,54 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerM
  */
 export interface LucroPorProdutoDTO {
     /**
-     * ID do produto
-     */
-    'id'?: number;
-    /**
      * Descrição do produto
      */
     'descricao'?: string;
     /**
-     * Total de unidades vendidas
+     * ID do produto
      */
-    'totalUnidadesVendidas'?: number;
+    'id'?: number;
     /**
      * Lucro total
      */
     'lucroTotal'?: number;
+    /**
+     * Total de unidades vendidas
+     */
+    'totalUnidadesVendidas'?: number;
 }
 /**
  * Representa um movimento de estoque (entrada ou saída)
  */
 export interface MovimentoEstoque {
     /**
-     * Identificador único do movimento de estoque (gerado automaticamente)
-     */
-    'id'?: number;
-    /**
      * Data e hora em que o movimento foi registrado (gerado automaticamente)
      */
     'dataMovimento'?: string;
     /**
-     * Tipo de movimentação (ENTRADA aumenta o estoque, SAIDA diminui o estoque)
+     * Identificador único do movimento de estoque (gerado automaticamente)
      */
-    'tipoMovimentacao': MovimentoEstoqueTipoMovimentacaoEnum;
+    'id'?: number;
+    /**
+     * Descrição do produto associado ao movimento (preenchida pela API; ignorada na criação e na alteração)
+     */
+    'produtoDescricao'?: string;
+    /**
+     * Identificador do produto associado ao movimento
+     */
+    'produtoId': number;
     /**
      * Quantidade de itens movimentados (deve ser maior que zero)
      */
     'quantidadeMovimentada': number;
     /**
+     * Tipo de movimentação (ENTRADA aumenta o estoque, SAIDA diminui o estoque)
+     */
+    'tipoMovimentacao': MovimentoEstoqueTipoMovimentacaoEnum;
+    /**
      * Valor de venda unitário (calculado automaticamente para SAIDA como 1.35 * valorFornecedor, nulo para ENTRADA)
      */
     'valorVenda'?: number;
-    /**
-     * Identificador do produto associado ao movimento
-     */
-    'produtoId': number;
 }
 
 export const MovimentoEstoqueTipoMovimentacaoEnum = {
@@ -81,22 +85,32 @@ export const MovimentoEstoqueTipoMovimentacaoEnum = {
 
 export type MovimentoEstoqueTipoMovimentacaoEnum = typeof MovimentoEstoqueTipoMovimentacaoEnum[keyof typeof MovimentoEstoqueTipoMovimentacaoEnum];
 
+export interface PageMetadata {
+    'number': number;
+    'size': number;
+    'totalElements': number;
+    'totalPages': number;
+}
+export interface PagedModelMovimentoEstoque {
+    'content': Array<MovimentoEstoque>;
+    'page': PageMetadata;
+}
+export interface PagedModelProdutoDTO {
+    'content': Array<ProdutoDTO>;
+    'page': PageMetadata;
+}
 /**
  * DTO para transferência de dados de Produto
  */
 export interface ProdutoDTO {
     /**
-     * ID do produto
-     */
-    'id'?: number;
-    /**
      * Descrição do produto
      */
     'descricao': string;
     /**
-     * Valor do fornecedor
+     * ID do produto
      */
-    'valorFornecedor': number;
+    'id'?: number;
     /**
      * Quantidade em estoque
      */
@@ -105,27 +119,31 @@ export interface ProdutoDTO {
      * ID do tipo de produto
      */
     'tipoProdutoId': number;
+    /**
+     * Valor do fornecedor
+     */
+    'valorFornecedor': number;
 }
 /**
  * DTO para o relatório de produtos por tipo
  */
 export interface ProdutoPorTipoDTO {
     /**
-     * ID do produto
-     */
-    'id'?: number;
-    /**
      * Descrição do produto
      */
     'descricao'?: string;
     /**
-     * Quantidade total de saídas
+     * ID do produto
      */
-    'totalSaidas'?: number;
+    'id'?: number;
     /**
      * Quantidade em estoque
      */
     'quantidadeEmEstoque'?: number;
+    /**
+     * Quantidade total de saídas
+     */
+    'totalSaidas'?: number;
 }
 /**
  * DTO para transferência de dados de Tipo de Produto
@@ -215,12 +233,17 @@ export const MovimentosDeEstoqueApiAxiosParamCreator = function (configuration?:
             };
         },
         /**
-         * Retorna uma lista com todos os movimentos de estoque cadastrados
-         * @summary Busca todos os movimentos de estoque
+         * Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do produto (contém, sem diferenciar maiúsculas) e o tipo pela movimentação; ausentes, não filtram.
+         * @summary Busca os movimentos de estoque, uma página por vez
+         * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+         * @param {FindAllMovimentosTipoEnum} [tipo] Tipo de movimentação; ausente traz entradas e saídas
+         * @param {number} [page] Zero-based page index (0..N)
+         * @param {number} [size] The size of the page to be returned
+         * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        findAllMovimentos: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        findAllMovimentos: async (q?: string, tipo?: FindAllMovimentosTipoEnum, page?: number, size?: number, sort?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/movimentos`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -233,7 +256,27 @@ export const MovimentosDeEstoqueApiAxiosParamCreator = function (configuration?:
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
-            localVarHeaderParameter['Accept'] = 'application/json';
+            if (q !== undefined) {
+                localVarQueryParameter['q'] = q;
+            }
+
+            if (tipo !== undefined) {
+                localVarQueryParameter['tipo'] = tipo;
+            }
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (size !== undefined) {
+                localVarQueryParameter['size'] = size;
+            }
+
+            if (sort) {
+                localVarQueryParameter['sort'] = sort;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -353,13 +396,18 @@ export const MovimentosDeEstoqueApiFp = function(configuration?: Configuration) 
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Retorna uma lista com todos os movimentos de estoque cadastrados
-         * @summary Busca todos os movimentos de estoque
+         * Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do produto (contém, sem diferenciar maiúsculas) e o tipo pela movimentação; ausentes, não filtram.
+         * @summary Busca os movimentos de estoque, uma página por vez
+         * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+         * @param {FindAllMovimentosTipoEnum} [tipo] Tipo de movimentação; ausente traz entradas e saídas
+         * @param {number} [page] Zero-based page index (0..N)
+         * @param {number} [size] The size of the page to be returned
+         * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async findAllMovimentos(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MovimentoEstoque>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllMovimentos(options);
+        async findAllMovimentos(q?: string, tipo?: FindAllMovimentosTipoEnum, page?: number, size?: number, sort?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PagedModelMovimentoEstoque>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllMovimentos(q, tipo, page, size, sort, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MovimentosDeEstoqueApi.findAllMovimentos']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -421,13 +469,18 @@ export const MovimentosDeEstoqueApiFactory = function (configuration?: Configura
             return localVarFp.deleteMovimento(id, options).then((request) => request(axios, basePath));
         },
         /**
-         * Retorna uma lista com todos os movimentos de estoque cadastrados
-         * @summary Busca todos os movimentos de estoque
+         * Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do produto (contém, sem diferenciar maiúsculas) e o tipo pela movimentação; ausentes, não filtram.
+         * @summary Busca os movimentos de estoque, uma página por vez
+         * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+         * @param {FindAllMovimentosTipoEnum} [tipo] Tipo de movimentação; ausente traz entradas e saídas
+         * @param {number} [page] Zero-based page index (0..N)
+         * @param {number} [size] The size of the page to be returned
+         * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        findAllMovimentos(options?: RawAxiosRequestConfig): AxiosPromise<MovimentoEstoque> {
-            return localVarFp.findAllMovimentos(options).then((request) => request(axios, basePath));
+        findAllMovimentos(q?: string, tipo?: FindAllMovimentosTipoEnum, page?: number, size?: number, sort?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<PagedModelMovimentoEstoque> {
+            return localVarFp.findAllMovimentos(q, tipo, page, size, sort, options).then((request) => request(axios, basePath));
         },
         /**
          * Retorna um movimento de estoque específico pelo seu ID
@@ -480,13 +533,18 @@ export class MovimentosDeEstoqueApi extends BaseAPI {
     }
 
     /**
-     * Retorna uma lista com todos os movimentos de estoque cadastrados
-     * @summary Busca todos os movimentos de estoque
+     * Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do produto (contém, sem diferenciar maiúsculas) e o tipo pela movimentação; ausentes, não filtram.
+     * @summary Busca os movimentos de estoque, uma página por vez
+     * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+     * @param {FindAllMovimentosTipoEnum} [tipo] Tipo de movimentação; ausente traz entradas e saídas
+     * @param {number} [page] Zero-based page index (0..N)
+     * @param {number} [size] The size of the page to be returned
+     * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public findAllMovimentos(options?: RawAxiosRequestConfig) {
-        return MovimentosDeEstoqueApiFp(this.configuration).findAllMovimentos(options).then((request) => request(this.axios, this.basePath));
+    public findAllMovimentos(q?: string, tipo?: FindAllMovimentosTipoEnum, page?: number, size?: number, sort?: Array<string>, options?: RawAxiosRequestConfig) {
+        return MovimentosDeEstoqueApiFp(this.configuration).findAllMovimentos(q, tipo, page, size, sort, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -512,6 +570,12 @@ export class MovimentosDeEstoqueApi extends BaseAPI {
         return MovimentosDeEstoqueApiFp(this.configuration).updateMovimento(id, movimentoEstoque, options).then((request) => request(this.axios, this.basePath));
     }
 }
+
+export const FindAllMovimentosTipoEnum = {
+    Entrada: 'ENTRADA',
+    Saida: 'SAIDA',
+} as const;
+export type FindAllMovimentosTipoEnum = typeof FindAllMovimentosTipoEnum[keyof typeof FindAllMovimentosTipoEnum];
 
 
 
@@ -589,12 +653,16 @@ export const ProdutosApiAxiosParamCreator = function (configuration?: Configurat
             };
         },
         /**
-         * Retorna uma lista com todos os produtos cadastrados
-         * @summary Busca todos os produtos
+         * Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar maiúsculas); vazio ou ausente não filtra.
+         * @summary Busca os produtos, uma página por vez
+         * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+         * @param {number} [page] Zero-based page index (0..N)
+         * @param {number} [size] The size of the page to be returned
+         * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        findAllProdutos: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        findAllProdutos: async (q?: string, page?: number, size?: number, sort?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/produtos`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -607,7 +675,23 @@ export const ProdutosApiAxiosParamCreator = function (configuration?: Configurat
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
-            localVarHeaderParameter['Accept'] = 'application/json';
+            if (q !== undefined) {
+                localVarQueryParameter['q'] = q;
+            }
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (size !== undefined) {
+                localVarQueryParameter['size'] = size;
+            }
+
+            if (sort) {
+                localVarQueryParameter['sort'] = sort;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -727,13 +811,17 @@ export const ProdutosApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Retorna uma lista com todos os produtos cadastrados
-         * @summary Busca todos os produtos
+         * Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar maiúsculas); vazio ou ausente não filtra.
+         * @summary Busca os produtos, uma página por vez
+         * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+         * @param {number} [page] Zero-based page index (0..N)
+         * @param {number} [size] The size of the page to be returned
+         * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async findAllProdutos(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProdutoDTO>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllProdutos(options);
+        async findAllProdutos(q?: string, page?: number, size?: number, sort?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PagedModelProdutoDTO>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.findAllProdutos(q, page, size, sort, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProdutosApi.findAllProdutos']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -795,13 +883,17 @@ export const ProdutosApiFactory = function (configuration?: Configuration, baseP
             return localVarFp.deleteProduto(id, options).then((request) => request(axios, basePath));
         },
         /**
-         * Retorna uma lista com todos os produtos cadastrados
-         * @summary Busca todos os produtos
+         * Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar maiúsculas); vazio ou ausente não filtra.
+         * @summary Busca os produtos, uma página por vez
+         * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+         * @param {number} [page] Zero-based page index (0..N)
+         * @param {number} [size] The size of the page to be returned
+         * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        findAllProdutos(options?: RawAxiosRequestConfig): AxiosPromise<ProdutoDTO> {
-            return localVarFp.findAllProdutos(options).then((request) => request(axios, basePath));
+        findAllProdutos(q?: string, page?: number, size?: number, sort?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<PagedModelProdutoDTO> {
+            return localVarFp.findAllProdutos(q, page, size, sort, options).then((request) => request(axios, basePath));
         },
         /**
          * Retorna um produto específico pelo seu ID
@@ -854,13 +946,17 @@ export class ProdutosApi extends BaseAPI {
     }
 
     /**
-     * Retorna uma lista com todos os produtos cadastrados
-     * @summary Busca todos os produtos
+     * Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar maiúsculas); vazio ou ausente não filtra.
+     * @summary Busca os produtos, uma página por vez
+     * @param {string} [q] Trecho da descrição do produto (contém, sem diferenciar maiúsculas)
+     * @param {number} [page] Zero-based page index (0..N)
+     * @param {number} [size] The size of the page to be returned
+     * @param {Array<string>} [sort] Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public findAllProdutos(options?: RawAxiosRequestConfig) {
-        return ProdutosApiFp(this.configuration).findAllProdutos(options).then((request) => request(this.axios, this.basePath));
+    public findAllProdutos(q?: string, page?: number, size?: number, sort?: Array<string>, options?: RawAxiosRequestConfig) {
+        return ProdutosApiFp(this.configuration).findAllProdutos(q, page, size, sort, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

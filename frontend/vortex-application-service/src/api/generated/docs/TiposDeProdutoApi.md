@@ -111,8 +111,8 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**204** | Tipo de produto excluído com sucesso |  -  |
-|**404** | Tipo de produto não encontrado |  -  |
 |**400** | Não é possível excluir um tipo de produto que possui produtos associados |  -  |
+|**404** | Tipo de produto não encontrado |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -6,7 +6,7 @@ All URIs are relative to *http://localhost:8080/api*
 |------------- | ------------- | -------------|
 |[**createProduto**](#createproduto) | **POST** /produtos | Cria um novo produto|
 |[**deleteProduto**](#deleteproduto) | **DELETE** /produtos/{id} | Exclui um produto|
-|[**findAllProdutos**](#findallprodutos) | **GET** /produtos | Busca todos os produtos|
+|[**findAllProdutos**](#findallprodutos) | **GET** /produtos | Busca os produtos, uma página por vez|
 |[**findProdutoById**](#findprodutobyid) | **GET** /produtos/{id} | Busca um produto pelo ID|
 |[**updateProduto**](#updateproduto) | **PUT** /produtos/{id} | Atualiza um produto|
 
@@ -112,15 +112,15 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**204** | Produto excluído com sucesso |  -  |
-|**404** | Produto não encontrado |  -  |
 |**400** | Não é possível excluir um produto que possui movimentos de estoque associados |  -  |
+|**404** | Produto não encontrado |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **findAllProdutos**
-> ProdutoDTO findAllProdutos()
+> PagedModelProdutoDTO findAllProdutos()
 
-Retorna uma lista com todos os produtos cadastrados
+Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar maiúsculas); vazio ou ausente não filtra.
 
 ### Example
 
@@ -133,16 +133,32 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ProdutosApi(configuration);
 
-const { status, data } = await apiInstance.findAllProdutos();
+let q: string; //Trecho da descrição do produto (contém, sem diferenciar maiúsculas) (optional) (default to undefined)
+let page: number; //Zero-based page index (0..N) (optional) (default to 0)
+let size: number; //The size of the page to be returned (optional) (default to 20)
+let sort: Array<string>; //Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. (optional) (default to undefined)
+
+const { status, data } = await apiInstance.findAllProdutos(
+    q,
+    page,
+    size,
+    sort
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **q** | [**string**] | Trecho da descrição do produto (contém, sem diferenciar maiúsculas) | (optional) defaults to undefined|
+| **page** | [**number**] | Zero-based page index (0..N) | (optional) defaults to 0|
+| **size** | [**number**] | The size of the page to be returned | (optional) defaults to 20|
+| **sort** | **Array&lt;string&gt;** | Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported. | (optional) defaults to undefined|
 
 
 ### Return type
 
-**ProdutoDTO**
+**PagedModelProdutoDTO**
 
 ### Authorization
 
@@ -151,13 +167,14 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json
+ - **Accept**: */*
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** | Operação bem-sucedida |  -  |
+|**400** | Ordenação por propriedade inexistente |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
