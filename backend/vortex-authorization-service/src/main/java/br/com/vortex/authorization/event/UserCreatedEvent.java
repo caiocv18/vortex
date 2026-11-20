@@ -25,8 +25,8 @@ public class UserCreatedEvent extends AuthEvent {
     }
 
     public UserCreatedEvent(UUID userId, String userEmail, String username, Set<String> roles, 
-                           Boolean isVerified, String registrationMethod, String ipAddress, String userAgent) {
-        super("user.created", userId, userEmail, ipAddress, userAgent);
+                           Boolean isVerified, String registrationMethod, RequestOrigin origin) {
+        super("user.created", userId, userEmail, origin.ipAddress(), origin.userAgent());
         this.username = username;
         this.roles = roles;
         this.isVerified = isVerified;

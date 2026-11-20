@@ -126,11 +126,8 @@ public class AuthService {
                 user.email,
                 user.username,
                 roleNames(user),
-                "password",
-                user.lastLogin,
-                sessionId(refreshToken),
-                ipAddress,
-                userAgent
+                new LoginSession("password", user.lastLogin, sessionId(refreshToken)),
+                new RequestOrigin(ipAddress, userAgent)
             );
             eventPublisher.publishEvent(loginEvent);
         } catch (Exception e) {
@@ -228,8 +225,7 @@ public class AuthService {
                 roleNames(user),
                 user.isVerified,
                 "registration",
-                ipAddress,
-                userAgent
+                new RequestOrigin(ipAddress, userAgent)
             );
             eventPublisher.publishEvent(userCreatedEvent);
         } catch (Exception e) {
@@ -331,8 +327,7 @@ public class AuthService {
                 resetToken.id,
                 resetToken.expiresAt,
                 "email",
-                ipAddress,
-                userAgent
+                new RequestOrigin(ipAddress, userAgent)
             );
             eventPublisher.publishEvent(resetRequestedEvent);
         } catch (Exception e) {
