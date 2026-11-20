@@ -55,10 +55,12 @@ class DevConsumerWiringTest {
 
             @Override
             public void flush() {
+                // Nada a descarregar: publish grava direto na lista em memória
             }
 
             @Override
             public void close() {
+                // Nada a liberar: o handler só guarda mensagens numa lista do teste
             }
         };
         Logger consumerLogger = Logger.getLogger(AuthEventConsumer.class.getName());
