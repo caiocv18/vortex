@@ -36,7 +36,7 @@ public class OpenTelemetryLogbackConfig {
         if (!(loggerFactory instanceof LoggerContext context)) {
             return;
         }
-        Logger root = context.getLogger(Logger.ROOT_LOGGER_NAME);
+        Logger root = context.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         if (root.getAppender(APPENDER_NAME) != null) {
             return;
         }
