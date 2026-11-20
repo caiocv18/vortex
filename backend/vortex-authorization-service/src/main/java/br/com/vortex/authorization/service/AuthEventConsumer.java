@@ -71,16 +71,8 @@ public class AuthEventConsumer {
             
             LOGGER.info("User created: {} ({})", event.userEmail, event.username);
             LOGGER.debug("User roles: {}, verified: {}", event.roles, event.isVerified);
-            
-            // Example: Send welcome email
-            // emailService.sendWelcomeEmail(event.userEmail, event.username);
-            
-            // Example: Create user profile in other services
-            // profileService.createUserProfile(event.userId, event.username, event.userEmail);
-            
-            // Example: Setup default preferences
-            // preferencesService.createDefaultPreferences(event.userId);
-            
+            // A real consumer would send the welcome email, create the user profile in
+            // other services and set up the default preferences here.
         } catch (Exception e) {
             LOGGER.error("Failed to handle user created event", e);
         }
@@ -92,18 +84,8 @@ public class AuthEventConsumer {
             
             LOGGER.info("User logged in: {} from IP: {}", event.userEmail, event.ipAddress);
             LOGGER.debug("Login method: {}, session: {}", event.loginMethod, event.sessionId);
-            
-            // Example: Update last login analytics
-            // analyticsService.recordLogin(event.userId, event.timestamp, event.ipAddress);
-            
-            // Example: Check for suspicious login patterns
-            // securityService.checkLoginPattern(event.userId, event.ipAddress, event.userAgent);
-            
-            // Example: Send login notification if from new device
-            // if (securityService.isNewDevice(event.userId, event.userAgent)) {
-            //     notificationService.sendLoginAlert(event.userEmail, event.ipAddress);
-            // }
-            
+            // A real consumer would update the login analytics, look for suspicious login
+            // patterns and alert the user when the login comes from a new device.
         } catch (Exception e) {
             LOGGER.error("Failed to handle user logged in event", e);
         }
@@ -114,13 +96,7 @@ public class AuthEventConsumer {
             UserLoggedOutEvent event = objectMapper.readValue(eventJson, UserLoggedOutEvent.class);
             
             LOGGER.info("User logged out: {} - reason: {}", event.userEmail, event.logoutReason);
-            
-            // Example: Clean up user sessions
-            // sessionService.cleanupUserSession(event.userId, event.sessionId);
-            
-            // Example: Update analytics
-            // analyticsService.recordLogout(event.userId, event.timestamp, event.logoutReason);
-            
+            // A real consumer would clean up the user's sessions and update the analytics here.
         } catch (Exception e) {
             LOGGER.error("Failed to handle user logged out event", e);
         }
@@ -131,18 +107,8 @@ public class AuthEventConsumer {
             PasswordChangedEvent event = objectMapper.readValue(eventJson, PasswordChangedEvent.class);
             
             LOGGER.info("Password changed for user: {} - reason: {}", event.userEmail, event.changeReason);
-            
-            // Example: Send security notification
-            // emailService.sendPasswordChangedNotification(event.userEmail, event.changeReason);
-            
-            // Example: Log security event
-            // securityService.logPasswordChange(event.userId, event.changeReason, event.ipAddress);
-            
-            // Example: Revoke all existing sessions if password was compromised
-            // if ("security_breach".equals(event.changeReason)) {
-            //     sessionService.revokeAllUserSessions(event.userId);
-            // }
-            
+            // A real consumer would notify the user, record the security event and revoke
+            // every open session when the change was caused by a security breach.
         } catch (Exception e) {
             LOGGER.error("Failed to handle password changed event", e);
         }
@@ -153,16 +119,8 @@ public class AuthEventConsumer {
             PasswordResetRequestedEvent event = objectMapper.readValue(eventJson, PasswordResetRequestedEvent.class);
             
             LOGGER.info("Password reset requested for user: {}", event.userEmail);
-            
-            // Example: Send reset email
-            // emailService.sendPasswordResetEmail(event.userEmail, event.resetTokenId.toString());
-            
-            // Example: Log security event
-            // securityService.logPasswordResetRequest(event.userId, event.ipAddress);
-            
-            // Example: Check for suspicious reset patterns
-            // securityService.checkResetPattern(event.userId, event.ipAddress);
-            
+            // A real consumer would send the reset email, record the security event and look
+            // for suspicious reset patterns here.
         } catch (Exception e) {
             LOGGER.error("Failed to handle password reset requested event", e);
         }
@@ -173,16 +131,8 @@ public class AuthEventConsumer {
             EmailVerifiedEvent event = objectMapper.readValue(eventJson, EmailVerifiedEvent.class);
             
             LOGGER.info("Email verified for user: {}", event.userEmail);
-            
-            // Example: Send welcome email after verification
-            // emailService.sendWelcomeEmail(event.userEmail, event.username);
-            
-            // Example: Enable full account features
-            // accountService.enableFullFeatures(event.userId);
-            
-            // Example: Update user preferences
-            // preferencesService.enableEmailNotifications(event.userId);
-            
+            // A real consumer would send the welcome email, enable the full account features
+            // and turn on the e-mail notifications here.
         } catch (Exception e) {
             LOGGER.error("Failed to handle email verified event", e);
         }
