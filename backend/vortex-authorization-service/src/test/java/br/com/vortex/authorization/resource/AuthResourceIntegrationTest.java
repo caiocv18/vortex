@@ -32,9 +32,6 @@ class AuthResourceIntegrationTest {
     @Inject
     EntityManager entityManager;
     
-    private String testEmail;
-    private String testUsername;
-    private String testPassword = "Test@Password123";
     private String accessToken;
     private String refreshToken;
     
@@ -71,9 +68,7 @@ class AuthResourceIntegrationTest {
     @DisplayName("POST /register - Should successfully register a new user")
     void testRegisterSuccess() {
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
-        testEmail = request.email;
-        testUsername = request.username;
-        
+
         Response response = given()
             .contentType(ContentType.JSON)
             .header("User-Agent", "Integration Test")
