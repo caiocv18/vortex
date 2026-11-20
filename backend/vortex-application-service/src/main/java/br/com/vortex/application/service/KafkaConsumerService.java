@@ -90,6 +90,9 @@ public class KafkaConsumerService {
                 case "DELETED":
                     processarProdutoExcluido(event);
                     break;
+                default:
+                    log.warn("Ação de produto desconhecida, evento ignorado: {}", event.getAction());
+                    break;
             }
 
             acknowledgment.acknowledge();
@@ -192,9 +195,14 @@ public class KafkaConsumerService {
         
         // Se houve mudança significativa no preço, notificar
         if (event.getDadosAnteriores() != null && 
-            !event.getValorFornecedor().equals(event.getDadosAnteriores().getValorFornecedor())) {
+            mudouValor(event.getValorFornecedor(), event.getDadosAnteriores().getValorFornecedor())) {
             notificacaoService.notificarMudancaPreco(event);
         }
+    }
+
+    /** Compara por valor (compareTo), não por escala: 10.0 e 10.00 são o mesmo preço. */
+    static boolean mudouValor(java.math.BigDecimal atual, java.math.BigDecimal anterior) {
+        return anterior == null || atual.compareTo(anterior) != 0;
     }
 
     private void processarProdutoExcluido(ProdutoEventDTO event) {
