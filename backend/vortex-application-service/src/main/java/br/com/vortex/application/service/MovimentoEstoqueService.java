@@ -225,7 +225,7 @@ public class MovimentoEstoqueService {
      * @deprecated Use buscarTodos(Pageable) para melhor performance
      * @return Lista de DTOs dos movimentos de estoque (limitada a 1000 itens, ordenada por data)
      */
-    @Deprecated
+    @Deprecated(since = "0.1.1", forRemoval = true)
     @Transactional(readOnly = true)
     public List<MovimentoEstoqueDTO> buscarTodos() {
         Pageable pageable = PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "dataMovimento"));

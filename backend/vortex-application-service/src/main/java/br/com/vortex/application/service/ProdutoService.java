@@ -93,7 +93,7 @@ public class ProdutoService {
      * @deprecated Use buscarTodos(Pageable) para melhor performance
      * @return Lista de DTOs dos produtos (limitada a 1000 itens)
      */
-    @Deprecated
+    @Deprecated(since = "0.1.1", forRemoval = true)
     @Transactional(readOnly = true)
     public List<ProdutoDTO> buscarTodos() {
         Pageable pageable = PageRequest.of(0, 1000, Sort.by("id"));
