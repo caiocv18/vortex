@@ -28,28 +28,13 @@ The interface is in Portuguese.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    browser([Browser])
-    subgraph frontends [Frontends]
-        vue[Inventory app<br/>Vue 3 + Vuetify]
-        react[Sign-in app<br/>React 19]
-    end
-    subgraph backends [Backends]
-        app[Application service<br/>Spring Boot 4.1]
-        auth[Authorization service<br/>Quarkus 3.40]
-    end
-    browser --> vue
-    browser --> react
-    vue -->|REST + JWT| app
-    react -->|sign-up, sign-in, recovery| auth
-    app -->|validates the token, reads roles| auth
-    app --> h2[(H2<br/>dev and tests)]
-    app --> pg[(PostgreSQL<br/>postgres profile)]
-    app --> ora[(Oracle Free<br/>prd profile)]
-    auth --> authdb[(PostgreSQL 18)]
-    app -.->|optional| broker{{Kafka, RabbitMQ or SQS}}
-```
+![Vortex overview: the two single-page apps, the application and authorization services, their databases, the optional broker and the data pipeline into BigQuery](docs/arquitetura/overview.svg)
+
+The architecture as code, with the C4 context and container diagrams and the sign-in and stock movement
+flows, lives in [docs/arquitetura](docs/arquitetura/README.md). The `architecture` check keeps it current:
+a pull request that changes a key path (Compose, Dockerfiles, Terraform, `application*.properties`,
+migrations, the data pipeline) must touch it or carry the label `arquitetura-sem-mudanca`
+([ADR 0011](docs/adr/0011-living-architecture-checked-in-the-pull-request.md)).
 
 | Service | Path | Port | Stack |
 |---|---|---|---|

@@ -14,5 +14,6 @@ Each record states one decision, the context that forced it, the alternatives th
 | [0008](0008-data-pipeline-on-google-cloud-with-pseudonymization.md) | A Beam pipeline into BigQuery, across two Google Cloud projects, with pseudonymization | Accepted | 2026-11-16 |
 | [0009](0009-native-opentelemetry-without-an-agent.md) | Native OpenTelemetry in both backends, without an agent, exported only on demand | Accepted | 2026-11-19 |
 | [0010](0010-sonarcloud-ci-based-analysis.md) | SonarCloud CI-based analysis in one workflow, with coverage for every language | Accepted | 2026-11-19 |
+| [0011](0011-living-architecture-checked-in-the-pull-request.md) | Living architecture, checked in the pull request that changes it | Accepted | 2026-11-20 |
 
 A new record takes the next number and the sections Status, Date, Context, Decision, Alternatives considered, Consequences and References.
