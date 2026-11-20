@@ -45,7 +45,7 @@ public class MovimentoController {
      * @return DTO do movimento de estoque criado
      */
     @PostMapping
-    @Operation(summary = "Cria um novo movimento de estoque", description = "Cria um novo movimento de estoque com os dados fornecidos")
+    @Operation(operationId = "createMovimento", summary = "Cria um novo movimento de estoque", description = "Cria um novo movimento de estoque com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Movimento de estoque criado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class))),
@@ -83,7 +83,7 @@ public class MovimentoController {
      */
     @CanRead
     @GetMapping
-    @Operation(summary = "Busca os movimentos de estoque, uma página por vez",
+    @Operation(operationId = "findAllMovimentos", summary = "Busca os movimentos de estoque, uma página por vez",
             description = "Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", "
                     + "\"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, "
                     + "sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do "
@@ -113,7 +113,7 @@ public class MovimentoController {
      */
     @CanRead
     @GetMapping("/{id}")
-    @Operation(summary = "Busca um movimento de estoque pelo ID", description = "Retorna um movimento de estoque específico pelo seu ID")
+    @Operation(operationId = "findMovimentoById", summary = "Busca um movimento de estoque pelo ID", description = "Retorna um movimento de estoque específico pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class))),
@@ -137,7 +137,7 @@ public class MovimentoController {
      * @return DTO do movimento de estoque atualizado
      */
     @PutMapping("/{id}")
-    @Operation(summary = "Atualiza um movimento de estoque", description = "Atualiza um movimento de estoque existente com os dados fornecidos")
+    @Operation(operationId = "updateMovimento", summary = "Atualiza um movimento de estoque", description = "Atualiza um movimento de estoque existente com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Movimento de estoque atualizado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class))),
@@ -164,7 +164,7 @@ public class MovimentoController {
      * @return Resposta sem conteúdo
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Exclui um movimento de estoque", description = "Exclui um movimento de estoque existente pelo seu ID")
+    @Operation(operationId = "deleteMovimento", summary = "Exclui um movimento de estoque", description = "Exclui um movimento de estoque existente pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Movimento de estoque excluído com sucesso",
                     content = @Content),

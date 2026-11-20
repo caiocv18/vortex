@@ -228,7 +228,7 @@ npm run test:coverage         # Coverage report
 ### Main Application Service (Port 8080)
 - **Base URL**: `http://localhost:8080/api`
 - **Documentation**: `http://localhost:8080/swagger-ui.html` (every profile except `cloud`)
-- **OpenAPI Spec**: `docs/application/openapi-backend.json`, maintained by hand as the input of `npm run generate-api`. Its `servers` entry carries the `/api` base path and its operationIds were renamed for the client, so never overwrite it with an export of `/v3/api-docs` (the client's method names and `BASE_PATH` would change). Keep its `info` in step with `OpenApiConfig`
+- **OpenAPI Spec**: `docs/application/openapi-backend.json`, the input of `npm run generate-api`, is a snapshot of `/v3/api-docs` checked by `OpenApiContractTest`. Both sides go through `OpenApiSnapshot.normalizar` (test sources): the `/api` base path moves from the paths into `servers` (the client's `BASE_PATH`), the port is pinned to 8080, only the inventory API stays (tipos-produto, produtos, movimentos, relatorios; queues, `/api/test` and health are dropped with the schemas and tags only they used), and keys are sorted. The operationIds the client uses live in the controllers' `@Operation(operationId = ...)`. Never edit the snapshot by hand: on a contract change the test fails and writes `target/openapi-actual.json` (uploaded by CI as the `openapi-actual` artifact); after reviewing it, copy it over the snapshot or run `./mvnw test -Dtest=OpenApiContractTest -Dopenapi.snapshot.update=true`, then regenerate the client
 
 #### Key Endpoints
 - **Products**: `/api/produtos` - Full CRUD operations

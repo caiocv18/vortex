@@ -42,7 +42,7 @@ public class ProdutoController {
      * @return DTO do produto criado
      */
     @PostMapping
-    @Operation(summary = "Cria um novo produto", description = "Cria um novo produto com os dados fornecidos")
+    @Operation(operationId = "createProduto", summary = "Cria um novo produto", description = "Cria um novo produto com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Produto criado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProdutoDTO.class))),
@@ -68,7 +68,7 @@ public class ProdutoController {
      */
     @CanRead
     @GetMapping
-    @Operation(summary = "Busca os produtos, uma página por vez",
+    @Operation(operationId = "findAllProdutos", summary = "Busca os produtos, uma página por vez",
             description = "Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", "
                     + "\"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. "
                     + "Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar "
@@ -95,7 +95,7 @@ public class ProdutoController {
      */
     @CanRead
     @GetMapping("/{id}")
-    @Operation(summary = "Busca um produto pelo ID", description = "Retorna um produto específico pelo seu ID")
+    @Operation(operationId = "findProdutoById", summary = "Busca um produto pelo ID", description = "Retorna um produto específico pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProdutoDTO.class))),
@@ -118,7 +118,7 @@ public class ProdutoController {
      * @return DTO do produto atualizado
      */
     @PutMapping("/{id}")
-    @Operation(summary = "Atualiza um produto", description = "Atualiza um produto existente com os dados fornecidos")
+    @Operation(operationId = "updateProduto", summary = "Atualiza um produto", description = "Atualiza um produto existente com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Produto atualizado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProdutoDTO.class))),
@@ -144,7 +144,7 @@ public class ProdutoController {
      * @return Resposta sem conteúdo
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Exclui um produto", description = "Exclui um produto existente pelo seu ID")
+    @Operation(operationId = "deleteProduto", summary = "Exclui um produto", description = "Exclui um produto existente pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Produto excluído com sucesso",
                     content = @Content),

@@ -41,7 +41,7 @@ public class RelatorioController {
      * @return Lista de DTOs com informações dos produtos do tipo especificado
      */
     @GetMapping("/produtos-por-tipo")
-    @Operation(summary = "Gera relatório de produtos por tipo", 
+    @Operation(operationId = "gerarRelatorioProdutosPorTipo", summary = "Gera relatório de produtos por tipo", 
                description = "Retorna uma lista de produtos do tipo especificado, com quantidade total de saídas e estoque atual")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
@@ -63,7 +63,7 @@ public class RelatorioController {
      * @return Lista de DTOs com informações de lucro por produto
      */
     @GetMapping("/lucro-por-produto")
-    @Operation(summary = "Gera relatório de lucro por produto", 
+    @Operation(operationId = "gerarRelatorioLucroPorProduto", summary = "Gera relatório de lucro por produto", 
                description = "Retorna uma lista com ID/descrição do produto, total de unidades vendidas e lucro total")
     @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = LucroPorProdutoDTO.class)))
