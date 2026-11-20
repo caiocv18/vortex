@@ -61,6 +61,18 @@ const filterButton = (label: string) => wrapper!.findAll('.v-btn-toggle button')
 describe('MovementsView', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // O v-dialog posiciona o overlay pelo visualViewport, que o jsdom não tem
+    vi.stubGlobal('visualViewport', {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      offsetLeft: 0,
+      offsetTop: 0,
+      pageLeft: 0,
+      pageTop: 0,
+      scale: 1,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })
     api.findAllMovimentos.mockResolvedValue(firstPage())
     vi.spyOn(console, 'log').mockImplementation(() => undefined)
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -70,6 +82,7 @@ describe('MovementsView', () => {
     wrapper?.unmount()
     wrapper = undefined
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('loads page 0 with 20 items, no type filter and the server sort when it mounts', async () => {
