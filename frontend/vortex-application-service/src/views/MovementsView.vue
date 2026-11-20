@@ -95,7 +95,7 @@ const loadProductOptions = async (text: string) => {
 watch(productSearch, (text) => {
   clearTimeout(productSearchTimer)
   // Ao escolher um item, o campo passa a mostrar a descrição dele: isso não é uma busca nova
-  if (!dialog.value || (chosenProduct.value && text === chosenProduct.value.descricao)) return
+  if (!dialog.value || chosenProduct.value?.descricao === (text ?? '')) return
   productSearchTimer = setTimeout(() => loadProductOptions(text ?? ''), SEARCH_DEBOUNCE_MS)
 })
 
