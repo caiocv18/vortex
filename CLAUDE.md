@@ -231,9 +231,17 @@ npm run test:coverage         # Coverage report
 - **OpenAPI Spec**: `docs/application/openapi-backend.json`, the input of `npm run generate-api`, is a snapshot of `/v3/api-docs` checked by `OpenApiContractTest`. Both sides go through `OpenApiSnapshot.normalizar` (test sources): the `/api` base path moves from the paths into `servers` (the client's `BASE_PATH`), the port is pinned to 8080, only the inventory API stays (tipos-produto, produtos, movimentos, relatorios; queues, `/api/test` and health are dropped with the schemas and tags only they used), and keys are sorted. The operationIds the client uses live in the controllers' `@Operation(operationId = ...)`. Never edit the snapshot by hand: on a contract change the test fails and writes `target/openapi-actual.json` (uploaded by CI as the `openapi-actual` artifact); after reviewing it, copy it over the snapshot or run `./mvnw test -Dtest=OpenApiContractTest -Dopenapi.snapshot.update=true`, then regenerate the client
 
 #### Key Endpoints
-- **Products**: `/api/produtos` - Full CRUD operations
-- **Product Types**: `/api/tipos-produto` - Category management
-- **Movements**: `/api/movimentos` - Inventory transactions
+- **Products**: `/api/produtos` - Full CRUD operations; the list is paged (below)
+- **Product Types**: `/api/tipos-produto` - Category management; the list stays a plain JSON array
+- **Movements**: `/api/movimentos` - Inventory transactions; the list is paged (below), and each movement carries the read-only `produtoDescricao`
+
+#### Paged lists (`GET /api/produtos`, `GET /api/movimentos`)
+- **Parameters**: `page` (from 0), `size` (default 20; above 100 it is served as 100), `sort` (`property,asc|desc`, repeatable), `q` (substring, case-insensitive; blank or missing means no filter). Movements also take `tipo` (`ENTRADA` or `SAIDA`; missing means both)
+- **Filters**: on products `q` matches `descricao`; on movements it matches the product's `descricao`. `%` and `_` in `q` are plain text
+- **Default order**: products `descricao,asc`; movements `dataMovimento,desc`
+- **Response**: Spring Data's `PagedModel` (`spring.data.web.pageable.serialization-mode=via-dto`): `{"content": [...], "page": {"size": 20, "number": 0, "totalElements": 42, "totalPages": 3}}`
+- **Errors**: an unknown `tipo` or a `sort` on a property the entity lacks answers `400` with `errorCode` `INVALID_PARAMETER` (`GlobalExceptionHandler`); a page past the end is `200` with an empty `content`
+- Example: `GET /api/movimentos?q=notebook&tipo=SAIDA&page=0&size=10&sort=dataMovimento,desc`
 - **Reports**: `/api/relatorios/*` - Business intelligence
 - **Health**: `/health` - Application health check
 - **Queue Monitoring**: `/api/queue` - Message broker status

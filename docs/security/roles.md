@@ -8,7 +8,7 @@ While the authorization service is unreachable, `AuthServiceClient` falls back t
 
 | Endpoint | VIEWER | USER | MANAGER | ADMIN |
 |---|:---:|:---:|:---:|:---:|
-| `GET /api/tipos-produto`, `/api/produtos`, `/api/movimentos` (list and `/{id}`) | yes | yes | yes | yes |
+| `GET /api/tipos-produto`, `/api/produtos`, `/api/movimentos` (list, paged on products and movements whatever the filters, and `/{id}`) | yes | yes | yes | yes |
 | `GET /api/relatorios/**` | yes | yes | yes | yes |
 | `POST`, `PUT`, `DELETE` on `/api/tipos-produto`, `/api/produtos`, `/api/movimentos` | no | yes | yes | yes |
 | `/api/queues/**` (queue monitoring and `POST /{nomeFila}/test-message`) | no | no | no | yes |
