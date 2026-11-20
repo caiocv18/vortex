@@ -2,7 +2,6 @@ package br.com.vortex.authorization.security;
 
 import br.com.vortex.authorization.entity.User;
 import io.smallrye.jwt.build.Jwt;
-import io.smallrye.jwt.build.JwtClaimsBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;

@@ -3,7 +3,6 @@ package br.com.vortex.application.dto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

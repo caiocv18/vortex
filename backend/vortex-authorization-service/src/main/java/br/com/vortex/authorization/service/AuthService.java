@@ -15,7 +15,6 @@ import jakarta.json.JsonString;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.NotFoundException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
