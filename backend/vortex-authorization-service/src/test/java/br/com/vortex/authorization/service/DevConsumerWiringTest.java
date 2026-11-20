@@ -12,6 +12,7 @@ import org.eclipse.microprofile.reactive.messaging.spi.Connector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -19,6 +20,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -40,7 +42,7 @@ class DevConsumerWiringTest {
 
     @Test
     @DisplayName("Dev build with a connector: one event reaches both the dev consumer and the outgoing connector")
-    void devConsumerAndConnectorBothReceiveTheEvent() throws InterruptedException {
+    void devConsumerAndConnectorBothReceiveTheEvent() {
         assertTrue(Arc.container().instance(AuthEventConsumer.class).isAvailable(),
             "neste perfil o consumidor de dev precisa estar ativo, senão o teste não prova nada");
 
@@ -69,11 +71,13 @@ class DevConsumerWiringTest {
             eventPublisher.publishEvent(new UserLoggedOutEvent(UUID.randomUUID(), "dev@test.com", "dev",
                 "session-dev", "user_initiated", "127.0.0.1", "JUnit"));
 
-            long deadline = System.currentTimeMillis() + 5_000;
-            while ((sink.received().isEmpty() || consumerLogs.stream().noneMatch(m -> m.startsWith("User logged out")))
-                    && System.currentTimeMillis() < deadline) {
-                Thread.sleep(20);
-            }
+            await().atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(20))
+                .untilAsserted(() -> {
+                    assertFalse(sink.received().isEmpty(), "o conector de saída ainda não recebeu o evento");
+                    assertTrue(consumerLogs.stream().anyMatch(m -> m.startsWith("User logged out")),
+                        "o AuthEventConsumer ainda não tratou o evento; logs vistos: " + consumerLogs);
+                });
         } finally {
             consumerLogger.removeHandler(handler);
         }
