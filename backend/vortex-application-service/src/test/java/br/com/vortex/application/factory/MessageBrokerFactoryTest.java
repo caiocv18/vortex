@@ -43,9 +43,8 @@ class MessageBrokerFactoryTest {
     void picksTheEnabledProducer(String type) {
         MessageBrokerFactory factory = factory(type, true, true, true);
 
-        Object expected = type.equalsIgnoreCase("kafka")
-                ? ReflectionTestUtils.getField(factory, "kafkaProducerService")
-                : ReflectionTestUtils.getField(factory, "rabbitMQProducerService");
+        Object expected = ReflectionTestUtils.getField(factory,
+                type.equalsIgnoreCase("kafka") ? "kafkaProducerService" : "rabbitMQProducerService");
         assertSame(expected, factory.messageBrokerService());
     }
 
