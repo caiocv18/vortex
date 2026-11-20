@@ -44,6 +44,10 @@ Facts that shaped the decision, as of 2026-11-19:
 - Pull requests from forks get no secret, so their scan fails. The token expires after a year and must be renewed in both secret stores before that.
 - The version must be bumped in `sonar-project.properties` together with the other modules (CLAUDE.md, Governance).
 
+## Amendment (2026-11-20): no file is analyzed as PL/SQL
+
+The accepted Data Dictionary warning is gone. Every `.sql` file was read as PL/SQL (Oracle), but all of them are PostgreSQL (the Flyway migrations of both services and `infra/docker/init-auth-db.sql`) except `infra/oracle/init/01-init-schema.sql`, which holds only GRANTs. Read as Oracle they raised only false positives (`plsql:VarcharUsageCheck` on PostgreSQL `VARCHAR`, `plsql:S1138` on `NOT EXISTS`) and the warning. `sonar.plsql.file.suffixes` now names a suffix that no file uses, so the PL/SQL analyzer reads nothing, and the multicriteria exclusion for `VarcharUsageCheck` is gone with it. The cost: the `.sql` files get no rule at all. A future Oracle script would need its own suffix in that key, and with it the Data Dictionary question comes back.
+
 ## References
 
 - SonarQube Cloud, *Automatic analysis*: https://docs.sonarsource.com/sonarqube-cloud/advanced-setup/automatic-analysis/
