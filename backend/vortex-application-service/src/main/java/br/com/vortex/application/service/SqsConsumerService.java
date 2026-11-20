@@ -1,5 +1,6 @@
 package br.com.vortex.application.service;
 
+import br.com.vortex.application.config.BusinessTime;
 import br.com.vortex.application.dto.MovimentoEstoqueMessageDTO;
 import br.com.vortex.application.exception.EstoqueInsuficienteException;
 import br.com.vortex.application.exception.ResourceNotFoundException;
@@ -59,7 +60,7 @@ public class SqsConsumerService {
 
             // Cria o movimento de estoque
             MovimentoEstoque movimento = new MovimentoEstoque();
-            movimento.setDataMovimento(LocalDateTime.now());
+            movimento.setDataMovimento(LocalDateTime.now(BusinessTime.ZONE));
             movimento.setTipoMovimentacao(message.getTipoMovimentacao());
             movimento.setQuantidadeMovimentada(message.getQuantidadeMovimentada());
             movimento.setProduto(produto);

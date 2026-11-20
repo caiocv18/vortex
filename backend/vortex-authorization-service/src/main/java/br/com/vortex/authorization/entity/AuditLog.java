@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.entity;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
@@ -41,7 +42,7 @@ public class AuditLog extends PanacheEntityBase {
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
+            createdAt = OffsetDateTime.now(BusinessTime.ZONE);
         }
     }
 

@@ -1,5 +1,6 @@
 package br.com.vortex.application.service;
 
+import br.com.vortex.application.config.BusinessTime;
 import br.com.vortex.application.dto.MovimentoEstoqueMessageDTO;
 import io.awspring.cloud.sqs.operations.SqsOperations;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +48,7 @@ public class SqsProducerService {
 
             // Define timestamp se não existir
             if (message.getTimestamp() == null) {
-                message.setTimestamp(LocalDateTime.now());
+                message.setTimestamp(LocalDateTime.now(BusinessTime.ZONE));
             }
 
             log.info("Enviando mensagem de movimento de estoque para SQS. OperationId: {}, Produto: {}, Tipo: {}",
@@ -78,7 +79,7 @@ public class SqsProducerService {
             Map<String, Object> headers = new HashMap<>();
             putIfNotNull(headers, "produtoId", produtoId);
             headers.put("tipo", "ESTOQUE_BAIXO");
-            headers.put("timestamp", LocalDateTime.now().toString());
+            headers.put("timestamp", LocalDateTime.now(BusinessTime.ZONE).toString());
 
             log.info("Enviando notificação de estoque baixo para produto ID: {}", produtoId);
 
@@ -108,7 +109,7 @@ public class SqsProducerService {
             putIfNotNull(headers, "entidade", entidade);
             putIfNotNull(headers, "entidadeId", entidadeId);
             putIfNotNull(headers, "usuarioId", usuarioId);
-            headers.put("timestamp", LocalDateTime.now().toString());
+            headers.put("timestamp", LocalDateTime.now(BusinessTime.ZONE).toString());
 
             log.debug("Enviando mensagem de auditoria: {} - {} ID: {}", operacao, entidade, entidadeId);
 

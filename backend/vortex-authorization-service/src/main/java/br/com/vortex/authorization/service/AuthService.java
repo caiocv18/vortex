@@ -1,5 +1,6 @@
 package br.com.vortex.authorization.service;
 
+import br.com.vortex.authorization.config.BusinessTime;
 import br.com.vortex.authorization.dto.*;
 import br.com.vortex.authorization.entity.*;
 import br.com.vortex.authorization.event.*;
@@ -89,7 +90,7 @@ public class AuthService {
         LoginAttempt.recordAttempt(request.identifier, ipAddress, true);
         
         // Update last login
-        user.lastLogin = OffsetDateTime.now();
+        user.lastLogin = OffsetDateTime.now(BusinessTime.ZONE);
         user.persist();
 
         // Generate tokens
@@ -100,7 +101,7 @@ public class AuthService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.user = user;
         refreshToken.token = refreshTokenValue;
-        refreshToken.expiresAt = OffsetDateTime.now().plus(jwtService.getRefreshTokenExpiration());
+        refreshToken.expiresAt = OffsetDateTime.now(BusinessTime.ZONE).plus(jwtService.getRefreshTokenExpiration());
         refreshToken.persist();
 
         // Create response
@@ -205,7 +206,7 @@ public class AuthService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.user = user;
         refreshToken.token = refreshTokenValue;
-        refreshToken.expiresAt = OffsetDateTime.now().plusDays(7);
+        refreshToken.expiresAt = OffsetDateTime.now(BusinessTime.ZONE).plusDays(7);
         refreshToken.persist();
 
         // Create response
@@ -312,7 +313,7 @@ public class AuthService {
         PasswordResetToken resetToken = new PasswordResetToken();
         resetToken.user = user;
         resetToken.token = passwordService.generateSecureToken(32);
-        resetToken.expiresAt = OffsetDateTime.now().plusHours(1);
+        resetToken.expiresAt = OffsetDateTime.now(BusinessTime.ZONE).plusHours(1);
         resetToken.persist();
 
         // Log audit event
