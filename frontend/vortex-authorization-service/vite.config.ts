@@ -39,7 +39,13 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
-      exclude: [...configDefaults.exclude, 'e2e/**']
+      exclude: [...configDefaults.exclude, 'e2e/**'],
+      // Cobertura só com --coverage (npm run test:coverage, job sonar-fronts do sonar.yml). O lcov sai com
+      // caminhos relativos à raiz do repositório (projectRoot), que é onde o SonarCloud resolve os arquivos
+      coverage: {
+        provider: 'v8',
+        reporter: ['text-summary', ['lcov', { projectRoot: fileURLToPath(new URL('../..', import.meta.url)) }]]
+      }
     }
   }
 })
