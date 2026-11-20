@@ -26,28 +26,13 @@ O objetivo deste repositório é mostrar como o sistema é construído e verific
 
 ## Arquitetura
 
-```mermaid
-flowchart LR
-    browser([Navegador])
-    subgraph frontends [Frontends]
-        vue[App de estoque<br/>Vue 3 + Vuetify]
-        react[App de login<br/>React 19]
-    end
-    subgraph backends [Backends]
-        app[Serviço de aplicação<br/>Spring Boot 4.1]
-        auth[Serviço de autorização<br/>Quarkus 3.40]
-    end
-    browser --> vue
-    browser --> react
-    vue -->|REST + JWT| app
-    react -->|cadastro, login, recuperação| auth
-    app -->|valida o token, lê os papéis| auth
-    app --> h2[(H2<br/>dev e testes)]
-    app --> pg[(PostgreSQL<br/>perfil postgres)]
-    app --> ora[(Oracle Free<br/>perfil prd)]
-    auth --> authdb[(PostgreSQL 18)]
-    app -.->|opcional| broker{{Kafka, RabbitMQ ou SQS}}
-```
+![Visão geral do Vortex: as duas SPAs, os serviços de aplicação e de autorização, seus bancos, o broker opcional e o pipeline de dados até o BigQuery](docs/arquitetura/overview.svg)
+
+A arquitetura como código, com os diagramas C4 de contexto e de containers e os fluxos de login e de
+movimento de estoque, fica em [docs/arquitetura](docs/arquitetura/README.pt-BR.md). O check `architecture`
+a mantém em dia: o pull request que muda um caminho-chave (Compose, Dockerfiles, Terraform,
+`application*.properties`, migrations, pipeline de dados) precisa tocá-la ou levar o rótulo
+`arquitetura-sem-mudanca` ([ADR 0011](docs/adr/0011-living-architecture-checked-in-the-pull-request.md)).
 
 | Serviço | Caminho | Porta | Stack |
 |---|---|---|---|
