@@ -28,7 +28,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
         validateJwtConfiguration(warnings, errors);
         validateDatabaseConfiguration(warnings, errors);
         validateProfileSpecificSettings(warnings, errors);
-        validateEnvironmentVariables(warnings, errors);
+        validateEnvironmentVariables(warnings);
 
         // Log warnings
         if (!warnings.isEmpty()) {
@@ -121,7 +121,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
         }
     }
 
-    private void validateEnvironmentVariables(List<String> warnings, List<String> errors) {
+    private void validateEnvironmentVariables(List<String> warnings) {
         // Check for required environment variables in production. The datasource password is checked in
         // validateDatabaseConfiguration for whichever database is active (Oracle in prd, PostgreSQL in cloud)
         if (isProductionEnvironment()) {
