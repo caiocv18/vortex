@@ -180,6 +180,48 @@ class PostgresProfileIntegrationTest extends PostgresContainerSupport {
         assertEquals(HttpStatus.NO_CONTENT, send(HttpMethod.DELETE, "/api/produtos/" + produtoId, null).getStatusCode());
     }
 
+    /**
+     * As listas paginadas no PostgreSQL: o filtro sem diferenciar maiúsculas (UPPER/LOWER com LIKE e escape), o
+     * filtro por tipo combinado com o da descrição do produto e a contagem da página rodam no dialeto real.
+     */
+    @Test
+    void pagedListsFilterOnPostgres() {
+        Map<String, Object> produtos = getJson("/api/produtos?q={q}&size={size}", "NOTEBOOK", 5);
+        assertEquals(List.of("Notebook Dell Inspiron"), field(content(produtos), "descricao"));
+        assertEquals(1, ((Number) page(produtos).get("totalElements")).intValue());
+        assertEquals(5, ((Number) page(produtos).get("size")).intValue());
+
+        Map<String, Object> saidas = getJson("/api/movimentos?q={q}&tipo={tipo}", "smartphone", "SAIDA");
+        assertEquals(List.of("Smartphone Samsung Galaxy S21"), field(content(saidas), "produtoDescricao").stream()
+                .distinct().toList());
+        assertEquals(List.of("SAIDA"), field(content(saidas), "tipoMovimentacao").stream().distinct().toList());
+
+        Map<String, Object> nenhum = getJson("/api/movimentos?q={q}", "100%_inexistente");
+        assertEquals(0, ((Number) page(nenhum).get("totalElements")).intValue());
+    }
+
+    private Map<String, Object> getJson(String url, Object... uriVariables) {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(url, HttpMethod.GET,
+                new HttpEntity<>(bearer("VIEWER")), JSON_OBJECT, uriVariables);
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "GET " + url + ": " + response.getBody());
+        assertNotNull(response.getBody());
+        return response.getBody();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> content(Map<String, Object> body) {
+        return (List<Map<String, Object>>) body.get("content");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> page(Map<String, Object> body) {
+        return (Map<String, Object>) body.get("page");
+    }
+
+    private static List<Object> field(List<Map<String, Object>> items, String name) {
+        return items.stream().map(item -> item.get(name)).toList();
+    }
+
     /** Produto com 5 unidades em estoque, do tipo 1 do seed. */
     private static Map<String, Object> produto(String descricao) {
         return Map.of("descricao", descricao, "valorFornecedor", 10.5, "quantidadeEmEstoque", 5, "tipoProdutoId", 1);

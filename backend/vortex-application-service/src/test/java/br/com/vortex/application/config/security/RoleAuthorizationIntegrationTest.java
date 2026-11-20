@@ -76,8 +76,11 @@ class RoleAuthorizationIntegrationTest {
                 ApiCall.get("/api/tipos-produto"),
                 ApiCall.get("/api/tipos-produto/1"),
                 ApiCall.get("/api/produtos"),
+                // As listas paginadas com filtro e página explícitos seguem a mesma regra de leitura
+                ApiCall.get("/api/produtos?q=a&page=0&size=5&sort=descricao,desc"),
                 ApiCall.get("/api/produtos/1"),
                 ApiCall.get("/api/movimentos"),
+                ApiCall.get("/api/movimentos?q=a&tipo=SAIDA&page=0&size=5&sort=dataMovimento,asc"),
                 ApiCall.get("/api/movimentos/1"),
                 ApiCall.get("/api/relatorios/lucro-por-produto"),
                 ApiCall.get("/api/relatorios/produtos-por-tipo?tipoProdutoId=1"));
