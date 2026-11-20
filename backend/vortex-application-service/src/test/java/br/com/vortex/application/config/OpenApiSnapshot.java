@@ -67,13 +67,21 @@ final class OpenApiSnapshot {
         List<Object> fixos = new ArrayList<>();
         for (Object item : lista) {
             Map<String, Object> servidor = new LinkedHashMap<>((Map<String, Object>) item);
-            String url = String.valueOf(servidor.get("url"))
-                    .replaceFirst("^(https?://localhost):\\d+", "$1:8080")
-                    .replaceFirst("/+$", "");
+            String url = semBarraNoFim(String.valueOf(servidor.get("url"))
+                    .replaceFirst("^(https?://localhost):\\d++", "$1:8080"));
             servidor.put("url", url.endsWith(BASE_PATH) ? url : url + BASE_PATH);
             fixos.add(servidor);
         }
         spec.put("servers", fixos);
+    }
+
+    // Laço em vez de "/+$": o regex volta atrás a cada barra e o Sonar o marca (S8786)
+    private static String semBarraNoFim(String url) {
+        int fim = url.length();
+        while (fim > 0 && url.charAt(fim - 1) == '/') {
+            fim--;
+        }
+        return url.substring(0, fim);
     }
 
     private static Map<String, Object> soAApiDeEstoque(Map<String, Object> paths) {
