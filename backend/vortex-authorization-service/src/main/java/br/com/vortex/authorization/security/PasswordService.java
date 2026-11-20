@@ -55,7 +55,7 @@ public class PasswordService {
             return false;
         }
 
-        if (requireNumbers && !Pattern.compile("[0-9]").matcher(password).find()) {
+        if (requireNumbers && !Pattern.compile("\\d").matcher(password).find()) {
             return false;
         }
 

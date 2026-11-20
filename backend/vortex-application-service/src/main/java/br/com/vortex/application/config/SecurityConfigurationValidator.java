@@ -151,7 +151,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
                lowerSecret.contains("change") ||
                lowerSecret.contains("default") ||
                lowerSecret.matches("^[a-z]+$") || // only lowercase
-               lowerSecret.matches("^[0-9]+$") || // only numbers
+               lowerSecret.matches("^\\d+$") || // only numbers
                secret.equals(secret.toLowerCase()) && secret.length() < 50; // too simple
     }
 
@@ -160,6 +160,6 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
                password.toLowerCase().contains("password") ||
                password.toLowerCase().contains("admin") ||
                password.matches("^[a-zA-Z]+$") || // only letters
-               password.matches("^[0-9]+$"); // only numbers
+               password.matches("^\\d+$"); // only numbers
     }
 }
