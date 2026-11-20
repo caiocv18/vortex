@@ -25,6 +25,7 @@ import java.util.Set;
  * a expressão que não expande vira "sem senha". O PostgreSQL normalmente recusa a conexão antes; um banco que aceite
  * conexão sem senha passa pelo Flyway e para aqui, como senha vazia (os dois casos medidos em 17/11/2026).
  */
+// @Singleton: só o observador do StartupEvent usa o bean, que não tem o construtor vazio do proxy de @ApplicationScoped
 @Singleton
 public class DatasourcePasswordValidator {
 
