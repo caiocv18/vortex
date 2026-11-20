@@ -3,7 +3,12 @@ package br.com.vortex.application.repository;
 import br.com.vortex.application.model.MovimentoEstoque;
 import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.model.enums.TipoMovimentacao;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,8 +20,22 @@ import java.util.List;
  * Repository para a entidade MovimentoEstoque.
  */
 @Repository
-public interface MovimentoEstoqueRepository extends JpaRepository<MovimentoEstoque, Long> {
-    
+public interface MovimentoEstoqueRepository extends JpaRepository<MovimentoEstoque, Long>,
+        JpaSpecificationExecutor<MovimentoEstoque> {
+
+    /**
+     * Uma página de movimentos filtrada pela {@link Specification} (ver {@link MovimentoEstoqueSpecifications}),
+     * com o produto e o tipo dele no mesmo SELECT: a lista mostra a descrição do produto, e sem o grafo cada
+     * produto distinto da página custaria um SELECT a mais (os {@code @ManyToOne} são EAGER).
+     *
+     * @param spec filtro; {@code Specification.unrestricted()} traz todos
+     * @param pageable página, tamanho e ordenação
+     * @return Página de movimentos
+     */
+    @Override
+    @EntityGraph(attributePaths = {"produto", "produto.tipoProduto"})
+    Page<MovimentoEstoque> findAll(Specification<MovimentoEstoque> spec, Pageable pageable);
+
     /**
      * Busca movimentos de estoque por produto.
      * 

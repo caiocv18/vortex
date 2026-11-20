@@ -17,11 +17,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Handler global para exceções da aplicação.
@@ -103,6 +106,26 @@ public class GlobalExceptionHandler {
         }
         return invalidParameter("Parâmetro sort inválido: a propriedade '" + invalidProperty.getPropertyName()
                 + "' não existe", webRequest);
+    }
+
+    /**
+     * Parâmetro de URL que não converte para o tipo do método ({@code tipo=TROCA} numa lista de movimentos,
+     * {@code /api/produtos/abc}) é erro de quem chamou: responde 400, não 500. Para enum, a mensagem lista os
+     * valores aceitos; o valor recebido não volta na resposta.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorDetails> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception, WebRequest webRequest) {
+
+        StringBuilder message = new StringBuilder("Valor inválido para o parâmetro '")
+                .append(exception.getName()).append('\'');
+        Class<?> requiredType = exception.getRequiredType();
+        if (requiredType != null && requiredType.isEnum()) {
+            message.append(". Valores aceitos: ").append(Arrays.stream(requiredType.getEnumConstants())
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(", ")));
+        }
+        return invalidParameter(message.toString(), webRequest);
     }
 
     private static PropertyReferenceException propertyReferenceIn(Throwable exception) {
