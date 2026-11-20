@@ -36,7 +36,7 @@ watch(search, (text) => {
 
 // O filtro Todos/Entradas/Saídas vai como tipo e volta para a primeira página
 watch(filterType, (type) => {
-  movementStore.fetchMovements({ page: 1, tipo: type === 'TODOS' ? null : type })
+  void movementStore.fetchMovements({ page: 1, tipo: type === 'TODOS' ? null : type })
 })
 
 onBeforeUnmount(() => {
@@ -54,7 +54,7 @@ let firstLoad = true
 const loadItems = (options: TableOptions) => {
   if (!firstLoad && isSameTableState(options, movementStore)) return
   firstLoad = false
-  movementStore.fetchMovements({
+  void movementStore.fetchMovements({
     page: options.page,
     itemsPerPage: options.itemsPerPage,
     sortBy: options.sortBy,

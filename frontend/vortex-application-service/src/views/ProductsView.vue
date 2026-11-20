@@ -44,7 +44,7 @@ let firstLoad = true
 const loadItems = (options: TableOptions) => {
   if (!firstLoad && isSameTableState(options, productStore)) return
   firstLoad = false
-  productStore.fetchProducts({
+  void productStore.fetchProducts({
     page: options.page,
     itemsPerPage: options.itemsPerPage,
     sortBy: options.sortBy,
