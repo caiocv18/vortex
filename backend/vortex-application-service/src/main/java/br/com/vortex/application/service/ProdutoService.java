@@ -12,13 +12,9 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * Serviço para operações relacionadas a Produto.
@@ -75,33 +71,21 @@ public class ProdutoService {
     }
 
     /**
-     * Busca todos os produtos com paginação.
+     * Busca uma página de produtos, filtrada pela descrição quando há trecho. A página não passa pelo cache
+     * {@code produtos}, que guarda só produto por ID: um cache de página teria de ser invalidado a cada escrita.
      *
-     * @param pageable Configurações de paginação
+     * @param q trecho da descrição (contém, sem diferenciar maiúsculas); nulo ou em branco não filtra
+     * @param pageable página, tamanho e ordenação
      * @return Página de DTOs dos produtos
      */
     @Transactional(readOnly = true)
-    public Page<ProdutoDTO> buscarTodos(Pageable pageable) {
-        Page<Produto> produtos = produtoRepository.findAll(pageable);
-        
-        return produtos.map(this::mapToDTO);
-    }
+    public Page<ProdutoDTO> buscar(String q, Pageable pageable) {
+        String trecho = q == null ? "" : q.strip();
+        Page<Produto> produtos = trecho.isEmpty()
+                ? produtoRepository.findAll(pageable)
+                : produtoRepository.findByDescricaoContainingIgnoreCase(trecho, pageable);
 
-    /**
-     * Busca todos os produtos (método legado sem paginação - use com cuidado).
-     * 
-     * @deprecated Use buscarTodos(Pageable) para melhor performance
-     * @return Lista de DTOs dos produtos (limitada a 1000 itens)
-     */
-    @Deprecated(since = "0.1.1", forRemoval = true)
-    @Transactional(readOnly = true)
-    public List<ProdutoDTO> buscarTodos() {
-        Pageable pageable = PageRequest.of(0, 1000, Sort.by("id"));
-        Page<Produto> produtos = produtoRepository.findAll(pageable);
-        
-        return produtos.stream()
-                .map(this::mapToDTO)
-                .toList();
+        return produtos.map(this::mapToDTO);
     }
 
     /**

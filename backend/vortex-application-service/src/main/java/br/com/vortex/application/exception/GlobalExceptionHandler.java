@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -84,6 +86,42 @@ public class GlobalExceptionHandler {
                 "VALIDATION_ERROR",
                 errors);
         
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Ordenação por propriedade que a entidade não tem ({@code sort=foo} numa lista paginada) é erro de quem
+     * chamou: responde 400, não 500. O Spring Data levanta a {@code PropertyReferenceException} ao montar a
+     * consulta, e o repositório pode entregá-la embrulhada numa {@code InvalidDataAccessApiUsageException};
+     * essa, sem a referência inválida na cadeia de causas, continua sendo um 500 do handler genérico.
+     */
+    @ExceptionHandler({PropertyReferenceException.class, InvalidDataAccessApiUsageException.class})
+    public ResponseEntity<ErrorDetails> handleInvalidSortProperty(RuntimeException exception, WebRequest webRequest) {
+        PropertyReferenceException invalidProperty = propertyReferenceIn(exception);
+        if (invalidProperty == null) {
+            return handleGlobalException(exception, webRequest);
+        }
+        return invalidParameter("Parâmetro sort inválido: a propriedade '" + invalidProperty.getPropertyName()
+                + "' não existe", webRequest);
+    }
+
+    private static PropertyReferenceException propertyReferenceIn(Throwable exception) {
+        for (Throwable current = exception; current != null; current = current.getCause()) {
+            if (current instanceof PropertyReferenceException propertyReference) {
+                return propertyReference;
+            }
+        }
+        return null;
+    }
+
+    /** 400 de parâmetro de consulta inválido, com o código que o front trata igual para todos eles. */
+    private static ResponseEntity<ErrorDetails> invalidParameter(String message, WebRequest webRequest) {
+        ErrorDetails errorDetails = new ErrorDetails(
+                LocalDateTime.now(BusinessTime.ZONE),
+                message,
+                webRequest.getDescription(false),
+                "INVALID_PARAMETER");
+
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 
