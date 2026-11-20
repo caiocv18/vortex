@@ -131,14 +131,8 @@ class EventPublisherTest {
     }
 
     private EventPublisher publisher(boolean enabled) {
-        EventPublisher publisher = new EventPublisher();
-        publisher.objectMapper = new ObjectMapper().findAndRegisterModules();
-        publisher.messagingProperties = new MessagingConfig.MessagingProperties(enabled, "auth");
-        publisher.transactionRegistry = registry;
-        UserEventsChannel channel = new UserEventsChannel();
-        channel.emitter = emitter;
-        publisher.userEventsChannel = channel;
-        return publisher;
+        return new EventPublisher(new ObjectMapper().findAndRegisterModules(),
+            new MessagingConfig.MessagingProperties(enabled, "auth"), new UserEventsChannel(emitter), registry);
     }
 
     private static UserLoggedOutEvent event() {

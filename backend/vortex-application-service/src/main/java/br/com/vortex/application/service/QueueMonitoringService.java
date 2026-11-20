@@ -4,7 +4,7 @@ import br.com.vortex.application.dto.QueueInfoDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +27,7 @@ import java.util.Map;
 @Service
 public class QueueMonitoringService {
 
-    @Autowired(required = false)
-    private RabbitTemplate rabbitTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${message.broker.type:none}")
     private String brokerType;
@@ -41,6 +40,13 @@ public class QueueMonitoringService {
 
     @Value("${rabbitmq.exchange.name:vortex.exchange}")
     private String exchangeName;
+
+    /**
+     * O RabbitTemplate é opcional: sem o RabbitMQ o campo fica nulo.
+     */
+    public QueueMonitoringService(ObjectProvider<RabbitTemplate> rabbitTemplate) {
+        this.rabbitTemplate = rabbitTemplate.getIfAvailable();
+    }
 
     /**
      * Lista todas as filas configuradas no sistema.

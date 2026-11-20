@@ -3,8 +3,8 @@ package br.com.vortex.application.controller;
 import br.com.vortex.application.config.security.AdminOnly;
 import br.com.vortex.application.dto.QueueInfoDTO;
 import br.com.vortex.application.service.QueueMonitoringService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,10 +24,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/queues")
 @AdminOnly
+@RequiredArgsConstructor
 public class QueueController {
 
-    @Autowired
-    private QueueMonitoringService queueMonitoringService;
+    private final QueueMonitoringService queueMonitoringService;
 
     /**
      * Lista todas as filas configuradas no sistema.

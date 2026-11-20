@@ -2,11 +2,11 @@ package br.com.vortex.application.service;
 
 import br.com.vortex.application.dto.*;
 import com.rabbitmq.client.Channel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -26,16 +26,14 @@ import java.io.IOException;
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "rabbitmq.enabled", havingValue = "true")
+@RequiredArgsConstructor
 public class RabbitMQConsumerService {
 
-    @Autowired
-    private NotificacaoService notificacaoService;
+    private final NotificacaoService notificacaoService;
 
-    @Autowired
-    private AnalyticsService analyticsService;
+    private final AnalyticsService analyticsService;
 
-    @Autowired
-    private IntegracaoExternaService integracaoExternaService;
+    private final IntegracaoExternaService integracaoExternaService;
 
     // ================================
     // CONSUMER DE MOVIMENTOS DE ESTOQUE

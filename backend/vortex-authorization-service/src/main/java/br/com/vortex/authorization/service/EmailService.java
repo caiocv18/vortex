@@ -11,14 +11,18 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class EmailService {
 
-    @Inject
-    ReactiveMailer mailer;
+    private final ReactiveMailer mailer;
 
     @ConfigProperty(name = "quarkus.mailer.from")
     String fromEmail;
 
     @ConfigProperty(name = "auth.frontend.url", defaultValue = "http://localhost:3001")
     String authFrontendUrl;
+
+    @Inject
+    public EmailService(ReactiveMailer mailer) {
+        this.mailer = mailer;
+    }
 
     public Uni<Void> sendPasswordResetEmail(String toEmail, String resetToken) {
         try {

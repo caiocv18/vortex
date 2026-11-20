@@ -31,26 +31,32 @@ public class AuthService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
 
-    @Inject
-    JwtService jwtService;
+    private final JwtService jwtService;
+
+    private final JWTParser jwtParser;
+
+    private final PasswordService passwordService;
+
+    private final RateLimitService rateLimitService;
+
+    private final EventPublisher eventPublisher;
+
+    private final EmailService emailService;
+
+    private final EntityManager entityManager;
 
     @Inject
-    JWTParser jwtParser;
-
-    @Inject
-    PasswordService passwordService;
-
-    @Inject
-    RateLimitService rateLimitService;
-
-    @Inject
-    EventPublisher eventPublisher;
-
-    @Inject
-    EmailService emailService;
-
-    @Inject
-    EntityManager entityManager;
+    public AuthService(JwtService jwtService, JWTParser jwtParser, PasswordService passwordService,
+                       RateLimitService rateLimitService, EventPublisher eventPublisher, EmailService emailService,
+                       EntityManager entityManager) {
+        this.jwtService = jwtService;
+        this.jwtParser = jwtParser;
+        this.passwordService = passwordService;
+        this.rateLimitService = rateLimitService;
+        this.eventPublisher = eventPublisher;
+        this.emailService = emailService;
+        this.entityManager = entityManager;
+    }
 
     /**
      * Login com senha. A falha (401) e o bloqueio por rate limit (400, que o resource devolve como 401)

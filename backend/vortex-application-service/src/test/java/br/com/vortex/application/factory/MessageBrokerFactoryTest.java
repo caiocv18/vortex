@@ -5,6 +5,7 @@ import br.com.vortex.application.service.MessageBrokerService;
 import br.com.vortex.application.service.RabbitMQProducerService;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,14 +51,17 @@ class MessageBrokerFactoryTest {
 
     private static MessageBrokerFactory factory(String type, boolean kafkaEnabled, boolean rabbitmqEnabled,
                                                 boolean withBeans) {
-        MessageBrokerFactory factory = new MessageBrokerFactory();
+        StaticListableBeanFactory beans = new StaticListableBeanFactory();
+        if (withBeans) {
+            beans.addBean("kafkaProducerService", mock(KafkaProducerService.class));
+            beans.addBean("rabbitMQProducerService", mock(RabbitMQProducerService.class));
+        }
+        MessageBrokerFactory factory = new MessageBrokerFactory(
+                beans.getBeanProvider(KafkaProducerService.class),
+                beans.getBeanProvider(RabbitMQProducerService.class));
         ReflectionTestUtils.setField(factory, "brokerType", type);
         ReflectionTestUtils.setField(factory, "kafkaEnabled", kafkaEnabled);
         ReflectionTestUtils.setField(factory, "rabbitmqEnabled", rabbitmqEnabled);
-        if (withBeans) {
-            ReflectionTestUtils.setField(factory, "kafkaProducerService", mock(KafkaProducerService.class));
-            ReflectionTestUtils.setField(factory, "rabbitMQProducerService", mock(RabbitMQProducerService.class));
-        }
         return factory;
     }
 }

@@ -37,17 +37,21 @@ public class AuthResource {
     // Nos endpoints abaixo, corpo vazio chega como null e o @Valid sozinho não rejeita null:
     // sem o @NotNull a requisição caía em NullPointerException (500) em vez de responder 400.
 
-    @Inject
-    AuthService authService;
+    private final AuthService authService;
 
     @Context
     UriInfo uriInfo;
-    
+
     @Context
     HttpHeaders httpHeaders;
 
     @Context
     HttpServerRequest httpServerRequest;
+
+    @Inject
+    public AuthResource(AuthService authService) {
+        this.authService = authService;
+    }
 
     @POST
     @Path("/login")
