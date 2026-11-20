@@ -2,7 +2,6 @@ package br.com.vortex.application.config.security;
 
 import br.com.vortex.application.config.DeploymentProfiles;
 import jakarta.servlet.DispatcherType;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -22,20 +21,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @Autowired
-    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-
-    @Autowired
-    private UrlBasedCorsConfigurationSource corsConfigurationSource;
-
-    @Autowired
-    private Environment environment;
-
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                                           JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                                           UrlBasedCorsConfigurationSource corsConfigurationSource,
+                                           Environment environment) throws Exception {
         boolean cloud = DeploymentProfiles.isCloud(environment);
         Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry> rules =
                 cloud ? SecurityConfig::cloudRules : SecurityConfig::localRules;
