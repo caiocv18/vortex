@@ -18,10 +18,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 import static io.restassured.RestAssured.given;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -100,11 +102,10 @@ class KafkaProfileUserEventsTest {
     }
 
     // O publishEvent não espera o ack; o conector em memória entrega logo, mas sem garantia de thread
-    private void awaitMessages(int expected) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (sink.received().size() < expected && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20);
-        }
+    private void awaitMessages(int expected) {
+        await().atMost(Duration.ofSeconds(5))
+            .pollInterval(Duration.ofMillis(20))
+            .until(() -> sink.received().size() >= expected);
         assertEquals(expected, sink.received().size());
     }
 }

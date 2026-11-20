@@ -33,7 +33,7 @@ class PasswordRecoveryResourceTest {
     EventPublisher eventPublisher;
 
     private User testUser;
-    private final String BASE_URL = "/api/auth";
+    private static final String BASE_URL = "/api/auth";
     
     // Helper method to generate unique tokens
     private String generateUniqueToken(String prefix) {

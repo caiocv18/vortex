@@ -22,11 +22,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -66,7 +68,7 @@ class EventPublisherMessagingTest {
 
     @Test
     @DisplayName("publishEvent delivers the event JSON to the user-events channel")
-    void publishedEventReachesTheChannel() throws InterruptedException {
+    void publishedEventReachesTheChannel() {
         eventPublisher.publishEvent(event());
 
         awaitMessages(1);
@@ -84,7 +86,7 @@ class EventPublisherMessagingTest {
 
     @Test
     @DisplayName("Inside a transaction the event leaves only after the commit")
-    void eventLeavesOnlyAfterTheCommit() throws InterruptedException {
+    void eventLeavesOnlyAfterTheCommit() {
         QuarkusTransaction.requiringNew().run(() -> {
             eventPublisher.publishEvent(event());
             assertEquals(0, sink.received().size(), "nada pode sair antes do commit");
@@ -95,20 +97,27 @@ class EventPublisherMessagingTest {
 
     @Test
     @DisplayName("A transaction that rolls back never emits its event")
-    void rolledBackTransactionEmitsNothing() throws InterruptedException {
+    void rolledBackTransactionEmitsNothing() {
         // Marcada para rollback depois de publicar (o evento já estava agendado para o commit). O
         // QuarkusTransaction tenta o commit no fim e recebe RollbackException: é o rollback acontecendo.
-        assertThrows(QuarkusTransactionException.class, () -> QuarkusTransaction.requiringNew().run(() -> {
+        Runnable publishThenMarkRollback = () -> {
             eventPublisher.publishEvent(event());
             QuarkusTransaction.setRollbackOnly();
-        }));
+        };
+        var publishFirst = QuarkusTransaction.requiringNew();
+        assertThrows(QuarkusTransactionException.class, () -> publishFirst.run(publishThenMarkRollback));
         // Já marcada para rollback quando publica
-        assertThrows(QuarkusTransactionException.class, () -> QuarkusTransaction.requiringNew().run(() -> {
+        Runnable markRollbackThenPublish = () -> {
             QuarkusTransaction.setRollbackOnly();
             eventPublisher.publishEvent(event());
-        }));
+        };
+        var rollbackFirst = QuarkusTransaction.requiringNew();
+        assertThrows(QuarkusTransactionException.class, () -> rollbackFirst.run(markRollbackThenPublish));
 
-        Thread.sleep(300);
+        // Espera negativa: o canal tem de ficar vazio durante toda a janela, não só no fim dela
+        await().during(Duration.ofMillis(300))
+            .atMost(Duration.ofSeconds(1))
+            .until(() -> sink.received().isEmpty());
         assertEquals(0, sink.received().size());
     }
 
@@ -167,11 +176,10 @@ class EventPublisherMessagingTest {
     }
 
     // O publishEvent não espera o ack; o conector em memória entrega logo, mas sem garantia de thread
-    private void awaitMessages(int expected) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (sink.received().size() < expected && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20);
-        }
+    private void awaitMessages(int expected) {
+        await().atMost(Duration.ofSeconds(5))
+            .pollInterval(Duration.ofMillis(20))
+            .until(() -> sink.received().size() >= expected);
         assertEquals(expected, sink.received().size());
     }
 

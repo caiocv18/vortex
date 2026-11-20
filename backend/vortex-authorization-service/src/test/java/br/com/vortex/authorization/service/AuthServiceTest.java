@@ -283,16 +283,15 @@ class AuthServiceTest {
     @TestTransaction
     void testLoginInvalidPassword() {
         // Arrange
-        String password = "Test@Password123";
         String wrongPassword = "Wrong@Password123";
         String hashedPassword = "$2a$12$hashedPassword";
-        
+
         User user = TestDataBuilder.createTestUser();
         user.persist();
-        
+
         Credential credential = TestDataBuilder.createCredential(user, hashedPassword);
         credential.persist();
-        
+
         LoginRequest request = TestDataBuilder.createLoginRequest(user.email, wrongPassword);
         
         when(rateLimitService.isAllowed(request.identifier, TEST_IP)).thenReturn(true);

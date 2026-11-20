@@ -32,9 +32,6 @@ class AuthResourceIntegrationTest {
     @Inject
     EntityManager entityManager;
     
-    private String testEmail;
-    private String testUsername;
-    private String testPassword = "Test@Password123";
     private String accessToken;
     private String refreshToken;
     
@@ -71,9 +68,7 @@ class AuthResourceIntegrationTest {
     @DisplayName("POST /register - Should successfully register a new user")
     void testRegisterSuccess() {
         RegisterRequest request = TestDataBuilder.createValidRegisterRequest();
-        testEmail = request.email;
-        testUsername = request.username;
-        
+
         Response response = given()
             .contentType(ContentType.JSON)
             .header("User-Agent", "Integration Test")
@@ -408,10 +403,10 @@ class AuthResourceIntegrationTest {
             .extract()
             .response();
         
-        String refreshToken = registerResponse.jsonPath().getString("data.refreshToken");
-        
+        String issuedRefreshToken = registerResponse.jsonPath().getString("data.refreshToken");
+
         // Refresh token
-        RefreshTokenRequest refreshRequest = TestDataBuilder.createRefreshTokenRequest(refreshToken);
+        RefreshTokenRequest refreshRequest = TestDataBuilder.createRefreshTokenRequest(issuedRefreshToken);
         
         given()
             .contentType(ContentType.JSON)
@@ -425,7 +420,7 @@ class AuthResourceIntegrationTest {
             .body("success", is(true))
             .body("message", is("Token refreshed successfully"))
             .body("data.accessToken", notNullValue())
-            .body("data.refreshToken", is(refreshToken))
+            .body("data.refreshToken", is(issuedRefreshToken))
             .body("data.user.email", is(registerRequest.email));
     }
     
@@ -467,10 +462,10 @@ class AuthResourceIntegrationTest {
             .extract()
             .response();
         
-        String refreshToken = registerResponse.jsonPath().getString("data.refreshToken");
-        
+        String sessionRefreshToken = registerResponse.jsonPath().getString("data.refreshToken");
+
         // Logout
-        RefreshTokenRequest logoutRequest = TestDataBuilder.createRefreshTokenRequest(refreshToken);
+        RefreshTokenRequest logoutRequest = TestDataBuilder.createRefreshTokenRequest(sessionRefreshToken);
         
         given()
             .contentType(ContentType.JSON)
@@ -566,10 +561,10 @@ class AuthResourceIntegrationTest {
             .extract()
             .response();
         
-        String accessToken = registerResponse.jsonPath().getString("data.accessToken");
-        
+        String issuedAccessToken = registerResponse.jsonPath().getString("data.accessToken");
+
         // Validate the token
-        ValidateTokenRequest validateRequest = TestDataBuilder.createValidateTokenRequest(accessToken);
+        ValidateTokenRequest validateRequest = TestDataBuilder.createValidateTokenRequest(issuedAccessToken);
         
         given()
             .contentType(ContentType.JSON)
@@ -639,7 +634,7 @@ class AuthResourceIntegrationTest {
     @DisplayName("POST /validate-token - Should answer 200 with valid=false for a token with a forged payload")
     void testValidateTokenForgedPayload() {
         RegisterRequest registerRequest = TestDataBuilder.createValidRegisterRequest();
-        String accessToken = given()
+        String genuineAccessToken = given()
             .contentType(ContentType.JSON)
             .body(registerRequest)
             .when()
@@ -651,7 +646,7 @@ class AuthResourceIntegrationTest {
 
         // Troca o e-mail no payload e mantém a assinatura original: o contrato segue o mesmo
         // (HTTP 200, campo valid), mas a assinatura agora é conferida e o token é recusado
-        String[] parts = accessToken.split("\\.");
+        String[] parts = genuineAccessToken.split("\\.");
         String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8)
             .replace(registerRequest.email, "attacker@evil.example");
         String forged = parts[0] + "."

@@ -14,11 +14,11 @@ import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * O H2 em memória do perfil dev (e do dev,leve, o RUN_MODE padrão do launcher) tem de sobreviver à
@@ -37,6 +37,7 @@ class DevH2DatabaseLifetimeTest {
     private static final String H2_MEM_PREFIX = "jdbc:h2:mem:";
     private static final long SHORTEST_MAX_LIFETIME_MS = 30_000;
     private static final Duration RETIREMENT_TIMEOUT = Duration.ofSeconds(60);
+    private static final Duration POLL_INTERVAL = Duration.ofMillis(100);
 
     @Test
     void devInMemoryDatabaseKeepsItsDataWhenThePooledConnectionIsRetired() throws Exception {
@@ -106,21 +107,18 @@ class DevH2DatabaseLifetimeTest {
      * max-lifetime e depois abrir a substituta. O fechamento termina antes de a substituta abrir, então quando
      * ela aparece o H2 já decidiu se o banco vive ou morre.
      */
-    private static void awaitRetiredAndReplaced(HikariDataSource pool, Connection physical) throws Exception {
-        long deadline = System.nanoTime() + RETIREMENT_TIMEOUT.toNanos();
-        while (!physical.isClosed()) {
-            sleepUntil(deadline, "a conexão não foi aposentada pelo max-lifetime");
-        }
-        while (pool.getHikariPoolMXBean().getTotalConnections() < 1) {
-            sleepUntil(deadline, "o pool não abriu a conexão substituta");
-        }
-    }
-
-    private static void sleepUntil(long deadline, String timeoutMessage) throws InterruptedException {
-        if (System.nanoTime() > deadline) {
-            fail(timeoutMessage);
-        }
-        Thread.sleep(100);
+    private static void awaitRetiredAndReplaced(HikariDataSource pool, Connection physical) {
+        long start = System.nanoTime();
+        await("a conexão não foi aposentada pelo max-lifetime")
+                .atMost(RETIREMENT_TIMEOUT)
+                .pollInterval(POLL_INTERVAL)
+                .until(physical::isClosed);
+        // As duas esperas dividem o mesmo prazo: a substituta só tem o que sobrou dele
+        Duration remaining = RETIREMENT_TIMEOUT.minusNanos(System.nanoTime() - start);
+        await("o pool não abriu a conexão substituta")
+                .atMost(remaining.compareTo(POLL_INTERVAL) > 0 ? remaining : POLL_INTERVAL)
+                .pollInterval(POLL_INTERVAL)
+                .until(() -> pool.getHikariPoolMXBean().getTotalConnections() >= 1);
     }
 
     private static int countRows(Connection connection) throws SQLException {

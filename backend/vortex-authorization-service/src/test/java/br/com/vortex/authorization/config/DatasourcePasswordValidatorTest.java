@@ -30,13 +30,16 @@ class DatasourcePasswordValidatorTest {
     @ValueSource(strings = {"secure_postgres_password", "vortex_auth_password", "Vortex-2026", "OnlyLettersHere",
             "123456789012345", "Root-Admin-2026"})
     void prodRefusesAWeakPassword(String weak) {
-        assertThrows(IllegalStateException.class, () -> validator(List.of("prod"), weak).validate());
+        DatasourcePasswordValidator validator = validator(List.of("prod"), weak);
+
+        assertThrows(IllegalStateException.class, validator::validate);
     }
 
     @Test
     void prodRefusesAnEmptyPassword() {
-        assertThrows(IllegalStateException.class,
-                () -> new DatasourcePasswordValidator(List.of("prod"), Optional.empty()).validate());
+        DatasourcePasswordValidator validator = new DatasourcePasswordValidator(List.of("prod"), Optional.empty());
+
+        assertThrows(IllegalStateException.class, validator::validate);
     }
 
     @Test
@@ -48,7 +51,9 @@ class DatasourcePasswordValidatorTest {
     @ParameterizedTest
     @ValueSource(strings = {"kafka", "rabbitmq"})
     void aMessagingProfileAloneIsCheckedLikeProd(String profile) {
-        assertThrows(IllegalStateException.class, () -> validator(List.of(profile), "vortex_auth_password").validate());
+        DatasourcePasswordValidator validator = validator(List.of(profile), "vortex_auth_password");
+
+        assertThrows(IllegalStateException.class, validator::validate);
     }
 
     /** Os perfis locais, com ou sem mensageria, usam a senha local de propósito. */

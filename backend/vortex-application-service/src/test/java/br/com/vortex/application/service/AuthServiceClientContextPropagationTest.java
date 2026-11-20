@@ -79,7 +79,7 @@ class AuthServiceClientContextPropagationTest {
                 "http://127.0.0.1:" + server.getAddress().getPort());
         Observation request = Observation.start("http.server.requests", registry);
 
-        try (Observation.Scope ignored = request.openScope()) {
+        try (Observation.Scope _ = request.openScope()) {
             client.validateToken("abc.def.ghi").join();
         } finally {
             request.stop();
@@ -97,7 +97,7 @@ class AuthServiceClientContextPropagationTest {
         AtomicReference<Observation> seen = new AtomicReference<>();
         AtomicReference<Thread> worker = new AtomicReference<>();
 
-        try (Observation.Scope ignored = request.openScope()) {
+        try (Observation.Scope _ = request.openScope()) {
             executor.submit(() -> {
                 seen.set(registry.getCurrentObservation());
                 worker.set(Thread.currentThread());
