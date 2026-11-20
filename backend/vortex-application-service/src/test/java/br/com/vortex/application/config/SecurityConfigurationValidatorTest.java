@@ -86,6 +86,33 @@ class SecurityConfigurationValidatorTest {
         assertDoesNotThrow(() -> validateProductionWith("spring.jpa.show-sql", "true"));
     }
 
+    @Test
+    void productionRefusesJwtWithoutStrictValidation() {
+        JwtProperties jwt = new JwtProperties();
+        jwt.setSecret(strongSecret());
+        jwt.setStrictValidation(false);
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.url", POSTGRES_URL)
+                .withProperty("spring.datasource.password", StrongTestPasswords.generate())
+                .withProperty("spring.datasource.hikari.maximum-pool-size", "5");
+        environment.setActiveProfiles("cloud");
+        SecurityConfigurationValidator validator = new SecurityConfigurationValidator(jwt, environment);
+
+        assertThrows(IllegalStateException.class, () -> validator.run(null));
+    }
+
+    @Test
+    void devAcceptsJwtWithoutStrictValidation() {
+        JwtProperties jwt = new JwtProperties();
+        jwt.setSecret(strongSecret());
+        jwt.setStrictValidation(false);
+        MockEnvironment environment = new MockEnvironment().withProperty("spring.datasource.url", H2_URL);
+        environment.setActiveProfiles("dev");
+        SecurityConfigurationValidator validator = new SecurityConfigurationValidator(jwt, environment);
+
+        assertDoesNotThrow(() -> validator.run(null));
+    }
+
     /** Produção (cloud) que passaria no validador, mais uma propriedade em teste. */
     private static void validateProductionWith(String key, String value) {
         JwtProperties jwt = new JwtProperties();
