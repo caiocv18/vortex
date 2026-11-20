@@ -36,7 +36,9 @@ class SecurityConfigurationValidatorTest {
 
     @Test
     void cloudRefusesAnInMemoryH2() {
-        assertThrows(IllegalStateException.class, () -> validate("cloud", strongSecret(), H2_URL));
+        String secret = strongSecret();
+
+        assertThrows(IllegalStateException.class, () -> validate("cloud", secret, H2_URL));
     }
 
     /** Controle dos casos de recusa: o mesmo perfil, só com a senha forte, sobe. */
@@ -62,8 +64,10 @@ class SecurityConfigurationValidatorTest {
     @CsvSource({"cloud, vortex", "cloud, vortex_password", "prd, vortex", "prd, vortex_password",
             "prd, secure_oracle_password"})
     void productionRefusesTheDatabasePasswordsTheProfilesShippedWith(String profile, String shippedPassword) {
+        String secret = strongSecret();
+
         assertThrows(IllegalStateException.class,
-                () -> validate(profile, strongSecret(), POSTGRES_URL, shippedPassword));
+                () -> validate(profile, secret, POSTGRES_URL, shippedPassword));
     }
 
     @Test

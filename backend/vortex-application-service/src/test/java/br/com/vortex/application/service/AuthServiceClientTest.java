@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -88,8 +89,9 @@ class AuthServiceClientTest {
 
     @Test
     void validateTokenFailsWhenTheAuthServiceRejectsTheToken() {
-        CompletionException failure = assertThrows(CompletionException.class,
-                () -> client.validateToken("rejected").join());
+        CompletableFuture<Map<String, Object>> validation = client.validateToken("rejected");
+
+        CompletionException failure = assertThrows(CompletionException.class, validation::join);
 
         assertInstanceOf(RuntimeException.class, failure.getCause());
         assertEquals("Auth service validation failed", failure.getCause().getMessage());

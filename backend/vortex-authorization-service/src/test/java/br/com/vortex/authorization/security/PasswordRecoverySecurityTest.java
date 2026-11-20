@@ -186,30 +186,25 @@ class PasswordRecoverySecurityTest {
         // disparado pela segunda chamada estourava ConstraintViolationException no lugar do 400
         when(passwordService.hashPassword(newPassword)).thenReturn("$2a$12$timingHash");
         
+        // Os dois requests são montados fora da medição, para que só o resetPassword seja cronometrado
+        ResetPasswordRequest validRequest = TestDataBuilder.createResetPasswordRequest(validToken, newPassword);
+        ResetPasswordRequest invalidRequest = TestDataBuilder.createResetPasswordRequest(invalidToken, newPassword);
+
         // Act - Measure response times
         long validTokenStartTime = System.nanoTime();
-        
+
         try {
-            authService.resetPassword(
-                TestDataBuilder.createResetPasswordRequest(validToken, newPassword), 
-                TEST_IP, 
-                TEST_USER_AGENT
-            );
+            authService.resetPassword(validRequest, TEST_IP, TEST_USER_AGENT);
         } catch (Exception _) {
             // Expected for invalid password policy in this test
         }
-        
+
         long validTokenEndTime = System.nanoTime();
-        
+
         long invalidTokenStartTime = System.nanoTime();
-        
-        assertThrows(BadRequestException.class, () -> {
-            authService.resetPassword(
-                TestDataBuilder.createResetPasswordRequest(invalidToken, newPassword), 
-                TEST_IP, 
-                TEST_USER_AGENT
-            );
-        });
+
+        assertThrows(BadRequestException.class,
+            () -> authService.resetPassword(invalidRequest, TEST_IP, TEST_USER_AGENT));
         
         long invalidTokenEndTime = System.nanoTime();
         
@@ -370,25 +365,19 @@ class PasswordRecoverySecurityTest {
         // Test 2: Failed attempts should be audited
         String invalidToken = "invalidAuditToken456";
         
+        ResetPasswordRequest invalidRequest = TestDataBuilder.createResetPasswordRequest(invalidToken, "AuditPassword@123");
+
         // Act - Failed reset attempt
-        assertThrows(BadRequestException.class, () -> {
-            authService.resetPassword(
-                TestDataBuilder.createResetPasswordRequest(invalidToken, "AuditPassword@123"), 
-                MALICIOUS_IP, 
-                TEST_USER_AGENT
-            );
-        });
-        
+        assertThrows(BadRequestException.class,
+            () -> authService.resetPassword(invalidRequest, MALICIOUS_IP, TEST_USER_AGENT));
+
         // Test 3: Rate limited requests should be audited
         when(rateLimitService.isAllowed(anyString(), anyString())).thenReturn(false);
-        
-        assertThrows(BadRequestException.class, () -> {
-            authService.forgotPassword(
-                TestDataBuilder.createForgotPasswordRequest(testUser.email), 
-                MALICIOUS_IP, 
-                TEST_USER_AGENT
-            );
-        });
+
+        ForgotPasswordRequest forgotRequest = TestDataBuilder.createForgotPasswordRequest(testUser.email);
+
+        assertThrows(BadRequestException.class,
+            () -> authService.forgotPassword(forgotRequest, MALICIOUS_IP, TEST_USER_AGENT));
         
         // Assert - Verify audit events were recorded
         // Note: In a real implementation, you would verify audit log entries

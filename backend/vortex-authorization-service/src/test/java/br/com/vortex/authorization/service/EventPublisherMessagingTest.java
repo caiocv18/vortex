@@ -98,15 +98,19 @@ class EventPublisherMessagingTest {
     void rolledBackTransactionEmitsNothing() throws InterruptedException {
         // Marcada para rollback depois de publicar (o evento já estava agendado para o commit). O
         // QuarkusTransaction tenta o commit no fim e recebe RollbackException: é o rollback acontecendo.
-        assertThrows(QuarkusTransactionException.class, () -> QuarkusTransaction.requiringNew().run(() -> {
+        Runnable publishThenMarkRollback = () -> {
             eventPublisher.publishEvent(event());
             QuarkusTransaction.setRollbackOnly();
-        }));
+        };
+        var publishFirst = QuarkusTransaction.requiringNew();
+        assertThrows(QuarkusTransactionException.class, () -> publishFirst.run(publishThenMarkRollback));
         // Já marcada para rollback quando publica
-        assertThrows(QuarkusTransactionException.class, () -> QuarkusTransaction.requiringNew().run(() -> {
+        Runnable markRollbackThenPublish = () -> {
             QuarkusTransaction.setRollbackOnly();
             eventPublisher.publishEvent(event());
-        }));
+        };
+        var rollbackFirst = QuarkusTransaction.requiringNew();
+        assertThrows(QuarkusTransactionException.class, () -> rollbackFirst.run(markRollbackThenPublish));
 
         Thread.sleep(300);
         assertEquals(0, sink.received().size());
