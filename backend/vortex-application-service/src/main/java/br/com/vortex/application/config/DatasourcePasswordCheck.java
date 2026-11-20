@@ -26,6 +26,11 @@ public class DatasourcePasswordCheck {
 
     static final String PASSWORD_KEY = "spring.datasource.password";
 
+    // Só os membros estáticos são usados. O Spring ainda registra a classe de configuração como bean, e sem proxy
+    // (proxyBeanMethods = false) ele a instancia pelo construtor privado por reflexão.
+    private DatasourcePasswordCheck() {
+    }
+
     @Bean
     static BeanFactoryPostProcessor failFastOnUnresolvedDatasourcePassword(Environment environment) {
         return beanFactory -> check(environment);

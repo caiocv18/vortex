@@ -1,5 +1,6 @@
 package br.com.vortex.application.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -20,10 +21,13 @@ import org.springframework.context.annotation.Configuration;
  * - Integração com sistemas externos
  * - Padrão pub/sub para notificações
  */
+@Slf4j
 @Configuration
 @EnableRabbit
 @ConditionalOnProperty(name = "rabbitmq.enabled", havingValue = "true")
 public class RabbitMQConfig {
+
+    private static final String MESSAGE_TTL = "x-message-ttl";
 
     @Value("${rabbitmq.exchange.name:vortex.exchange}")
     private String exchangeName;
@@ -44,35 +48,35 @@ public class RabbitMQConfig {
     @Bean
     public Queue movimentoEstoqueQueue() {
         return QueueBuilder.durable("vortex.movimento.estoque.queue")
-                .withArgument("x-message-ttl", 604800000) // 7 dias
+                .withArgument(MESSAGE_TTL, 604800000) // 7 dias
                 .build();
     }
 
     @Bean
     public Queue produtoEventsQueue() {
         return QueueBuilder.durable("vortex.produto.events.queue")
-                .withArgument("x-message-ttl", 2592000000L) // 30 dias
+                .withArgument(MESSAGE_TTL, 2592000000L) // 30 dias
                 .build();
     }
 
     @Bean
     public Queue alertasEstoqueQueue() {
         return QueueBuilder.durable("vortex.alertas.estoque.queue")
-                .withArgument("x-message-ttl", 259200000) // 3 dias
+                .withArgument(MESSAGE_TTL, 259200000) // 3 dias
                 .build();
     }
 
     @Bean
     public Queue relatoriosEventsQueue() {
         return QueueBuilder.durable("vortex.relatorios.events.queue")
-                .withArgument("x-message-ttl", 86400000) // 1 dia
+                .withArgument(MESSAGE_TTL, 86400000) // 1 dia
                 .build();
     }
 
     @Bean
     public Queue auditoriaQueue() {
         return QueueBuilder.durable("vortex.auditoria.queue")
-                .withArgument("x-message-ttl", 15552000000L) // 180 dias
+                .withArgument(MESSAGE_TTL, 15552000000L) // 180 dias
                 .build();
     }
 
@@ -136,13 +140,11 @@ public class RabbitMQConfig {
         template.setMandatory(true);
         template.setConfirmCallback((correlationData, ack, cause) -> {
             if (!ack) {
-                System.err.println("Falha ao enviar mensagem: " + cause);
+                log.error("Falha ao enviar mensagem: {}", cause);
             }
         });
-        
-        template.setReturnsCallback(returned -> {
-            System.err.println("Mensagem retornada: " + returned.getMessage());
-        });
+
+        template.setReturnsCallback(returned -> log.warn("Mensagem retornada: {}", returned.getMessage()));
         
         return template;
     }

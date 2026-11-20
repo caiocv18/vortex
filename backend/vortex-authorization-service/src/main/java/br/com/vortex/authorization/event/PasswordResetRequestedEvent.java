@@ -25,8 +25,8 @@ public class PasswordResetRequestedEvent extends AuthEvent {
     }
 
     public PasswordResetRequestedEvent(UUID userId, String userEmail, String username, UUID resetTokenId,
-                                      OffsetDateTime expiresAt, String requestMethod, String ipAddress, String userAgent) {
-        super("password.reset_requested", userId, userEmail, ipAddress, userAgent);
+                                      OffsetDateTime expiresAt, String requestMethod, RequestOrigin origin) {
+        super("password.reset_requested", userId, userEmail, origin.ipAddress(), origin.userAgent());
         this.username = username;
         this.resetTokenId = resetTokenId;
         this.expiresAt = expiresAt;

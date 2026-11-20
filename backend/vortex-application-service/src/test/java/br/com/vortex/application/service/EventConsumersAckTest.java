@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -32,7 +33,7 @@ class EventConsumersAckTest {
         consumer.processarAlertaEstoque(new AlertaEstoqueEventDTO(), "k", ack);
         consumer.processarAuditoria(new AuditoriaEventDTO(), "k", ack);
 
-        verify(ack, org.mockito.Mockito.times(4)).acknowledge();
+        verify(ack, times(4)).acknowledge();
     }
 
     @Test

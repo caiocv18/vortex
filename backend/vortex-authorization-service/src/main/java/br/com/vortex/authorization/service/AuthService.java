@@ -15,7 +15,6 @@ import jakarta.json.JsonString;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
-import jakarta.ws.rs.NotFoundException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,6 +29,7 @@ import org.slf4j.LoggerFactory;
 public class AuthService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
+    private static final String IP_ADDRESS = "ipAddress";
 
     private final JwtService jwtService;
 
@@ -114,7 +114,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "LOGIN_SUCCESS", 
-            Map.of("method", "password", "ipAddress", ipAddress), 
+            Map.of("method", "password", IP_ADDRESS, ipAddress), 
             ipAddress, userAgent);
 
         // Publish login event (o EventPublisher só envia depois do commit). O sessionId é o id da linha
@@ -126,11 +126,8 @@ public class AuthService {
                 user.email,
                 user.username,
                 roleNames(user),
-                "password",
-                user.lastLogin,
-                sessionId(refreshToken),
-                ipAddress,
-                userAgent
+                new LoginSession("password", user.lastLogin, sessionId(refreshToken)),
+                new RequestOrigin(ipAddress, userAgent)
             );
             eventPublisher.publishEvent(loginEvent);
         } catch (Exception e) {
@@ -192,7 +189,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "USER_CREATED",
-            Map.of("method", "registration", "ipAddress", ipAddress),
+            Map.of("method", "registration", IP_ADDRESS, ipAddress),
             ipAddress, userAgent);
 
         // For now, auto-verify user (in production, send verification email)
@@ -228,8 +225,7 @@ public class AuthService {
                 roleNames(user),
                 user.isVerified,
                 "registration",
-                ipAddress,
-                userAgent
+                new RequestOrigin(ipAddress, userAgent)
             );
             eventPublisher.publishEvent(userCreatedEvent);
         } catch (Exception e) {
@@ -273,7 +269,7 @@ public class AuthService {
             
             // Log audit event
             AuditLog.log(user, "LOGOUT", 
-                Map.of("ipAddress", ipAddress), 
+                Map.of(IP_ADDRESS, ipAddress), 
                 ipAddress, userAgent);
 
             // Publish logout event
@@ -319,7 +315,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "PASSWORD_RESET_REQUESTED", 
-            Map.of("ipAddress", ipAddress), 
+            Map.of(IP_ADDRESS, ipAddress), 
             ipAddress, userAgent);
 
         // Publish password reset requested event
@@ -331,8 +327,7 @@ public class AuthService {
                 resetToken.id,
                 resetToken.expiresAt,
                 "email",
-                ipAddress,
-                userAgent
+                new RequestOrigin(ipAddress, userAgent)
             );
             eventPublisher.publishEvent(resetRequestedEvent);
         } catch (Exception e) {
@@ -368,7 +363,7 @@ public class AuthService {
         }
 
         User user = resetToken.user;
-        if (!user.isActive) {
+        if (!Boolean.TRUE.equals(user.isActive)) {
             throw new BadRequestException("User account is not active");
         }
 
@@ -392,7 +387,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "PASSWORD_RESET", 
-            Map.of("ipAddress", ipAddress), 
+            Map.of(IP_ADDRESS, ipAddress), 
             ipAddress, userAgent);
 
         // Publish password changed event
@@ -437,7 +432,7 @@ public class AuthService {
         User user;
         try {
             user = User.findById(UUID.fromString(subject));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return invalidToken();
         }
         if (user == null || !Boolean.TRUE.equals(user.isActive)) {

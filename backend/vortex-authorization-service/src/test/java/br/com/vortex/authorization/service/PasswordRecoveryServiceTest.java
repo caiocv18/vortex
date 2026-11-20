@@ -538,4 +538,34 @@ class PasswordRecoveryServiceTest {
         // Event should be published
         verify(eventPublisher).publishEvent(any(PasswordChangedEvent.class));
     }
+
+    @Test
+    @Order(16)
+    @DisplayName("Should reject password reset for an inactive user")
+    @Transactional
+    void testResetPasswordInactiveUser() {
+        // Arrange
+        User inactiveUser = TestDataBuilder.createInactiveUser();
+        inactiveUser.email = "inactive" + System.nanoTime() + "@test.com";
+        inactiveUser.username = "inactive" + System.nanoTime();
+        inactiveUser.persist();
+
+        String resetToken = generateUniqueToken("inactiveUserToken");
+        String newPassword = "ValidPassword@123";
+        PasswordResetToken token = TestDataBuilder.createPasswordResetToken(inactiveUser, resetToken);
+        token.persist();
+
+        ResetPasswordRequest request = TestDataBuilder.createResetPasswordRequest(resetToken, newPassword);
+        when(passwordService.isValidPassword(newPassword)).thenReturn(true);
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(
+            BadRequestException.class,
+            () -> authService.resetPassword(request, TEST_IP, TEST_USER_AGENT)
+        );
+
+        assertEquals("User account is not active", exception.getMessage());
+        verify(passwordService, never()).hashPassword(anyString());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
 }

@@ -13,12 +13,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +51,24 @@ class KafkaProducerServiceMovimentoTest {
         assertEquals(101L, sent.getMovimentoId());
         assertEquals(10, sent.getEstoqueAnterior());
         assertEquals(60, sent.getEstoqueAtual());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void eventThatCannotBeBuiltIsDroppedWithoutFailingTheOperationWhenFallbackIsOn() {
+        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        KafkaProducerService service = new KafkaProducerService(kafkaTemplate);
+        ReflectionTestUtils.setField(service, "kafkaEnabled", true);
+        ReflectionTestUtils.setField(service, "fallbackEnabled", true);
+        // Sem tipo de produto, montar o evento dá NullPointerException: o fallback engole e a operação segue
+        Produto semTipo = produto();
+        semTipo.setTipoProduto(null);
+
+        assertDoesNotThrow(() -> service.publicarMovimentoEstoque(movimento(), semTipo, 10, "alice.estoque"));
+        assertDoesNotThrow(() -> service.publicarProdutoCriado(semTipo, "alice.estoque"));
+        assertDoesNotThrow(() -> service.publicarAlertaEstoqueBaixo(semTipo, 5, "alice.estoque"));
+
+        verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
     }
 
     private static Produto produto() {

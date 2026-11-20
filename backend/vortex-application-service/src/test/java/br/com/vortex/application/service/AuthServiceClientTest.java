@@ -24,6 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Contrato HTTP do {@link AuthServiceClient} (RestClient) contra um serviço de autorização falso:
@@ -159,6 +162,30 @@ class AuthServiceClientTest {
         assertEquals(AuthTokens.USER_ID, genuine.get("userId"));
         assertEquals("Invalid token", forged.get("error"));
         assertFalse(forged.containsKey("username"));
+    }
+
+    @Test
+    void validateTokenFallbackTreatsAVerifierErrorAsAnInvalidToken() {
+        AuthTokenVerifier broken = mock(AuthTokenVerifier.class);
+        when(broken.verify(anyString())).thenThrow(new IllegalStateException("chave ilegível"));
+
+        Map<String, Object> response = clientWith(broken)
+                .validateTokenFallback("abc.def.ghi", new RuntimeException("auth fora"))
+                .join();
+
+        assertEquals(Map.of("valid", false, "source", "local-validation"), response);
+    }
+
+    @Test
+    void getUserInfoFallbackTreatsAVerifierErrorAsAnInvalidToken() {
+        AuthTokenVerifier broken = mock(AuthTokenVerifier.class);
+        when(broken.verify(anyString())).thenThrow(new IllegalStateException("chave ilegível"));
+
+        Map<String, Object> response = clientWith(broken)
+                .getUserInfoFallback("abc.def.ghi", new RuntimeException("auth fora"))
+                .join();
+
+        assertEquals(Map.of("error", "Invalid token", "source", "local-token-extraction"), response);
     }
 
     private static void respond(HttpExchange exchange, int status, String json) throws IOException {

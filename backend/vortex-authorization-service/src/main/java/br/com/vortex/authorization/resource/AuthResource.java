@@ -163,7 +163,7 @@ public class AuthResource {
         try {
             ValidateTokenResponse response = authService.validateToken(request);
             return Response.ok(response).build();
-        } catch (Exception e) {
+        } catch (Exception _) {
             ValidateTokenResponse invalidResponse = new ValidateTokenResponse(false, null, null, null, null);
             return Response.ok(invalidResponse).build();
         }
@@ -203,7 +203,7 @@ public class AuthResource {
         try {
             InetAddress address = InetAddress.ofLiteral(value);
             return InetAddress.getByAddress(address.getAddress()).getHostAddress();
-        } catch (IllegalArgumentException | UnknownHostException e) {
+        } catch (IllegalArgumentException | UnknownHostException _) {
             return null;
         }
     }

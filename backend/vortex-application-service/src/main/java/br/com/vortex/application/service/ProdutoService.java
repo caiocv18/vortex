@@ -27,6 +27,8 @@ import java.util.List;
 @Slf4j
 public class ProdutoService {
 
+    private static final String PRODUTO = "Produto";
+
     private final ProdutoRepository produtoRepository;
     private final TipoProdutoRepository tipoProdutoRepository;
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
@@ -91,7 +93,7 @@ public class ProdutoService {
      * @deprecated Use buscarTodos(Pageable) para melhor performance
      * @return Lista de DTOs dos produtos (limitada a 1000 itens)
      */
-    @Deprecated
+    @Deprecated(since = "0.1.1", forRemoval = true)
     @Transactional(readOnly = true)
     public List<ProdutoDTO> buscarTodos() {
         Pageable pageable = PageRequest.of(0, 1000, Sort.by("id"));
@@ -113,7 +115,7 @@ public class ProdutoService {
     @Cacheable(value = "produtos", key = "#id")
     public ProdutoDTO buscarPorId(Long id) {
         Produto produto = produtoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(PRODUTO, "id", id));
         
         return mapToDTO(produto);
     }
@@ -134,7 +136,7 @@ public class ProdutoService {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Produto não encontrado para atualização: ID {}", id);
-                    return new ResourceNotFoundException("Produto", "id", id);
+                    return new ResourceNotFoundException(PRODUTO, "id", id);
                 });
         
         TipoProduto tipoProduto = tipoProdutoRepository.findById(produtoDTO.getTipoProdutoId())
@@ -172,7 +174,7 @@ public class ProdutoService {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Produto não encontrado para exclusão: ID {}", id);
-                    return new ResourceNotFoundException("Produto", "id", id);
+                    return new ResourceNotFoundException(PRODUTO, "id", id);
                 });
         
         if (movimentoEstoqueRepository.existsByProduto(produto)) {

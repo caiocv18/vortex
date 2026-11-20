@@ -34,6 +34,8 @@ import java.util.Map;
 @ConditionalOnProperty(name = "kafka.enabled", havingValue = "true")
 public class KafkaConfig {
 
+    private static final String RETENTION_MS = "retention.ms";
+
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
@@ -49,7 +51,7 @@ public class KafkaConfig {
         return TopicBuilder.name("vortex.movimento.estoque")
                 .partitions(3)
                 .replicas(1)
-                .config("retention.ms", "604800000") // 7 dias
+                .config(RETENTION_MS, "604800000") // 7 dias
                 .config("cleanup.policy", "delete")
                 .build();
     }
@@ -59,7 +61,7 @@ public class KafkaConfig {
         return TopicBuilder.name("vortex.produto.events")
                 .partitions(2)
                 .replicas(1)
-                .config("retention.ms", "2592000000") // 30 dias
+                .config(RETENTION_MS, "2592000000") // 30 dias
                 .build();
     }
 
@@ -68,7 +70,7 @@ public class KafkaConfig {
         return TopicBuilder.name("vortex.alertas.estoque")
                 .partitions(1)
                 .replicas(1)
-                .config("retention.ms", "259200000") // 3 dias
+                .config(RETENTION_MS, "259200000") // 3 dias
                 .build();
     }
 
@@ -77,7 +79,7 @@ public class KafkaConfig {
         return TopicBuilder.name("vortex.relatorios.events")
                 .partitions(1)
                 .replicas(1)
-                .config("retention.ms", "86400000") // 1 dia
+                .config(RETENTION_MS, "86400000") // 1 dia
                 .build();
     }
 
@@ -86,7 +88,7 @@ public class KafkaConfig {
         return TopicBuilder.name("vortex.auditoria")
                 .partitions(2)
                 .replicas(1)
-                .config("retention.ms", "15552000000") // 180 dias
+                .config(RETENTION_MS, "15552000000") // 180 dias
                 .config("cleanup.policy", "compact,delete")
                 .build();
     }

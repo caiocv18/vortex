@@ -27,6 +27,8 @@ import java.math.BigDecimal;
 @ConditionalOnProperty(name = "rabbitmq.enabled", havingValue = "true")
 public class RabbitMQProducerService implements MessageBrokerService {
 
+    private static final String FALLBACK_SEM_RABBITMQ = "Fallback ativado - operação continuará sem RabbitMQ";
+
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${rabbitmq.exchange.name:vortex.exchange}")
@@ -78,7 +80,7 @@ public class RabbitMQProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar evento de movimento de estoque via RabbitMQ", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem RabbitMQ");
+                log.info(FALLBACK_SEM_RABBITMQ);
             }
         }
     }
@@ -119,7 +121,7 @@ public class RabbitMQProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar evento de produto via RabbitMQ", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem RabbitMQ");
+                log.info(FALLBACK_SEM_RABBITMQ);
             }
         }
     }
@@ -165,7 +167,7 @@ public class RabbitMQProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar alerta de estoque via RabbitMQ", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem RabbitMQ");
+                log.info(FALLBACK_SEM_RABBITMQ);
             }
         }
     }
@@ -191,7 +193,7 @@ public class RabbitMQProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar evento de auditoria via RabbitMQ", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem RabbitMQ");
+                log.info(FALLBACK_SEM_RABBITMQ);
             }
         }
     }

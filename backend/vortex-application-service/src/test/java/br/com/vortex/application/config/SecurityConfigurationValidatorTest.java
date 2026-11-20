@@ -75,6 +75,58 @@ class SecurityConfigurationValidatorTest {
         assertDoesNotThrow(() -> validate("dev", strongSecret(), H2_URL, "vortex"));
     }
 
+    @Test
+    void productionRefusesAnEnabledH2Console() {
+        assertThrows(IllegalStateException.class,
+                () -> validateProductionWith("spring.h2.console.enabled", "true"));
+    }
+
+    @Test
+    void productionOnlyWarnsAboutSqlLogging() {
+        assertDoesNotThrow(() -> validateProductionWith("spring.jpa.show-sql", "true"));
+    }
+
+    @Test
+    void productionRefusesJwtWithoutStrictValidation() {
+        JwtProperties jwt = new JwtProperties();
+        jwt.setSecret(strongSecret());
+        jwt.setStrictValidation(false);
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.url", POSTGRES_URL)
+                .withProperty("spring.datasource.password", StrongTestPasswords.generate())
+                .withProperty("spring.datasource.hikari.maximum-pool-size", "5");
+        environment.setActiveProfiles("cloud");
+        SecurityConfigurationValidator validator = new SecurityConfigurationValidator(jwt, environment);
+
+        assertThrows(IllegalStateException.class, () -> validator.run(null));
+    }
+
+    @Test
+    void devAcceptsJwtWithoutStrictValidation() {
+        JwtProperties jwt = new JwtProperties();
+        jwt.setSecret(strongSecret());
+        jwt.setStrictValidation(false);
+        MockEnvironment environment = new MockEnvironment().withProperty("spring.datasource.url", H2_URL);
+        environment.setActiveProfiles("dev");
+        SecurityConfigurationValidator validator = new SecurityConfigurationValidator(jwt, environment);
+
+        assertDoesNotThrow(() -> validator.run(null));
+    }
+
+    /** Produção (cloud) que passaria no validador, mais uma propriedade em teste. */
+    private static void validateProductionWith(String key, String value) {
+        JwtProperties jwt = new JwtProperties();
+        jwt.setSecret(strongSecret());
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.url", POSTGRES_URL)
+                .withProperty("spring.datasource.password", StrongTestPasswords.generate())
+                .withProperty("spring.datasource.hikari.maximum-pool-size", "5")
+                .withProperty(key, value);
+        environment.setActiveProfiles("cloud");
+
+        new SecurityConfigurationValidator(jwt, environment).run(null);
+    }
+
     private static void validate(String profile, String jwtSecret, String datasourceUrl) {
         validate(profile, jwtSecret, datasourceUrl, StrongTestPasswords.generate());
     }

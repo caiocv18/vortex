@@ -28,7 +28,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
         validateJwtConfiguration(warnings, errors);
         validateDatabaseConfiguration(warnings, errors);
         validateProfileSpecificSettings(warnings, errors);
-        validateEnvironmentVariables(warnings, errors);
+        validateEnvironmentVariables(warnings);
 
         // Log warnings
         if (!warnings.isEmpty()) {
@@ -67,10 +67,8 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
         }
 
         // Production-specific checks
-        if (isProductionEnvironment()) {
-            if (!jwtProperties.getStrictValidation()) {
-                errors.add("JWT strict validation must be enabled in production");
-            }
+        if (isProductionEnvironment() && !Boolean.TRUE.equals(jwtProperties.getStrictValidation())) {
+            errors.add("JWT strict validation must be enabled in production");
         }
     }
 
@@ -111,19 +109,19 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
 
             // Check if H2 console is enabled
             Boolean h2ConsoleEnabled = environment.getProperty("spring.h2.console.enabled", Boolean.class, false);
-            if (h2ConsoleEnabled) {
+            if (Boolean.TRUE.equals(h2ConsoleEnabled)) {
                 errors.add("H2 console should not be enabled in production");
             }
 
             // Check SQL logging
             Boolean showSql = environment.getProperty("spring.jpa.show-sql", Boolean.class, false);
-            if (showSql) {
+            if (Boolean.TRUE.equals(showSql)) {
                 warnings.add("SQL logging is enabled in production - may impact performance");
             }
         }
     }
 
-    private void validateEnvironmentVariables(List<String> warnings, List<String> errors) {
+    private void validateEnvironmentVariables(List<String> warnings) {
         // Check for required environment variables in production. The datasource password is checked in
         // validateDatabaseConfiguration for whichever database is active (Oracle in prd, PostgreSQL in cloud)
         if (isProductionEnvironment()) {
@@ -153,7 +151,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
                lowerSecret.contains("change") ||
                lowerSecret.contains("default") ||
                lowerSecret.matches("^[a-z]+$") || // only lowercase
-               lowerSecret.matches("^[0-9]+$") || // only numbers
+               lowerSecret.matches("^\\d+$") || // only numbers
                secret.equals(secret.toLowerCase()) && secret.length() < 50; // too simple
     }
 
@@ -162,6 +160,6 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
                password.toLowerCase().contains("password") ||
                password.toLowerCase().contains("admin") ||
                password.matches("^[a-zA-Z]+$") || // only letters
-               password.matches("^[0-9]+$"); // only numbers
+               password.matches("^\\d+$"); // only numbers
     }
 }

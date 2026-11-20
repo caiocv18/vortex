@@ -29,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 @ConditionalOnProperty(name = "kafka.enabled", havingValue = "true")
 public class KafkaProducerService implements MessageBrokerService {
 
+    private static final String FALLBACK_SEM_KAFKA = "Fallback ativado - operação continuará sem Kafka";
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${kafka.topics.movimento-estoque:vortex.movimento.estoque}")
@@ -97,7 +99,7 @@ public class KafkaProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar evento de movimento de estoque", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem Kafka");
+                log.info(FALLBACK_SEM_KAFKA);
             }
         }
     }
@@ -144,7 +146,7 @@ public class KafkaProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar evento de produto", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem Kafka");
+                log.info(FALLBACK_SEM_KAFKA);
             }
         }
     }
@@ -196,7 +198,7 @@ public class KafkaProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar alerta de estoque", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem Kafka");
+                log.info(FALLBACK_SEM_KAFKA);
             }
         }
     }
@@ -224,7 +226,7 @@ public class KafkaProducerService implements MessageBrokerService {
         } catch (Exception e) {
             log.error("Erro ao publicar evento de auditoria", e);
             if (fallbackEnabled) {
-                log.info("Fallback ativado - operação continuará sem Kafka");
+                log.info(FALLBACK_SEM_KAFKA);
             }
         }
     }
