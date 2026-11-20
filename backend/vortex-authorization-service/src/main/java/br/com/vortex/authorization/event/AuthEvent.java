@@ -35,12 +35,12 @@ public abstract class AuthEvent {
     @JsonProperty("version")
     public String version = "1.0";
 
-    public AuthEvent() {
+    protected AuthEvent() {
         this.eventId = UUID.randomUUID();
         this.timestamp = OffsetDateTime.now(BusinessTime.ZONE);
     }
 
-    public AuthEvent(String eventType, UUID userId, String userEmail, String ipAddress, String userAgent) {
+    protected AuthEvent(String eventType, UUID userId, String userEmail, String ipAddress, String userAgent) {
         this();
         this.eventType = eventType;
         this.userId = userId;
