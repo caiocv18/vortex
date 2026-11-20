@@ -66,7 +66,7 @@ public class AuthServiceClient {
      */
     static ExecutorService contextPropagatingExecutor() {
         ContextSnapshotFactory snapshots = ContextSnapshotFactory.builder().build();
-        return ContextExecutorService.wrap(Executors.newVirtualThreadPerTaskExecutor(), () -> snapshots.captureAll());
+        return ContextExecutorService.wrap(Executors.newVirtualThreadPerTaskExecutor(), snapshots::captureAll);
     }
 
     @PreDestroy
