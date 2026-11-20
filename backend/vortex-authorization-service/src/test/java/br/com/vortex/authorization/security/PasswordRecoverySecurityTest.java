@@ -195,7 +195,7 @@ class PasswordRecoverySecurityTest {
                 TEST_IP, 
                 TEST_USER_AGENT
             );
-        } catch (Exception e) {
+        } catch (Exception _) {
             // Expected for invalid password policy in this test
         }
         
@@ -284,7 +284,7 @@ class PasswordRecoverySecurityTest {
         CompletableFuture<Void> future1 = CompletableFuture.runAsync(() -> {
             try {
                 authService.resetPassword(request, TEST_IP, TEST_USER_AGENT);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 // Expected for one of the concurrent requests
             }
         });
@@ -292,7 +292,7 @@ class PasswordRecoverySecurityTest {
         CompletableFuture<Void> future2 = CompletableFuture.runAsync(() -> {
             try {
                 authService.resetPassword(request, MALICIOUS_IP, TEST_USER_AGENT);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 // Expected for one of the concurrent requests
             }
         });
