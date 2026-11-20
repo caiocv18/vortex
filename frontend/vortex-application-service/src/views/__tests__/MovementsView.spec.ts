@@ -135,9 +135,11 @@ describe('MovementsView', () => {
     expect(productsApi.findProdutoById).toHaveBeenCalledExactlyOnceWith(7)
     expect(productsApi.findAllProdutos).toHaveBeenCalledWith(undefined, 0, 20)
 
-    // O v-dialog vai por teleport para o body, fora do wrapper
-    const input = document.body.querySelector<HTMLInputElement>('.v-autocomplete input')
-    expect(input).not.toBeNull()
-    expect(input!.value).toBe('Notebook Dell')
+    // O v-dialog vai por teleport para o body, fora do wrapper. O VAutocomplete põe antes do campo
+    // um input hidden com o valor do modelo (o id); o texto que o usuário vê fica no outro.
+    const autocomplete = document.body.querySelector('.v-autocomplete')
+    expect(autocomplete).not.toBeNull()
+    expect(autocomplete!.querySelector<HTMLInputElement>('input[type="hidden"]')!.value).toBe('7')
+    expect(autocomplete!.querySelector<HTMLInputElement>('input:not([type="hidden"])')!.value).toBe('Notebook Dell')
   })
 })
