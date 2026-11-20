@@ -42,7 +42,9 @@ public class SecurityConfig {
 
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(AbstractHttpConfigurer::disable)
+            // CSRF não se aplica: a API é STATELESS, o token chega no header Authorization: Bearer, que o
+            // navegador nunca anexa sozinho, e não há cookie de sessão. Revisar se o token for para cookie
+            .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502, ver o comentário acima
             .exceptionHandling(exception -> exception
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(session -> session
