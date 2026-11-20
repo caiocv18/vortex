@@ -28,6 +28,8 @@ import java.util.Map;
 @Service
 public class QueueMonitoringService {
 
+    private static final String TIMESTAMP = "timestamp";
+
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${message.broker.type:none}")
@@ -101,7 +103,7 @@ public class QueueMonitoringService {
         status.put("brokerType", brokerType);
         status.put("rabbitmqEnabled", rabbitmqEnabled);
         status.put("kafkaEnabled", kafkaEnabled);
-        status.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
+        status.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
 
         if (rabbitmqEnabled && rabbitTemplate != null) {
             try {
@@ -311,7 +313,7 @@ public class QueueMonitoringService {
     public Map<String, Object> buscarMensagens(String nomeFila, int quantidade) {
         Map<String, Object> resultado = new HashMap<>();
         resultado.put("nomeFila", nomeFila);
-        resultado.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
+        resultado.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
         resultado.put("quantidadeSolicitada", quantidade);
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
@@ -371,7 +373,7 @@ public class QueueMonitoringService {
     public Map<String, Object> publicarMensagemTeste(String nomeFila, Map<String, Object> mensagem) {
         Map<String, Object> resultado = new HashMap<>();
         resultado.put("nomeFila", nomeFila);
-        resultado.put("timestamp", LocalDateTime.now(BusinessTime.ZONE));
+        resultado.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
             resultado.put("status", "BROKER_DISABLED");
