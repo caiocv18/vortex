@@ -368,7 +368,7 @@ public class AuthService {
         }
 
         User user = resetToken.user;
-        if (!user.isActive) {
+        if (!Boolean.TRUE.equals(user.isActive)) {
             throw new BadRequestException("User account is not active");
         }
 

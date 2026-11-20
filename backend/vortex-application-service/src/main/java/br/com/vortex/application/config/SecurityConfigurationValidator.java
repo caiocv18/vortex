@@ -111,13 +111,13 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
 
             // Check if H2 console is enabled
             Boolean h2ConsoleEnabled = environment.getProperty("spring.h2.console.enabled", Boolean.class, false);
-            if (h2ConsoleEnabled) {
+            if (Boolean.TRUE.equals(h2ConsoleEnabled)) {
                 errors.add("H2 console should not be enabled in production");
             }
 
             // Check SQL logging
             Boolean showSql = environment.getProperty("spring.jpa.show-sql", Boolean.class, false);
-            if (showSql) {
+            if (Boolean.TRUE.equals(showSql)) {
                 warnings.add("SQL logging is enabled in production - may impact performance");
             }
         }
