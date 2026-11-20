@@ -75,4 +75,15 @@ public class MovimentoEstoqueDTO {
         required = true
     )
     private Long produtoId;
+
+    /**
+     * Só de saída: a API preenche a partir do produto do movimento, para a lista mostrar o nome sem buscar cada
+     * produto. Na criação e na alteração o valor recebido é ignorado (o produto vem de {@link #produtoId}).
+     */
+    @Schema(
+        description = "Descrição do produto associado ao movimento (preenchida pela API; ignorada na criação e na alteração)",
+        example = "Smartphone Samsung Galaxy S21",
+        accessMode = Schema.AccessMode.READ_ONLY
+    )
+    private String produtoDescricao;
 }

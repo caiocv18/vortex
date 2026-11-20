@@ -156,6 +156,17 @@ class MovimentoPaginacaoIntegrationTest {
     }
 
     @Test
+    void cadaMovimentoDaListaTrazADescricaoDoProduto() {
+        movimento(produto(marca + " Régua 30cm"), TipoMovimentacao.ENTRADA, LocalDateTime.of(2024, 1, 1, 9, 0));
+
+        Map<String, Object> movimento = content(get("/api/movimentos?q={q}", marca)).getFirst();
+
+        assertEquals(marca + " Régua 30cm", movimento.get("produtoDescricao"));
+        assertEquals(Set.of("id", "dataMovimento", "tipoMovimentacao", "quantidadeMovimentada", "valorVenda",
+                "produtoId", "produtoDescricao"), movimento.keySet());
+    }
+
+    @Test
     void sizeAcimaDe100EAtendidoCom100() {
         assertEquals(100, number(page(get("/api/movimentos?size=500")), "size"));
     }

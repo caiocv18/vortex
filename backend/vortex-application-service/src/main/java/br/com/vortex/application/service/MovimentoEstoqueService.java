@@ -102,6 +102,7 @@ public class MovimentoEstoqueService {
         responseDTO.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
         responseDTO.setQuantidadeMovimentada(movimentoEstoqueDTO.getQuantidadeMovimentada());
         responseDTO.setProdutoId(movimentoEstoqueDTO.getProdutoId());
+        responseDTO.setProdutoDescricao(produto.getDescricao());
         responseDTO.setDataMovimento(LocalDateTime.now(BusinessTime.ZONE));
 
         // Envia auditoria
@@ -348,7 +349,8 @@ public class MovimentoEstoqueService {
         movimentoEstoqueDTO.setQuantidadeMovimentada(movimentoEstoque.getQuantidadeMovimentada());
         movimentoEstoqueDTO.setValorVenda(movimentoEstoque.getValorVenda());
         movimentoEstoqueDTO.setProdutoId(movimentoEstoque.getProduto().getId());
-        
+        movimentoEstoqueDTO.setProdutoDescricao(movimentoEstoque.getProduto().getDescricao());
+
         return movimentoEstoqueDTO;
     }
 }
