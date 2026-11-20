@@ -38,7 +38,7 @@ Facts that shaped the decision, as of 2026-11-19:
 
 ## Consequences
 
-- The four analysis warnings are gone, and the Java rules run for the first time. Issues they find on lines untouched since the last change count as overall code, not new code.
+- The four analysis warnings are gone, and the Java rules run for the first time. One warning is accepted: the PL/SQL Data Dictionary is not configured, so rules S3641, S3921, S3618 and S3651 stay silent; configuring it would mean a JDBC connection from every scan to an Oracle database, and the Oracle scripts are only a local option. Issues they find on lines untouched since the last change count as overall code, not new code.
 - The 80% coverage condition now applies to the changed lines of every pull request with 20 or more new lines. The JaCoCo floors in the poms are still the build gate for the whole module.
 - Every pull request runs both Maven builds and both front test suites a second time, about ten minutes of runner time that does not delay the per-service checks, which run in parallel.
 - Pull requests from forks get no secret, so their scan fails. The token expires after a year and must be renewed in both secret stores before that.
