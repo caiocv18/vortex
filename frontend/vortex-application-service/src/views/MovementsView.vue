@@ -45,8 +45,11 @@ onBeforeUnmount(() => {
 })
 
 // Toda paginação, ordenação e busca passa por aqui. A primeira emissão (na montagem) sempre busca;
-// depois, só quando as opções diferem da página que a store já carregou (a store também muda a
-// página sozinha, no filtro de tipo e ao voltar uma página depois de uma exclusão).
+// depois, só quando as opções diferem da página que a store já pediu. Por isso a tabela recebe
+// page, items-per-page e sort-by em mão única (sem v-model): com v-model, o Vuetify grava a store
+// antes de emitir update:options, a comparação dá igual e nada é buscado. Assim a store só muda
+// dentro do fetch; quando ela muda a página sozinha (filtro de tipo, volta depois de uma
+// exclusão), a tabela reemite as opções, que já batem com a store e são ignoradas.
 let firstLoad = true
 const loadItems = (options: TableOptions) => {
   if (!firstLoad && isSameTableState(options, movementStore)) return
@@ -268,9 +271,9 @@ const formatDate = (date: string | undefined) => {
 
           <v-card-text>
             <v-data-table-server
-              v-model:page="movementStore.page"
-              v-model:items-per-page="movementStore.itemsPerPage"
-              v-model:sort-by="movementStore.sortBy"
+              :page="movementStore.page"
+              :items-per-page="movementStore.itemsPerPage"
+              :sort-by="movementStore.sortBy"
               :headers="headers"
               :items="movementStore.items"
               :items-length="movementStore.totalItems"
