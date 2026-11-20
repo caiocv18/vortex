@@ -437,7 +437,7 @@ public class AuthService {
         User user;
         try {
             user = User.findById(UUID.fromString(subject));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return invalidToken();
         }
         if (user == null || !Boolean.TRUE.equals(user.isActive)) {

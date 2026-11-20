@@ -57,7 +57,7 @@ public class AuditLog extends PanacheEntityBase {
             } else {
                 log.details = null;
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.details = "{}"; // fallback to empty JSON object
         }
         log.ipAddress = ipAddress;
