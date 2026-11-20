@@ -58,7 +58,7 @@ public class AuthResource {
         
         try {
             LoginResponse response = authService.login(request, ipAddress, userAgent);
-            return Response.ok(ApiResponse.success("Login successful", response)).build();
+            return Response.ok(ApiResponse.ok("Login successful", response)).build();
         } catch (NotAuthorizedException | BadRequestException e) {
             // Credencial inválida ou rate limit: a mensagem é de negócio e vai para o cliente
             return Response.status(Response.Status.UNAUTHORIZED)
@@ -84,7 +84,7 @@ public class AuthResource {
         try {
             LoginResponse response = authService.register(request, ipAddress, userAgent);
             return Response.status(Response.Status.CREATED)
-                .entity(ApiResponse.success("Registration successful", response))
+                .entity(ApiResponse.ok("Registration successful", response))
                 .build();
         } catch (BadRequestException e) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -99,7 +99,7 @@ public class AuthResource {
     public Response refreshToken(@Valid @NotNull RefreshTokenRequest request) {
         try {
             LoginResponse response = authService.refreshToken(request);
-            return Response.ok(ApiResponse.success("Token refreshed successfully", response)).build();
+            return Response.ok(ApiResponse.ok("Token refreshed successfully", response)).build();
         } catch (Exception e) {
             return Response.status(Response.Status.UNAUTHORIZED)
                 .entity(ApiResponse.error(e.getMessage()))
@@ -115,7 +115,7 @@ public class AuthResource {
         String userAgent = getUserAgent();
         
         authService.logout(request.refreshToken, ipAddress, userAgent);
-        return Response.ok(ApiResponse.success("Logout successful")).build();
+        return Response.ok(ApiResponse.ok("Logout successful")).build();
     }
 
     @POST
@@ -127,7 +127,7 @@ public class AuthResource {
         
         try {
             authService.forgotPassword(request, ipAddress, userAgent);
-            return Response.ok(ApiResponse.success("If the email exists, a password reset link has been sent")).build();
+            return Response.ok(ApiResponse.ok("If the email exists, a password reset link has been sent")).build();
         } catch (BadRequestException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                 .entity(ApiResponse.error(e.getMessage()))
@@ -144,7 +144,7 @@ public class AuthResource {
         
         try {
             authService.resetPassword(request, ipAddress, userAgent);
-            return Response.ok(ApiResponse.success("Password reset successful")).build();
+            return Response.ok(ApiResponse.ok("Password reset successful")).build();
         } catch (BadRequestException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                 .entity(ApiResponse.error(e.getMessage()))
