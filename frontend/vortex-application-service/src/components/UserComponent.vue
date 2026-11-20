@@ -71,6 +71,6 @@ function formatDate(dateString: string): string {
 }
 
 function handleLogout() {
-  authStore.logout()
+  void authStore.logout()
 }
 </script>

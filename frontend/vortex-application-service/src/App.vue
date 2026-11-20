@@ -41,7 +41,7 @@ const toggleTheme = () => {
 }
 
 const handleLogout = () => {
-  authStore.logout()
+  void authStore.logout()
 }
 
 const showNavigation = computed(() => {

@@ -40,7 +40,7 @@ const filteredProductTypes = computed(() => {
 })
 
 onMounted(() => {
-  productTypeStore.fetchProductTypes()
+  void productTypeStore.fetchProductTypes()
 })
 
 const openDialog = (productType?: TipoProdutoDTO) => {
