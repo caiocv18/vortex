@@ -6,10 +6,10 @@ DTO para o relatório de produtos por tipo
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**id** | **number** | ID do produto | [optional] [default to undefined]
 **descricao** | **string** | Descrição do produto | [optional] [default to undefined]
-**totalSaidas** | **number** | Quantidade total de saídas | [optional] [default to undefined]
+**id** | **number** | ID do produto | [optional] [default to undefined]
 **quantidadeEmEstoque** | **number** | Quantidade em estoque | [optional] [default to undefined]
+**totalSaidas** | **number** | Quantidade total de saídas | [optional] [default to undefined]
 
 ## Example
 
@@ -17,10 +17,10 @@ Name | Type | Description | Notes
 import { ProdutoPorTipoDTO } from './api';
 
 const instance: ProdutoPorTipoDTO = {
-    id,
     descricao,
-    totalSaidas,
+    id,
     quantidadeEmEstoque,
+    totalSaidas,
 };
 ```
 

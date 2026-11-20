@@ -1,10 +1,12 @@
 package br.com.vortex.application.exception;
 
 import br.com.vortex.application.config.BusinessTime;
+import br.com.vortex.application.model.enums.TipoMovimentacao;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.MethodParameter;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.env.MockEnvironment;
@@ -12,6 +14,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -78,6 +81,48 @@ class GlobalExceptionHandlerTest {
                 assertInstanceOf(GlobalExceptionHandler.ValidationErrorDetails.class, response.getBody());
         assertEquals(Map.of("nome", "nome é obrigatório"), body.getErrors());
         assertStampedSince(before, body.getTimestamp());
+    }
+
+    @Test
+    void invalidEnumParameterIsBadRequestListingTheAcceptedValues() throws NoSuchMethodException {
+        MethodArgumentTypeMismatchException mismatch = new MethodArgumentTypeMismatchException("TROCA",
+                TipoMovimentacao.class, "tipo", formParameter(), new IllegalArgumentException("TROCA"));
+
+        ResponseEntity<GlobalExceptionHandler.ErrorDetails> response = new GlobalExceptionHandler(new MockEnvironment())
+                .handleMethodArgumentTypeMismatch(mismatch, request());
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("INVALID_PARAMETER", response.getBody().getErrorCode());
+        assertEquals("Valor inválido para o parâmetro 'tipo'. Valores aceitos: ENTRADA, SAIDA",
+                response.getBody().getMessage());
+    }
+
+    @Test
+    void invalidNumericParameterIsBadRequestWithoutEchoingTheValue() throws NoSuchMethodException {
+        MethodArgumentTypeMismatchException mismatch = new MethodArgumentTypeMismatchException("abc",
+                Long.class, "id", formParameter(), new NumberFormatException("abc"));
+
+        ResponseEntity<GlobalExceptionHandler.ErrorDetails> response = new GlobalExceptionHandler(new MockEnvironment())
+                .handleMethodArgumentTypeMismatch(mismatch, request());
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Valor inválido para o parâmetro 'id'", response.getBody().getMessage());
+    }
+
+    @Test
+    void apiMisuseWithoutAnInvalidSortPropertyStaysAnInternalError() {
+        ResponseEntity<GlobalExceptionHandler.ErrorDetails> response = new GlobalExceptionHandler(new MockEnvironment())
+                .handleInvalidSortProperty(new InvalidDataAccessApiUsageException("uso indevido da API"), request());
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("INTERNAL_SERVER_ERROR", response.getBody().getErrorCode());
+    }
+
+    private static MethodParameter formParameter() throws NoSuchMethodException {
+        return new MethodParameter(Form.class.getDeclaredMethod("setNome", String.class), 0);
     }
 
     /** Fora do fuso de negócio (o runner roda em UTC) o carimbo cairia 3 h à frente e reprovaria aqui. */

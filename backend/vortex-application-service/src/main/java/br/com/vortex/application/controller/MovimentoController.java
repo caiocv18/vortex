@@ -3,6 +3,7 @@ package br.com.vortex.application.controller;
 import br.com.vortex.application.config.security.CanRead;
 import br.com.vortex.application.config.security.CanWrite;
 import br.com.vortex.application.dto.MovimentoEstoqueDTO;
+import br.com.vortex.application.model.enums.TipoMovimentacao;
 import br.com.vortex.application.service.MovimentoEstoqueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,12 +13,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * Controller para operações relacionadas a MovimentoEstoque.
@@ -41,7 +45,7 @@ public class MovimentoController {
      * @return DTO do movimento de estoque criado
      */
     @PostMapping
-    @Operation(summary = "Cria um novo movimento de estoque", description = "Cria um novo movimento de estoque com os dados fornecidos")
+    @Operation(operationId = "createMovimento", summary = "Cria um novo movimento de estoque", description = "Cria um novo movimento de estoque com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Movimento de estoque criado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class))),
@@ -70,18 +74,35 @@ public class MovimentoController {
     }
 
     /**
-     * Busca todos os movimentos de estoque.
+     * Busca uma página de movimentos de estoque, com filtros opcionais pela descrição do produto e pelo tipo.
      *
-     * @return Lista de DTOs dos movimentos de estoque
+     * @param q trecho da descrição do produto; nulo ou em branco não filtra
+     * @param tipo ENTRADA ou SAIDA; ausente traz os dois
+     * @param pageable página (a partir de 0), tamanho (padrão 20, teto 100) e ordenação (padrão dataMovimento,desc)
+     * @return Página de DTOs dos movimentos de estoque, no formato do {@link PagedModel}
      */
     @CanRead
     @GetMapping
-    @Operation(summary = "Busca todos os movimentos de estoque", description = "Retorna uma lista com todos os movimentos de estoque cadastrados")
-    @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class)))
-    public ResponseEntity<List<MovimentoEstoqueDTO>> buscarTodos() {
-        List<MovimentoEstoqueDTO> movimentos = movimentoEstoqueService.buscarTodos();
-        return ResponseEntity.ok(movimentos);
+    @Operation(operationId = "findAllMovimentos", summary = "Busca os movimentos de estoque, uma página por vez",
+            description = "Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", "
+                    + "\"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, "
+                    + "sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do "
+                    + "produto (contém, sem diferenciar maiúsculas) e o tipo pela movimentação; ausentes, não filtram.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Operação bem-sucedida"),
+            @ApiResponse(responseCode = "400", description = "Tipo de movimentação inválido ou ordenação por propriedade inexistente",
+                    content = @Content)
+    })
+    public ResponseEntity<PagedModel<MovimentoEstoqueDTO>> buscar(
+            @Parameter(description = "Trecho da descrição do produto (contém, sem diferenciar maiúsculas)",
+                    example = "notebook")
+            @RequestParam(required = false) String q,
+            @Parameter(description = "Tipo de movimentação; ausente traz entradas e saídas")
+            @RequestParam(required = false) TipoMovimentacao tipo,
+            @ParameterObject @PageableDefault(size = 20, sort = "dataMovimento", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+
+        return ResponseEntity.ok(new PagedModel<>(movimentoEstoqueService.buscar(q, tipo, pageable)));
     }
 
     /**
@@ -92,7 +113,7 @@ public class MovimentoController {
      */
     @CanRead
     @GetMapping("/{id}")
-    @Operation(summary = "Busca um movimento de estoque pelo ID", description = "Retorna um movimento de estoque específico pelo seu ID")
+    @Operation(operationId = "findMovimentoById", summary = "Busca um movimento de estoque pelo ID", description = "Retorna um movimento de estoque específico pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class))),
@@ -116,7 +137,7 @@ public class MovimentoController {
      * @return DTO do movimento de estoque atualizado
      */
     @PutMapping("/{id}")
-    @Operation(summary = "Atualiza um movimento de estoque", description = "Atualiza um movimento de estoque existente com os dados fornecidos")
+    @Operation(operationId = "updateMovimento", summary = "Atualiza um movimento de estoque", description = "Atualiza um movimento de estoque existente com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Movimento de estoque atualizado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MovimentoEstoqueDTO.class))),
@@ -143,7 +164,7 @@ public class MovimentoController {
      * @return Resposta sem conteúdo
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Exclui um movimento de estoque", description = "Exclui um movimento de estoque existente pelo seu ID")
+    @Operation(operationId = "deleteMovimento", summary = "Exclui um movimento de estoque", description = "Exclui um movimento de estoque existente pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Movimento de estoque excluído com sucesso",
                     content = @Content),

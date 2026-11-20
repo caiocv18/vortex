@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useProductStore } from '@/stores/product'
 import { useProductTypeStore } from '@/stores/productType'
 import { useForm } from 'vee-validate'
 import * as yup from 'yup'
 import type { ProdutoDTO } from '@/api'
+import {
+  ITEMS_PER_PAGE_OPTIONS,
+  SEARCH_DEBOUNCE_MS,
+  isSameTableState,
+  type TableOptions,
+} from '@/stores/pagination'
 
 const productStore = useProductStore()
 const productTypeStore = useProductTypeStore()
@@ -13,7 +19,38 @@ const dialog = ref(false)
 const deleteDialog = ref(false)
 const editMode = ref(false)
 const selectedProduct = ref<ProdutoDTO | null>(null)
-const search = ref('')
+// search é o que está no campo; searchQuery, o texto que já foi para o servidor (com debounce).
+// A tabela recebe searchQuery: ao mudar, ela volta para a página 1 e emite update:options.
+const search = ref(productStore.q)
+const searchQuery = ref(productStore.q)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(search, (text) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    searchQuery.value = (text ?? '').trim()
+  }, SEARCH_DEBOUNCE_MS)
+})
+
+onBeforeUnmount(() => clearTimeout(searchTimer))
+
+// Toda paginação, ordenação e busca passa por aqui. A primeira emissão (na montagem) sempre busca;
+// depois, só quando as opções diferem da página que a store já pediu. Por isso a tabela recebe
+// page, items-per-page e sort-by em mão única (sem v-model): com v-model, o Vuetify grava a store
+// antes de emitir update:options, a comparação dá igual e nada é buscado. Assim a store só muda
+// dentro do fetch; quando ela muda a página sozinha (volta depois de uma exclusão), a tabela
+// reemite as opções, que já batem com a store e são ignoradas.
+let firstLoad = true
+const loadItems = (options: TableOptions) => {
+  if (!firstLoad && isSameTableState(options, productStore)) return
+  firstLoad = false
+  void productStore.fetchProducts({
+    page: options.page,
+    itemsPerPage: options.itemsPerPage,
+    sortBy: options.sortBy,
+    q: options.search ?? '',
+  })
+}
 
 // Schema de validação
 const schema = yup.object({
@@ -30,7 +67,8 @@ const [descricao, descricaoProps] = defineField('descricao')
 const [valorFornecedor, valorFornecedorProps] = defineField('valorFornecedor')
 const [tipoProdutoId, tipoProdutoIdProps] = defineField('tipoProdutoId')
 
-// Headers da tabela
+// Headers da tabela. As keys ordenáveis são propriedades da entidade Produto (o sort vai para o
+// servidor como key,asc|desc); o tipo é um nome resolvido no front e não ordena.
 const headers = [
   { title: 'ID', key: 'id', sortable: true },
   { title: 'Descrição', key: 'descricao', sortable: true },
@@ -40,19 +78,9 @@ const headers = [
   { title: 'Ações', key: 'actions', sortable: false }
 ]
 
-// Filtro de busca
-const filteredProducts = computed(() => {
-  if (!search.value) return productStore.products
-  return productStore.products.filter(p =>
-    p.descricao?.toLowerCase().includes(search.value.toLowerCase())
-  )
-})
-
+// A página de produtos vem do @update:options da tabela; aqui só os tipos, para o nome e o select
 onMounted(async () => {
-  await Promise.all([
-    productStore.fetchProducts(),
-    productTypeStore.fetchProductTypes()
-  ])
+  await productTypeStore.fetchProductTypes()
 })
 
 const openDialog = (product?: ProdutoDTO) => {
@@ -169,12 +197,18 @@ const getProductTypeName = (typeId: number | undefined) => {
           </v-card-title>
 
           <v-card-text>
-            <v-data-table
+            <v-data-table-server
+              :page="productStore.page"
+              :items-per-page="productStore.itemsPerPage"
+              :sort-by="productStore.sortBy"
               :headers="headers"
-              :items="filteredProducts"
+              :items="productStore.items"
+              :items-length="productStore.totalItems"
+              :items-per-page-options="ITEMS_PER_PAGE_OPTIONS"
               :loading="productStore.loading"
-              :search="search"
+              :search="searchQuery"
               class="elevation-1"
+              @update:options="loadItems"
             >
               <template v-slot:item.tipo="{ item }">
                 {{ getProductTypeName(item.tipoProdutoId) }}
@@ -209,7 +243,7 @@ const getProductTypeName = (typeId: number | undefined) => {
                   <v-icon>mdi-delete</v-icon>
                 </v-btn>
               </template>
-            </v-data-table>
+            </v-data-table-server>
           </v-card-text>
         </v-card>
       </v-col>

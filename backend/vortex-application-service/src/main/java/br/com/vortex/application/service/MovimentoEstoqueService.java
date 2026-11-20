@@ -13,16 +13,17 @@ import br.com.vortex.application.repository.ProdutoRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.List;
+
+import static br.com.vortex.application.repository.MovimentoEstoqueSpecifications.comDescricaoDoProdutoContendo;
+import static br.com.vortex.application.repository.MovimentoEstoqueSpecifications.doTipo;
 
 /**
  * Serviço para operações relacionadas a MovimentoEstoque.
@@ -101,6 +102,7 @@ public class MovimentoEstoqueService {
         responseDTO.setTipoMovimentacao(movimentoEstoqueDTO.getTipoMovimentacao());
         responseDTO.setQuantidadeMovimentada(movimentoEstoqueDTO.getQuantidadeMovimentada());
         responseDTO.setProdutoId(movimentoEstoqueDTO.getProdutoId());
+        responseDTO.setProdutoDescricao(produto.getDescricao());
         responseDTO.setDataMovimento(LocalDateTime.now(BusinessTime.ZONE));
 
         // Envia auditoria
@@ -207,33 +209,25 @@ public class MovimentoEstoqueService {
     }
 
     /**
-     * Busca todos os movimentos de estoque com paginação.
+     * Busca uma página de movimentos de estoque, com filtros opcionais pela descrição do produto e pelo tipo.
      *
-     * @param pageable Configurações de paginação
+     * @param q trecho da descrição do produto (contém, sem diferenciar maiúsculas); nulo ou em branco não filtra
+     * @param tipo tipo de movimentação; nulo traz entradas e saídas
+     * @param pageable página, tamanho e ordenação
      * @return Página de DTOs dos movimentos de estoque
      */
     @Transactional(readOnly = true)
-    public Page<MovimentoEstoqueDTO> buscarTodos(Pageable pageable) {
-        Page<MovimentoEstoque> movimentos = movimentoEstoqueRepository.findAll(pageable);
-        
-        return movimentos.map(this::mapToDTO);
-    }
+    public Page<MovimentoEstoqueDTO> buscar(String q, TipoMovimentacao tipo, Pageable pageable) {
+        Specification<MovimentoEstoque> filtro = Specification.unrestricted();
+        if (tipo != null) {
+            filtro = filtro.and(doTipo(tipo));
+        }
+        String trecho = q == null ? "" : q.strip();
+        if (!trecho.isEmpty()) {
+            filtro = filtro.and(comDescricaoDoProdutoContendo(trecho));
+        }
 
-    /**
-     * Busca todos os movimentos de estoque (método legado sem paginação - use com cuidado).
-     * 
-     * @deprecated Use buscarTodos(Pageable) para melhor performance
-     * @return Lista de DTOs dos movimentos de estoque (limitada a 1000 itens, ordenada por data)
-     */
-    @Deprecated(since = "0.1.1", forRemoval = true)
-    @Transactional(readOnly = true)
-    public List<MovimentoEstoqueDTO> buscarTodos() {
-        Pageable pageable = PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "dataMovimento"));
-        Page<MovimentoEstoque> movimentos = movimentoEstoqueRepository.findAll(pageable);
-        
-        return movimentos.stream()
-                .map(this::mapToDTO)
-                .toList();
+        return movimentoEstoqueRepository.findAll(filtro, Paginacao.comDesempatePorId(pageable)).map(this::mapToDTO);
     }
 
     /**
@@ -355,7 +349,8 @@ public class MovimentoEstoqueService {
         movimentoEstoqueDTO.setQuantidadeMovimentada(movimentoEstoque.getQuantidadeMovimentada());
         movimentoEstoqueDTO.setValorVenda(movimentoEstoque.getValorVenda());
         movimentoEstoqueDTO.setProdutoId(movimentoEstoque.getProduto().getId());
-        
+        movimentoEstoqueDTO.setProdutoDescricao(movimentoEstoque.getProduto().getDescricao());
+
         return movimentoEstoqueDTO;
     }
 }

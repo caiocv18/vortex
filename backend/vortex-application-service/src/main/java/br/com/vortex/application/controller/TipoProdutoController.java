@@ -40,7 +40,7 @@ public class TipoProdutoController {
      * @return DTO do tipo de produto criado
      */
     @PostMapping
-    @Operation(summary = "Cria um novo tipo de produto", description = "Cria um novo tipo de produto com os dados fornecidos")
+    @Operation(operationId = "createTipoProduto", summary = "Cria um novo tipo de produto", description = "Cria um novo tipo de produto com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Tipo de produto criado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = TipoProdutoDTO.class))),
@@ -62,7 +62,7 @@ public class TipoProdutoController {
      */
     @CanRead
     @GetMapping
-    @Operation(summary = "Busca todos os tipos de produto", description = "Retorna uma lista com todos os tipos de produto cadastrados")
+    @Operation(operationId = "findAllTiposProduto", summary = "Busca todos os tipos de produto", description = "Retorna uma lista com todos os tipos de produto cadastrados")
     @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = TipoProdutoDTO.class)))
     public ResponseEntity<List<TipoProdutoDTO>> buscarTodos() {
@@ -78,7 +78,7 @@ public class TipoProdutoController {
      */
     @CanRead
     @GetMapping("/{id}")
-    @Operation(summary = "Busca um tipo de produto pelo ID", description = "Retorna um tipo de produto específico pelo seu ID")
+    @Operation(operationId = "findTipoProdutoById", summary = "Busca um tipo de produto pelo ID", description = "Retorna um tipo de produto específico pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Operação bem-sucedida",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = TipoProdutoDTO.class))),
@@ -101,7 +101,7 @@ public class TipoProdutoController {
      * @return DTO do tipo de produto atualizado
      */
     @PutMapping("/{id}")
-    @Operation(summary = "Atualiza um tipo de produto", description = "Atualiza um tipo de produto existente com os dados fornecidos")
+    @Operation(operationId = "updateTipoProduto", summary = "Atualiza um tipo de produto", description = "Atualiza um tipo de produto existente com os dados fornecidos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Tipo de produto atualizado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = TipoProdutoDTO.class))),
@@ -127,7 +127,7 @@ public class TipoProdutoController {
      * @return Resposta sem conteúdo
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Exclui um tipo de produto", description = "Exclui um tipo de produto existente pelo seu ID")
+    @Operation(operationId = "deleteTipoProduto", summary = "Exclui um tipo de produto", description = "Exclui um tipo de produto existente pelo seu ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Tipo de produto excluído com sucesso",
                     content = @Content),

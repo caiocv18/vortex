@@ -160,16 +160,11 @@ test.describe('Movements Page', () => {
     // Abre o diálogo
     await page.click('button:has-text("Nova Movimentação")')
     
-    // Seleciona um produto: o primeiro item do menu do select do diálogo. O antigo
-    // '.v-select' first() pegava o select "Items per page" do rodapé da tabela (atrás do
-    // scrim do diálogo) e o '.v-list-item' first() pegava o cabeçalho do menu lateral.
-    // O clique vai no campo (combobox externo do v-select), como o usuário faz: o input
-    // interno tem size=1 e fica coberto pelo próprio campo.
-    await page
-      .getByRole('dialog')
-      .getByRole('combobox')
-      .filter({ has: page.getByRole('combobox', { name: 'Produto' }) })
-      .click()
+    // Seleciona um produto: o primeiro item do menu do autocomplete do diálogo, que busca no
+    // servidor. A busca fica restrita ao diálogo: o rodapé da tabela tem o select "Items per
+    // page" (atrás do scrim) e o '.v-list-item' first() pegaria o cabeçalho do menu lateral.
+    // No v-autocomplete o combobox é o próprio input de texto, onde o usuário clica e digita.
+    await page.getByRole('dialog').getByRole('combobox', { name: 'Produto' }).click()
     const firstProduct = page.getByRole('listbox').getByRole('option').first()
     await expect(firstProduct).toBeVisible()
     await firstProduct.click()

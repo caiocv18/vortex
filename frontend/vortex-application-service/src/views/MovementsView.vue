@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { useMovementStore } from '@/stores/movement'
 import { useProductStore } from '@/stores/product'
 import { useForm } from 'vee-validate'
 import * as yup from 'yup'
-import type { MovimentoEstoque } from '@/api'
+import type { MovimentoEstoque, ProdutoDTO } from '@/api'
+import {
+  ITEMS_PER_PAGE_OPTIONS,
+  SEARCH_DEBOUNCE_MS,
+  isSameTableState,
+  type TableOptions,
+} from '@/stores/pagination'
 
 const movementStore = useMovementStore()
 const productStore = useProductStore()
@@ -13,8 +19,85 @@ const dialog = ref(false)
 const deleteDialog = ref(false)
 const editMode = ref(false)
 const selectedMovement = ref<MovimentoEstoque | null>(null)
-const search = ref('')
-const filterType = ref<'TODOS' | 'ENTRADA' | 'SAIDA'>('TODOS')
+// search é o que está no campo; searchQuery, o texto que já foi para o servidor (com debounce).
+// A tabela recebe searchQuery: ao mudar, ela volta para a página 1 e emite update:options.
+const search = ref(movementStore.q)
+const searchQuery = ref(movementStore.q)
+const filterType = ref<'TODOS' | 'ENTRADA' | 'SAIDA'>(movementStore.tipo ?? 'TODOS')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let productSearchTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(search, (text) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    searchQuery.value = (text ?? '').trim()
+  }, SEARCH_DEBOUNCE_MS)
+})
+
+// O filtro Todos/Entradas/Saídas vai como tipo e volta para a primeira página
+watch(filterType, (type) => {
+  void movementStore.fetchMovements({ page: 1, tipo: type === 'TODOS' ? null : type })
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
+  clearTimeout(productSearchTimer)
+})
+
+// Toda paginação, ordenação e busca passa por aqui. A primeira emissão (na montagem) sempre busca;
+// depois, só quando as opções diferem da página que a store já pediu. Por isso a tabela recebe
+// page, items-per-page e sort-by em mão única (sem v-model): com v-model, o Vuetify grava a store
+// antes de emitir update:options, a comparação dá igual e nada é buscado. Assim a store só muda
+// dentro do fetch; quando ela muda a página sozinha (filtro de tipo, volta depois de uma
+// exclusão), a tabela reemite as opções, que já batem com a store e são ignoradas.
+let firstLoad = true
+const loadItems = (options: TableOptions) => {
+  if (!firstLoad && isSameTableState(options, movementStore)) return
+  firstLoad = false
+  void movementStore.fetchMovements({
+    page: options.page,
+    itemsPerPage: options.itemsPerPage,
+    sortBy: options.sortBy,
+    q: options.search ?? '',
+    tipo: filterType.value === 'TODOS' ? null : filterType.value,
+  })
+}
+
+// Autocomplete de produto do formulário: busca no servidor (descrição, 20 por vez, com debounce).
+// chosenProduct guarda o produto escolhido, de onde saem o estoque atual e o preço do aviso, e
+// continua na lista mesmo quando uma busca nova não o traz, para o campo manter o rótulo.
+const productOptions = ref<ProdutoDTO[]>([])
+const productSearch = ref('')
+const productSearchLoading = ref(false)
+const chosenProduct = ref<ProdutoDTO | null>(null)
+
+const withChosenProduct = (products: ProdutoDTO[]) => {
+  const chosen = chosenProduct.value
+  if (!chosen || products.some(p => p.id === chosen.id)) return products
+  return [chosen, ...products]
+}
+
+// Cada busca ganha um número; só a última grava as opções e desliga o loading. Sem isso, uma
+// resposta mais antiga que chegasse depois sobrescreveria a lista, e o primeiro finally apagaria
+// o loading com outra requisição ainda pendente.
+let latestProductSearch = 0
+const loadProductOptions = async (text: string) => {
+  const current = ++latestProductSearch
+  productSearchLoading.value = true
+  try {
+    const products = await productStore.searchProducts(text)
+    if (current === latestProductSearch) productOptions.value = withChosenProduct(products)
+  } finally {
+    if (current === latestProductSearch) productSearchLoading.value = false
+  }
+}
+
+watch(productSearch, (text) => {
+  clearTimeout(productSearchTimer)
+  // Ao escolher um item, o campo passa a mostrar a descrição dele: isso não é uma busca nova
+  if (!dialog.value || chosenProduct.value?.descricao === (text ?? '')) return
+  productSearchTimer = setTimeout(() => loadProductOptions(text ?? ''), SEARCH_DEBOUNCE_MS)
+})
 
 // Schema de validação
 const schema = yup.object({
@@ -31,48 +114,44 @@ const [produtoId, produtoIdProps] = defineField('produtoId')
 const [tipoMovimentacao, tipoMovimentacaoProps] = defineField('tipoMovimentacao')
 const [quantidadeMovimentada, quantidadeMovimentadaProps] = defineField('quantidadeMovimentada')
 
-// Headers da tabela
+// O produto escolhido no autocomplete acompanha o campo produtoId
+watch(produtoId, (id) => {
+  chosenProduct.value = productOptions.value.find(p => p.id === id) ?? null
+})
+
+const chosenProductSalePrice = computed(() => {
+  const valorFornecedor = chosenProduct.value?.valorFornecedor
+  return valorFornecedor ? valorFornecedor * 1.35 : undefined
+})
+
+// Headers da tabela. As keys ordenáveis são propriedades da entidade MovimentoEstoque (o sort vai
+// para o servidor como key,asc|desc); a descrição do produto vem pronta da API e não ordena.
 const headers = [
   { title: 'ID', key: 'id', sortable: true },
   { title: 'Data', key: 'dataMovimento', sortable: true },
-  { title: 'Produto', key: 'produto', sortable: false },
+  { title: 'Produto', key: 'produtoDescricao', sortable: false },
   { title: 'Tipo', key: 'tipoMovimentacao', sortable: true },
   { title: 'Quantidade', key: 'quantidadeMovimentada', sortable: true },
   { title: 'Valor Venda', key: 'valorVenda', sortable: true },
   { title: 'Ações', key: 'actions', sortable: false }
 ]
 
-// Filtro de busca e tipo
-const filteredMovements = computed(() => {
-  let movements = movementStore.movements
-
-  // Filtro por tipo
-  if (filterType.value !== 'TODOS') {
-    movements = movements.filter(m => m.tipoMovimentacao === filterType.value)
-  }
-
-  // Filtro por busca (produto)
-  if (search.value) {
-    movements = movements.filter(m => {
-      const product = productStore.products.find(p => p.id === m.produtoId)
-      return product?.descricao?.toLowerCase().includes(search.value.toLowerCase())
-    })
-  }
-
-  return movements
-})
-
-onMounted(async () => {
-  await Promise.all([
-    movementStore.fetchMovements(),
-    productStore.fetchProducts()
-  ])
-})
-
-const openDialog = (movement?: MovimentoEstoque) => {
+const openDialog = async (movement?: MovimentoEstoque) => {
+  chosenProduct.value = null
+  productOptions.value = []
   if (movement) {
     editMode.value = true
     selectedMovement.value = movement
+    // O produto atual entra como item inicial, para o autocomplete exibir o rótulo
+    if (movement.produtoId) {
+      try {
+        const product = await productStore.getProductById(movement.produtoId)
+        chosenProduct.value = product
+        productOptions.value = [product]
+      } catch (error) {
+        console.error('Erro ao buscar o produto do movimento:', error)
+      }
+    }
     produtoId.value = movement.produtoId || 0
     tipoMovimentacao.value = movement.tipoMovimentacao || 'ENTRADA'
     quantidadeMovimentada.value = movement.quantidadeMovimentada || 1
@@ -83,12 +162,14 @@ const openDialog = (movement?: MovimentoEstoque) => {
     tipoMovimentacao.value = 'ENTRADA'
   }
   dialog.value = true
+  await loadProductOptions('')
 }
 
 const closeDialog = () => {
   dialog.value = false
   resetForm()
   selectedMovement.value = null
+  chosenProduct.value = null
 }
 
 const openDeleteDialog = (movement: MovimentoEstoque) => {
@@ -113,8 +194,6 @@ const onSubmit = handleSubmit(async (values) => {
       })
     }
     closeDialog()
-    // Atualizar produtos para refletir mudanças no estoque
-    await productStore.fetchProducts()
   } catch (error) {
     console.error('Erro ao salvar movimento:', error)
   }
@@ -126,8 +205,6 @@ const deleteMovement = async () => {
       await movementStore.deleteMovement(selectedMovement.value.id)
       deleteDialog.value = false
       selectedMovement.value = null
-      // Atualizar produtos para refletir mudanças no estoque
-      await productStore.fetchProducts()
     } catch (error) {
       console.error('Erro ao excluir movimento:', error)
     }
@@ -140,12 +217,6 @@ const formatCurrency = (value: number | undefined) => {
     style: 'currency',
     currency: 'BRL'
   }).format(value)
-}
-
-const getProductName = (productId: number | undefined) => {
-  if (!productId) return 'N/A'
-  const product = productStore.products.find(p => p.id === productId)
-  return product?.descricao || 'N/A'
 }
 
 const formatDate = (date: string | undefined) => {
@@ -205,17 +276,24 @@ const formatDate = (date: string | undefined) => {
           </v-card-title>
 
           <v-card-text>
-            <v-data-table
+            <v-data-table-server
+              :page="movementStore.page"
+              :items-per-page="movementStore.itemsPerPage"
+              :sort-by="movementStore.sortBy"
               :headers="headers"
-              :items="filteredMovements"
+              :items="movementStore.items"
+              :items-length="movementStore.totalItems"
+              :items-per-page-options="ITEMS_PER_PAGE_OPTIONS"
               :loading="movementStore.loading"
+              :search="searchQuery"
               class="elevation-1"
+              @update:options="loadItems"
             >
               <template v-slot:item.dataMovimento="{ item }">
                 {{ formatDate(item.dataMovimento) }}
               </template>
-              <template v-slot:item.produto="{ item }">
-                {{ getProductName(item.produtoId) }}
+              <template v-slot:item.produtoDescricao="{ item }">
+                {{ item.produtoDescricao || 'N/A' }}
               </template>
               <template v-slot:item.tipoMovimentacao="{ item }">
                 <v-chip
@@ -250,7 +328,7 @@ const formatDate = (date: string | undefined) => {
                   <v-icon>mdi-delete</v-icon>
                 </v-btn>
               </template>
-            </v-data-table>
+            </v-data-table-server>
           </v-card-text>
         </v-card>
       </v-col>
@@ -264,21 +342,25 @@ const formatDate = (date: string | undefined) => {
         </v-card-title>
         <v-card-text>
           <v-form @submit.prevent="onSubmit">
-            <v-select
+            <!-- no-filter: a lista já vem filtrada do servidor -->
+            <v-autocomplete
               v-model="produtoId"
+              v-model:search="productSearch"
               v-bind="produtoIdProps"
               :error-messages="errors.produtoId"
-              :items="productStore.products"
+              :items="productOptions"
+              :loading="productSearchLoading"
               item-title="descricao"
               item-value="id"
               label="Produto"
+              no-filter
               required
             >
               <template v-slot:item="{ props, item }">
                 <v-list-item v-bind="props" :subtitle="`Estoque: ${item.quantidadeEmEstoque || 0}`">
                 </v-list-item>
               </template>
-            </v-select>
+            </v-autocomplete>
 
             <v-radio-group
               v-model="tipoMovimentacao"
@@ -306,9 +388,9 @@ const formatDate = (date: string | undefined) => {
               variant="tonal"
               class="mt-3"
             >
-              <div>Estoque atual: {{ productStore.products.find(p => p.id === produtoId)?.quantidadeEmEstoque || 0 }} unidades</div>
-              <div v-if="productStore.products.find(p => p.id === produtoId)?.valorFornecedor">
-                Valor de venda será: {{ formatCurrency((productStore.products.find(p => p.id === produtoId)?.valorFornecedor || 0) * 1.35) }}
+              <div>Estoque atual: {{ chosenProduct?.quantidadeEmEstoque || 0 }} unidades</div>
+              <div v-if="chosenProductSalePrice !== undefined">
+                Valor de venda será: {{ formatCurrency(chosenProductSalePrice) }}
               </div>
             </v-alert>
           </v-form>

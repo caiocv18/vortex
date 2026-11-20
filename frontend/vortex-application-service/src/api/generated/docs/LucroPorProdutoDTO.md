@@ -6,10 +6,10 @@ DTO para o relatório de lucro por produto
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**id** | **number** | ID do produto | [optional] [default to undefined]
 **descricao** | **string** | Descrição do produto | [optional] [default to undefined]
-**totalUnidadesVendidas** | **number** | Total de unidades vendidas | [optional] [default to undefined]
+**id** | **number** | ID do produto | [optional] [default to undefined]
 **lucroTotal** | **number** | Lucro total | [optional] [default to undefined]
+**totalUnidadesVendidas** | **number** | Total de unidades vendidas | [optional] [default to undefined]
 
 ## Example
 
@@ -17,10 +17,10 @@ Name | Type | Description | Notes
 import { LucroPorProdutoDTO } from './api';
 
 const instance: LucroPorProdutoDTO = {
-    id,
     descricao,
-    totalUnidadesVendidas,
+    id,
     lucroTotal,
+    totalUnidadesVendidas,
 };
 ```
 

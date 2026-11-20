@@ -1,531 +1,359 @@
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "API de Controle de Estoque - Vortex",
-    "description": "API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, tipos de produtos, movimentações de entrada e saída, e geração de relatórios. Desenvolvida como TCC da pós-graduação em Desenvolvimento Full-Stack da PUCRS.",
-    "contact": {
-      "name": "Vortex no GitHub",
-      "url": "https://github.com/caiocv18/vortex"
-    },
-    "license": {
-      "name": "Apache 2.0",
-      "url": "https://www.apache.org/licenses/LICENSE-2.0"
-    },
-    "version": "0.1.1"
+  "components": {
+    "schemas": {
+      "LucroPorProdutoDTO": {
+        "description": "DTO para o relatório de lucro por produto",
+        "properties": {
+          "descricao": {
+            "description": "Descrição do produto",
+            "example": "Smartphone Samsung Galaxy S21",
+            "type": "string"
+          },
+          "id": {
+            "description": "ID do produto",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "lucroTotal": {
+            "description": "Lucro total",
+            "example": 7500.0,
+            "type": "number"
+          },
+          "totalUnidadesVendidas": {
+            "description": "Total de unidades vendidas",
+            "example": 15,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MovimentoEstoque": {
+        "description": "Representa um movimento de estoque (entrada ou saída)",
+        "properties": {
+          "dataMovimento": {
+            "description": "Data e hora em que o movimento foi registrado (gerado automaticamente)",
+            "example": "2023-01-01T10:00:00",
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "Identificador único do movimento de estoque (gerado automaticamente)",
+            "example": 1,
+            "format": "int64",
+            "readOnly": true,
+            "type": "integer"
+          },
+          "produtoDescricao": {
+            "description": "Descrição do produto associado ao movimento (preenchida pela API; ignorada na criação e na alteração)",
+            "example": "Smartphone Samsung Galaxy S21",
+            "readOnly": true,
+            "type": "string"
+          },
+          "produtoId": {
+            "description": "Identificador do produto associado ao movimento",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "quantidadeMovimentada": {
+            "description": "Quantidade de itens movimentados (deve ser maior que zero)",
+            "example": 5,
+            "exclusiveMinimum": 0,
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "tipoMovimentacao": {
+            "description": "Tipo de movimentação (ENTRADA aumenta o estoque, SAIDA diminui o estoque)",
+            "enum": [
+              "ENTRADA",
+              "SAIDA"
+            ],
+            "example": "ENTRADA",
+            "type": "string"
+          },
+          "valorVenda": {
+            "description": "Valor de venda unitário (calculado automaticamente para SAIDA como 1.35 * valorFornecedor, nulo para ENTRADA)",
+            "example": 2025.0,
+            "readOnly": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "produtoId",
+          "quantidadeMovimentada",
+          "tipoMovimentacao"
+        ],
+        "title": "Movimento de Estoque",
+        "type": "object"
+      },
+      "PageMetadata": {
+        "properties": {
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "type": "object"
+      },
+      "PagedModelMovimentoEstoque": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/MovimentoEstoque"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          }
+        },
+        "required": [
+          "content",
+          "page"
+        ],
+        "type": "object"
+      },
+      "PagedModelProdutoDTO": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ProdutoDTO"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMetadata"
+          }
+        },
+        "required": [
+          "content",
+          "page"
+        ],
+        "type": "object"
+      },
+      "ProdutoDTO": {
+        "description": "DTO para transferência de dados de Produto",
+        "properties": {
+          "descricao": {
+            "description": "Descrição do produto",
+            "example": "Smartphone Samsung Galaxy S21",
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "description": "ID do produto",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "quantidadeEmEstoque": {
+            "default": 0,
+            "description": "Quantidade em estoque",
+            "example": 10,
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tipoProdutoId": {
+            "description": "ID do tipo de produto",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "valorFornecedor": {
+            "description": "Valor do fornecedor",
+            "example": 1500.0,
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "descricao",
+          "tipoProdutoId",
+          "valorFornecedor"
+        ],
+        "type": "object"
+      },
+      "ProdutoPorTipoDTO": {
+        "description": "DTO para o relatório de produtos por tipo",
+        "properties": {
+          "descricao": {
+            "description": "Descrição do produto",
+            "example": "Smartphone Samsung Galaxy S21",
+            "type": "string"
+          },
+          "id": {
+            "description": "ID do produto",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "quantidadeEmEstoque": {
+            "description": "Quantidade em estoque",
+            "example": 10,
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalSaidas": {
+            "description": "Quantidade total de saídas",
+            "example": 15,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "TipoProdutoDTO": {
+        "description": "DTO para transferência de dados de Tipo de Produto",
+        "properties": {
+          "id": {
+            "description": "ID do tipo de produto",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "nome": {
+            "description": "Nome do tipo de produto",
+            "example": "Eletrônicos",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "nome"
+        ],
+        "type": "object"
+      }
+    }
   },
   "externalDocs": {
     "description": "README do projeto",
     "url": "https://github.com/caiocv18/vortex#readme"
   },
-  "servers": [
-    {
-      "url": "http://localhost:8080/api",
-      "description": "Servidor de Desenvolvimento"
-    }
-  ],
-  "tags": [
-    {
-      "name": "Tipos de Produto",
-      "description": "API para gerenciamento de tipos de produto"
+  "info": {
+    "contact": {
+      "name": "Vortex no GitHub",
+      "url": "https://github.com/caiocv18/vortex"
     },
-    {
-      "name": "Relatórios",
-      "description": "API para geração de relatórios"
+    "description": "API RESTful para gerenciamento completo de estoque, incluindo cadastro de produtos, tipos de produtos, movimentações de entrada e saída, e geração de relatórios. Desenvolvida como TCC da pós-graduação em Desenvolvimento Full-Stack da PUCRS.",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
-    {
-      "name": "Movimentos de Estoque",
-      "description": "API para gerenciamento de movimentos de estoque (entradas e saídas), com controle automático de estoque e cálculo de valores de venda"
-    },
-    {
-      "name": "Produtos",
-      "description": "API para gerenciamento de produtos"
-    }
-  ],
+    "title": "API de Controle de Estoque - Vortex",
+    "version": "0.1.1"
+  },
+  "openapi": "3.1.0",
   "paths": {
-    "/tipos-produto/{id}": {
-      "get": {
-        "tags": [
-          "Tipos de Produto"
-        ],
-        "summary": "Busca um tipo de produto pelo ID",
-        "description": "Retorna um tipo de produto específico pelo seu ID",
-        "operationId": "findTipoProdutoById",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do tipo de produto a ser buscado",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação bem-sucedida",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TipoProdutoDTO"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Tipo de produto não encontrado"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Tipos de Produto"
-        ],
-        "summary": "Atualiza um tipo de produto",
-        "description": "Atualiza um tipo de produto existente com os dados fornecidos",
-        "operationId": "updateTipoProduto",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do tipo de produto a ser atualizado",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TipoProdutoDTO"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Tipo de produto atualizado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TipoProdutoDTO"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos fornecidos"
-          },
-          "404": {
-            "description": "Tipo de produto não encontrado"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Tipos de Produto"
-        ],
-        "summary": "Exclui um tipo de produto",
-        "description": "Exclui um tipo de produto existente pelo seu ID",
-        "operationId": "deleteTipoProduto",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do tipo de produto a ser excluído",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Tipo de produto excluído com sucesso"
-          },
-          "404": {
-            "description": "Tipo de produto não encontrado"
-          },
-          "400": {
-            "description": "Não é possível excluir um tipo de produto que possui produtos associados"
-          }
-        }
-      }
-    },
-    "/produtos/{id}": {
-      "get": {
-        "tags": [
-          "Produtos"
-        ],
-        "summary": "Busca um produto pelo ID",
-        "description": "Retorna um produto específico pelo seu ID",
-        "operationId": "findProdutoById",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do produto a ser buscado",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação bem-sucedida",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProdutoDTO"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Produto não encontrado"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Produtos"
-        ],
-        "summary": "Atualiza um produto",
-        "description": "Atualiza um produto existente com os dados fornecidos",
-        "operationId": "updateProduto",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do produto a ser atualizado",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProdutoDTO"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Produto atualizado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProdutoDTO"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos fornecidos"
-          },
-          "404": {
-            "description": "Produto ou tipo de produto não encontrado"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Produtos"
-        ],
-        "summary": "Exclui um produto",
-        "description": "Exclui um produto existente pelo seu ID",
-        "operationId": "deleteProduto",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do produto a ser excluído",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Produto excluído com sucesso"
-          },
-          "404": {
-            "description": "Produto não encontrado"
-          },
-          "400": {
-            "description": "Não é possível excluir um produto que possui movimentos de estoque associados"
-          }
-        }
-      }
-    },
-    "/movimentos/{id}": {
-      "get": {
-        "tags": [
-          "Movimentos de Estoque"
-        ],
-        "summary": "Busca um movimento de estoque pelo ID",
-        "description": "Retorna um movimento de estoque específico pelo seu ID",
-        "operationId": "findMovimentoById",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do movimento de estoque a ser buscado",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação bem-sucedida",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MovimentoEstoque"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Movimento de estoque não encontrado"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Movimentos de Estoque"
-        ],
-        "summary": "Atualiza um movimento de estoque",
-        "description": "Atualiza um movimento de estoque existente com os dados fornecidos",
-        "operationId": "updateMovimento",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do movimento de estoque a ser atualizado",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MovimentoEstoque"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Movimento de estoque atualizado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MovimentoEstoque"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos fornecidos ou estoque insuficiente"
-          },
-          "404": {
-            "description": "Movimento de estoque ou produto não encontrado"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Movimentos de Estoque"
-        ],
-        "summary": "Exclui um movimento de estoque",
-        "description": "Exclui um movimento de estoque existente pelo seu ID",
-        "operationId": "deleteMovimento",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID do movimento de estoque a ser excluído",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Movimento de estoque excluído com sucesso"
-          },
-          "404": {
-            "description": "Movimento de estoque não encontrado"
-          }
-        }
-      }
-    },
-    "/tipos-produto": {
-      "get": {
-        "tags": [
-          "Tipos de Produto"
-        ],
-        "summary": "Busca todos os tipos de produto",
-        "description": "Retorna uma lista com todos os tipos de produto cadastrados",
-        "operationId": "findAllTiposProduto",
-        "responses": {
-          "200": {
-            "description": "Operação bem-sucedida",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TipoProdutoDTO"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Tipos de Produto"
-        ],
-        "summary": "Cria um novo tipo de produto",
-        "description": "Cria um novo tipo de produto com os dados fornecidos",
-        "operationId": "createTipoProduto",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TipoProdutoDTO"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Tipo de produto criado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TipoProdutoDTO"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos fornecidos"
-          }
-        }
-      }
-    },
-    "/produtos": {
-      "get": {
-        "tags": [
-          "Produtos"
-        ],
-        "summary": "Busca todos os produtos",
-        "description": "Retorna uma lista com todos os produtos cadastrados",
-        "operationId": "findAllProdutos",
-        "responses": {
-          "200": {
-            "description": "Operação bem-sucedida",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProdutoDTO"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Produtos"
-        ],
-        "summary": "Cria um novo produto",
-        "description": "Cria um novo produto com os dados fornecidos",
-        "operationId": "createProduto",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProdutoDTO"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Produto criado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProdutoDTO"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dados inválidos fornecidos"
-          },
-          "404": {
-            "description": "Tipo de produto não encontrado"
-          }
-        }
-      }
-    },
     "/movimentos": {
       "get": {
-        "tags": [
-          "Movimentos de Estoque"
-        ],
-        "summary": "Busca todos os movimentos de estoque",
-        "description": "Retorna uma lista com todos os movimentos de estoque cadastrados",
+        "description": "Retorna uma página de movimentos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=dataMovimento,desc. Um size acima de 100 é atendido com 100. O q filtra pela descrição do produto (contém, sem diferenciar maiúsculas) e o tipo pela movimentação; ausentes, não filtram.",
         "operationId": "findAllMovimentos",
-        "responses": {
-          "200": {
-            "description": "Operação bem-sucedida",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MovimentoEstoque"
-                }
-              }
+        "parameters": [
+          {
+            "description": "Trecho da descrição do produto (contém, sem diferenciar maiúsculas)",
+            "example": "notebook",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tipo de movimentação; ausente traz entradas e saídas",
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ENTRADA",
+                "SAIDA"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index (0..N)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The size of the page to be returned",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": [
+                "dataMovimento,DESC"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             }
           }
-        }
-      },
-      "post": {
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelMovimentoEstoque"
+                }
+              }
+            },
+            "description": "Operação bem-sucedida"
+          },
+          "400": {
+            "description": "Tipo de movimentação inválido ou ordenação por propriedade inexistente"
+          }
+        },
+        "summary": "Busca os movimentos de estoque, uma página por vez",
         "tags": [
           "Movimentos de Estoque"
-        ],
-        "summary": "Cria um novo movimento de estoque",
+        ]
+      },
+      "post": {
         "description": "Cria um novo movimento de estoque com os dados fornecidos",
         "operationId": "createMovimento",
         "requestBody": {
@@ -540,14 +368,14 @@
         },
         "responses": {
           "201": {
-            "description": "Movimento de estoque criado com sucesso",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MovimentoEstoque"
                 }
               }
-            }
+            },
+            "description": "Movimento de estoque criado com sucesso"
           },
           "400": {
             "description": "Dados inválidos fornecidos ou estoque insuficiente"
@@ -555,244 +383,605 @@
           "404": {
             "description": "Produto não encontrado"
           }
-        }
+        },
+        "summary": "Cria um novo movimento de estoque",
+        "tags": [
+          "Movimentos de Estoque"
+        ]
       }
     },
-    "/relatorios/produtos-por-tipo": {
-      "get": {
-        "tags": [
-          "Relatórios"
-        ],
-        "summary": "Gera relatório de produtos por tipo",
-        "description": "Retorna uma lista de produtos do tipo especificado, com quantidade total de saídas e estoque atual",
-        "operationId": "gerarRelatorioProdutosPorTipo",
+    "/movimentos/{id}": {
+      "delete": {
+        "description": "Exclui um movimento de estoque existente pelo seu ID",
+        "operationId": "deleteMovimento",
         "parameters": [
           {
-            "name": "tipoProdutoId",
-            "in": "query",
-            "description": "ID do tipo de produto",
+            "description": "ID do movimento de estoque a ser excluído",
+            "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Movimento de estoque excluído com sucesso"
+          },
+          "404": {
+            "description": "Movimento de estoque não encontrado"
+          }
+        },
+        "summary": "Exclui um movimento de estoque",
+        "tags": [
+          "Movimentos de Estoque"
+        ]
+      },
+      "get": {
+        "description": "Retorna um movimento de estoque específico pelo seu ID",
+        "operationId": "findMovimentoById",
+        "parameters": [
+          {
+            "description": "ID do movimento de estoque a ser buscado",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Operação bem-sucedida",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProdutoPorTipoDTO"
+                  "$ref": "#/components/schemas/MovimentoEstoque"
                 }
               }
+            },
+            "description": "Operação bem-sucedida"
+          },
+          "404": {
+            "description": "Movimento de estoque não encontrado"
+          }
+        },
+        "summary": "Busca um movimento de estoque pelo ID",
+        "tags": [
+          "Movimentos de Estoque"
+        ]
+      },
+      "put": {
+        "description": "Atualiza um movimento de estoque existente com os dados fornecidos",
+        "operationId": "updateMovimento",
+        "parameters": [
+          {
+            "description": "ID do movimento de estoque a ser atualizado",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
             }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovimentoEstoque"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimentoEstoque"
+                }
+              }
+            },
+            "description": "Movimento de estoque atualizado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos fornecidos ou estoque insuficiente"
+          },
+          "404": {
+            "description": "Movimento de estoque ou produto não encontrado"
+          }
+        },
+        "summary": "Atualiza um movimento de estoque",
+        "tags": [
+          "Movimentos de Estoque"
+        ]
+      }
+    },
+    "/produtos": {
+      "get": {
+        "description": "Retorna uma página de produtos no formato {\"content\": [...], \"page\": {\"size\", \"number\", \"totalElements\", \"totalPages\"}}. Sem parâmetros: page=0, size=20, sort=descricao,asc. Um size acima de 100 é atendido com 100. O q filtra pela descrição (contém, sem diferenciar maiúsculas); vazio ou ausente não filtra.",
+        "operationId": "findAllProdutos",
+        "parameters": [
+          {
+            "description": "Trecho da descrição do produto (contém, sem diferenciar maiúsculas)",
+            "example": "notebook",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index (0..N)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The size of the page to be returned",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": [
+                "descricao,ASC"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedModelProdutoDTO"
+                }
+              }
+            },
+            "description": "Operação bem-sucedida"
+          },
+          "400": {
+            "description": "Ordenação por propriedade inexistente"
+          }
+        },
+        "summary": "Busca os produtos, uma página por vez",
+        "tags": [
+          "Produtos"
+        ]
+      },
+      "post": {
+        "description": "Cria um novo produto com os dados fornecidos",
+        "operationId": "createProduto",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoDTO"
+                }
+              }
+            },
+            "description": "Produto criado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos fornecidos"
           },
           "404": {
             "description": "Tipo de produto não encontrado"
           }
-        }
+        },
+        "summary": "Cria um novo produto",
+        "tags": [
+          "Produtos"
+        ]
+      }
+    },
+    "/produtos/{id}": {
+      "delete": {
+        "description": "Exclui um produto existente pelo seu ID",
+        "operationId": "deleteProduto",
+        "parameters": [
+          {
+            "description": "ID do produto a ser excluído",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Produto excluído com sucesso"
+          },
+          "400": {
+            "description": "Não é possível excluir um produto que possui movimentos de estoque associados"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        },
+        "summary": "Exclui um produto",
+        "tags": [
+          "Produtos"
+        ]
+      },
+      "get": {
+        "description": "Retorna um produto específico pelo seu ID",
+        "operationId": "findProdutoById",
+        "parameters": [
+          {
+            "description": "ID do produto a ser buscado",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoDTO"
+                }
+              }
+            },
+            "description": "Operação bem-sucedida"
+          },
+          "404": {
+            "description": "Produto não encontrado"
+          }
+        },
+        "summary": "Busca um produto pelo ID",
+        "tags": [
+          "Produtos"
+        ]
+      },
+      "put": {
+        "description": "Atualiza um produto existente com os dados fornecidos",
+        "operationId": "updateProduto",
+        "parameters": [
+          {
+            "description": "ID do produto a ser atualizado",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoDTO"
+                }
+              }
+            },
+            "description": "Produto atualizado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos fornecidos"
+          },
+          "404": {
+            "description": "Produto ou tipo de produto não encontrado"
+          }
+        },
+        "summary": "Atualiza um produto",
+        "tags": [
+          "Produtos"
+        ]
       }
     },
     "/relatorios/lucro-por-produto": {
       "get": {
-        "tags": [
-          "Relatórios"
-        ],
-        "summary": "Gera relatório de lucro por produto",
         "description": "Retorna uma lista com ID/descrição do produto, total de unidades vendidas e lucro total",
         "operationId": "gerarRelatorioLucroPorProduto",
         "responses": {
           "200": {
-            "description": "Operação bem-sucedida",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LucroPorProdutoDTO"
                 }
               }
+            },
+            "description": "Operação bem-sucedida"
+          }
+        },
+        "summary": "Gera relatório de lucro por produto",
+        "tags": [
+          "Relatórios"
+        ]
+      }
+    },
+    "/relatorios/produtos-por-tipo": {
+      "get": {
+        "description": "Retorna uma lista de produtos do tipo especificado, com quantidade total de saídas e estoque atual",
+        "operationId": "gerarRelatorioProdutosPorTipo",
+        "parameters": [
+          {
+            "description": "ID do tipo de produto",
+            "in": "query",
+            "name": "tipoProdutoId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
             }
           }
-        }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoPorTipoDTO"
+                }
+              }
+            },
+            "description": "Operação bem-sucedida"
+          },
+          "404": {
+            "description": "Tipo de produto não encontrado"
+          }
+        },
+        "summary": "Gera relatório de produtos por tipo",
+        "tags": [
+          "Relatórios"
+        ]
+      }
+    },
+    "/tipos-produto": {
+      "get": {
+        "description": "Retorna uma lista com todos os tipos de produto cadastrados",
+        "operationId": "findAllTiposProduto",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipoProdutoDTO"
+                }
+              }
+            },
+            "description": "Operação bem-sucedida"
+          }
+        },
+        "summary": "Busca todos os tipos de produto",
+        "tags": [
+          "Tipos de Produto"
+        ]
+      },
+      "post": {
+        "description": "Cria um novo tipo de produto com os dados fornecidos",
+        "operationId": "createTipoProduto",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TipoProdutoDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipoProdutoDTO"
+                }
+              }
+            },
+            "description": "Tipo de produto criado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos fornecidos"
+          }
+        },
+        "summary": "Cria um novo tipo de produto",
+        "tags": [
+          "Tipos de Produto"
+        ]
+      }
+    },
+    "/tipos-produto/{id}": {
+      "delete": {
+        "description": "Exclui um tipo de produto existente pelo seu ID",
+        "operationId": "deleteTipoProduto",
+        "parameters": [
+          {
+            "description": "ID do tipo de produto a ser excluído",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Tipo de produto excluído com sucesso"
+          },
+          "400": {
+            "description": "Não é possível excluir um tipo de produto que possui produtos associados"
+          },
+          "404": {
+            "description": "Tipo de produto não encontrado"
+          }
+        },
+        "summary": "Exclui um tipo de produto",
+        "tags": [
+          "Tipos de Produto"
+        ]
+      },
+      "get": {
+        "description": "Retorna um tipo de produto específico pelo seu ID",
+        "operationId": "findTipoProdutoById",
+        "parameters": [
+          {
+            "description": "ID do tipo de produto a ser buscado",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipoProdutoDTO"
+                }
+              }
+            },
+            "description": "Operação bem-sucedida"
+          },
+          "404": {
+            "description": "Tipo de produto não encontrado"
+          }
+        },
+        "summary": "Busca um tipo de produto pelo ID",
+        "tags": [
+          "Tipos de Produto"
+        ]
+      },
+      "put": {
+        "description": "Atualiza um tipo de produto existente com os dados fornecidos",
+        "operationId": "updateTipoProduto",
+        "parameters": [
+          {
+            "description": "ID do tipo de produto a ser atualizado",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TipoProdutoDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipoProdutoDTO"
+                }
+              }
+            },
+            "description": "Tipo de produto atualizado com sucesso"
+          },
+          "400": {
+            "description": "Dados inválidos fornecidos"
+          },
+          "404": {
+            "description": "Tipo de produto não encontrado"
+          }
+        },
+        "summary": "Atualiza um tipo de produto",
+        "tags": [
+          "Tipos de Produto"
+        ]
       }
     }
   },
-  "components": {
-    "schemas": {
-      "TipoProdutoDTO": {
-        "type": "object",
-        "description": "DTO para transferência de dados de Tipo de Produto",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "ID do tipo de produto",
-            "example": 1
-          },
-          "nome": {
-            "type": "string",
-            "description": "Nome do tipo de produto",
-            "example": "Eletrônicos",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "nome"
-        ]
-      },
-      "ProdutoDTO": {
-        "type": "object",
-        "description": "DTO para transferência de dados de Produto",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "ID do produto",
-            "example": 1
-          },
-          "descricao": {
-            "type": "string",
-            "description": "Descrição do produto",
-            "example": "Smartphone Samsung Galaxy S21",
-            "minLength": 1
-          },
-          "valorFornecedor": {
-            "type": "number",
-            "description": "Valor do fornecedor",
-            "example": 1500
-          },
-          "quantidadeEmEstoque": {
-            "type": "integer",
-            "format": "int32",
-            "default": 0,
-            "description": "Quantidade em estoque",
-            "example": 10
-          },
-          "tipoProdutoId": {
-            "type": "integer",
-            "format": "int64",
-            "description": "ID do tipo de produto",
-            "example": 1
-          }
-        },
-        "required": [
-          "descricao",
-          "tipoProdutoId",
-          "valorFornecedor"
-        ]
-      },
-      "MovimentoEstoque": {
-        "type": "object",
-        "description": "Representa um movimento de estoque (entrada ou saída)",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Identificador único do movimento de estoque (gerado automaticamente)",
-            "example": 1,
-            "readOnly": true
-          },
-          "dataMovimento": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Data e hora em que o movimento foi registrado (gerado automaticamente)",
-            "example": "2023-01-01T10:00:00",
-            "readOnly": true
-          },
-          "tipoMovimentacao": {
-            "type": "string",
-            "description": "Tipo de movimentação (ENTRADA aumenta o estoque, SAIDA diminui o estoque)",
-            "enum": [
-              "ENTRADA",
-              "SAIDA"
-            ],
-            "example": "ENTRADA"
-          },
-          "quantidadeMovimentada": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Quantidade de itens movimentados (deve ser maior que zero)",
-            "example": 5,
-            "minimum": 1
-          },
-          "valorVenda": {
-            "type": "number",
-            "description": "Valor de venda unitário (calculado automaticamente para SAIDA como 1.35 * valorFornecedor, nulo para ENTRADA)",
-            "example": 2025,
-            "readOnly": true
-          },
-          "produtoId": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Identificador do produto associado ao movimento",
-            "example": 1
-          }
-        },
-        "required": [
-          "produtoId",
-          "quantidadeMovimentada",
-          "tipoMovimentacao"
-        ],
-        "title": "Movimento de Estoque"
-      },
-      "ProdutoPorTipoDTO": {
-        "type": "object",
-        "description": "DTO para o relatório de produtos por tipo",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "ID do produto",
-            "example": 1
-          },
-          "descricao": {
-            "type": "string",
-            "description": "Descrição do produto",
-            "example": "Smartphone Samsung Galaxy S21"
-          },
-          "totalSaidas": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Quantidade total de saídas",
-            "example": 15
-          },
-          "quantidadeEmEstoque": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Quantidade em estoque",
-            "example": 10
-          }
-        }
-      },
-      "LucroPorProdutoDTO": {
-        "type": "object",
-        "description": "DTO para o relatório de lucro por produto",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "ID do produto",
-            "example": 1
-          },
-          "descricao": {
-            "type": "string",
-            "description": "Descrição do produto",
-            "example": "Smartphone Samsung Galaxy S21"
-          },
-          "totalUnidadesVendidas": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Total de unidades vendidas",
-            "example": 15
-          },
-          "lucroTotal": {
-            "type": "number",
-            "description": "Lucro total",
-            "example": 7500
-          }
-        }
-      }
+  "servers": [
+    {
+      "description": "Servidor de Desenvolvimento",
+      "url": "http://localhost:8080/api"
     }
-  }
+  ],
+  "tags": [
+    {
+      "description": "API para gerenciamento de movimentos de estoque (entradas e saídas), com controle automático de estoque e cálculo de valores de venda",
+      "name": "Movimentos de Estoque"
+    },
+    {
+      "description": "API para gerenciamento de produtos",
+      "name": "Produtos"
+    },
+    {
+      "description": "API para geração de relatórios",
+      "name": "Relatórios"
+    },
+    {
+      "description": "API para gerenciamento de tipos de produto",
+      "name": "Tipos de Produto"
+    }
+  ]
 }
