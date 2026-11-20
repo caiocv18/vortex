@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 class MovimentoEstoqueServiceBuscaTest {
 
     private static final Pageable PAGINA = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "dataMovimento"));
+    private static final Pageable ESTAVEL = Paginacao.comDesempatePorId(PAGINA);
 
     private MovimentoEstoqueRepository movimentoRepository;
     private MovimentoEstoqueService service;
@@ -51,7 +52,7 @@ class MovimentoEstoqueServiceBuscaTest {
     @Test
     @SuppressWarnings("unchecked")
     void semFiltroRepassaAPaginaEMapeiaOsMovimentos() {
-        when(movimentoRepository.findAll(any(Specification.class), eq(PAGINA)))
+        when(movimentoRepository.findAll(any(Specification.class), eq(ESTAVEL)))
                 .thenReturn(new PageImpl<>(List.of(saida()), PAGINA, 7));
 
         Page<MovimentoEstoqueDTO> pagina = service.buscar(null, null, PAGINA);
@@ -70,11 +71,11 @@ class MovimentoEstoqueServiceBuscaTest {
     @Test
     @SuppressWarnings("unchecked")
     void comFiltrosAindaUsaUmaConsultaSoComAPaginaPedida() {
-        when(movimentoRepository.findAll(any(Specification.class), eq(PAGINA)))
+        when(movimentoRepository.findAll(any(Specification.class), eq(ESTAVEL)))
                 .thenReturn(new PageImpl<>(List.of(), PAGINA, 0));
 
         assertEquals(0, service.buscar("  caneta ", TipoMovimentacao.SAIDA, PAGINA).getTotalElements());
-        verify(movimentoRepository).findAll(any(Specification.class), eq(PAGINA));
+        verify(movimentoRepository).findAll(any(Specification.class), eq(ESTAVEL));
     }
 
     private static MovimentoEstoque saida() {

@@ -227,7 +227,7 @@ public class MovimentoEstoqueService {
             filtro = filtro.and(comDescricaoDoProdutoContendo(trecho));
         }
 
-        return movimentoEstoqueRepository.findAll(filtro, pageable).map(this::mapToDTO);
+        return movimentoEstoqueRepository.findAll(filtro, Paginacao.comDesempatePorId(pageable)).map(this::mapToDTO);
     }
 
     /**

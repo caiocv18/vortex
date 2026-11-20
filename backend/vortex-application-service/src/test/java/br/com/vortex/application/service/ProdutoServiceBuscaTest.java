@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 class ProdutoServiceBuscaTest {
 
     private static final Pageable PAGINA = PageRequest.of(1, 5, Sort.by("descricao"));
+    private static final Pageable ESTAVEL = Paginacao.comDesempatePorId(PAGINA);
 
     private ProdutoRepository produtoRepository;
     private ProdutoService service;
@@ -51,7 +52,7 @@ class ProdutoServiceBuscaTest {
     @NullSource
     @ValueSource(strings = {"", "   "})
     void semTrechoBuscaTodos(String q) {
-        when(produtoRepository.findAll(PAGINA)).thenReturn(new PageImpl<>(List.of(produto()), PAGINA, 6));
+        when(produtoRepository.findAll(ESTAVEL)).thenReturn(new PageImpl<>(List.of(produto()), PAGINA, 6));
 
         Page<ProdutoDTO> pagina = service.buscar(q, PAGINA);
 
@@ -62,7 +63,7 @@ class ProdutoServiceBuscaTest {
 
     @Test
     void comTrechoFiltraPelaDescricaoSemOsEspacosDasPontas() {
-        when(produtoRepository.findByDescricaoContainingIgnoreCase("Caneta", PAGINA))
+        when(produtoRepository.findByDescricaoContainingIgnoreCase("Caneta", ESTAVEL))
                 .thenReturn(new PageImpl<>(List.of(produto()), PAGINA, 6));
 
         Page<ProdutoDTO> pagina = service.buscar("  Caneta ", PAGINA);

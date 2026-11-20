@@ -81,9 +81,10 @@ public class ProdutoService {
     @Transactional(readOnly = true)
     public Page<ProdutoDTO> buscar(String q, Pageable pageable) {
         String trecho = q == null ? "" : q.strip();
+        Pageable estavel = Paginacao.comDesempatePorId(pageable);
         Page<Produto> produtos = trecho.isEmpty()
-                ? produtoRepository.findAll(pageable)
-                : produtoRepository.findByDescricaoContainingIgnoreCase(trecho, pageable);
+                ? produtoRepository.findAll(estavel)
+                : produtoRepository.findByDescricaoContainingIgnoreCase(trecho, estavel);
 
         return produtos.map(this::mapToDTO);
     }
