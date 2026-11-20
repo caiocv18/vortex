@@ -26,7 +26,7 @@ public class SecurityConfig {
                                            JwtAuthenticationFilter jwtAuthenticationFilter,
                                            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                                            UrlBasedCorsConfigurationSource corsConfigurationSource,
-                                           Environment environment) throws Exception {
+                                           Environment environment) {
         boolean cloud = DeploymentProfiles.isCloud(environment);
         Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry> rules =
                 cloud ? SecurityConfig::cloudRules : SecurityConfig::localRules;
