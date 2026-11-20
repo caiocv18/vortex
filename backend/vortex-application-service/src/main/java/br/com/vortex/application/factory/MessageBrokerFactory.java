@@ -7,7 +7,7 @@ import br.com.vortex.application.model.MovimentoEstoque;
 import br.com.vortex.application.model.Produto;
 import br.com.vortex.application.dto.ProdutoDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -35,11 +35,19 @@ public class MessageBrokerFactory {
     @Value("${rabbitmq.enabled:false}")
     private boolean rabbitmqEnabled;
 
-    @Autowired(required = false)
-    private KafkaProducerService kafkaProducerService;
+    private final KafkaProducerService kafkaProducerService;
 
-    @Autowired(required = false)
-    private RabbitMQProducerService rabbitMQProducerService;
+    private final RabbitMQProducerService rabbitMQProducerService;
+
+    /**
+     * Os producers são opcionais ({@code @ConditionalOnProperty}): sem o bean, o campo fica nulo e a escolha cai
+     * no NoOp.
+     */
+    public MessageBrokerFactory(ObjectProvider<KafkaProducerService> kafkaProducerService,
+                                ObjectProvider<RabbitMQProducerService> rabbitMQProducerService) {
+        this.kafkaProducerService = kafkaProducerService.getIfAvailable();
+        this.rabbitMQProducerService = rabbitMQProducerService.getIfAvailable();
+    }
 
     /**
      * Cria o bean principal do MessageBrokerService baseado na configuração.

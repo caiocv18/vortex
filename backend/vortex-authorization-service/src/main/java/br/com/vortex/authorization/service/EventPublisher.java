@@ -32,19 +32,24 @@ public class EventPublisher {
     // Quanto o publishEventSync espera a confirmação do conector antes de desistir
     static final long SYNC_ACK_TIMEOUT_SECONDS = 10;
 
-    @Inject
-    ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    @Inject
-    MessagingConfig.MessagingProperties messagingProperties;
+    private final MessagingConfig.MessagingProperties messagingProperties;
 
     // Só é chamado com auth.event.enabled=true (ver UserEventsChannel). Ligar os eventos sem um
     // perfil que dê conector ao canal (kafka ou rabbitmq) faz cada envio virar log de erro.
-    @Inject
-    UserEventsChannel userEventsChannel;
+    private final UserEventsChannel userEventsChannel;
+
+    private final TransactionSynchronizationRegistry transactionRegistry;
 
     @Inject
-    TransactionSynchronizationRegistry transactionRegistry;
+    public EventPublisher(ObjectMapper objectMapper, MessagingConfig.MessagingProperties messagingProperties,
+                          UserEventsChannel userEventsChannel, TransactionSynchronizationRegistry transactionRegistry) {
+        this.objectMapper = objectMapper;
+        this.messagingProperties = messagingProperties;
+        this.userEventsChannel = userEventsChannel;
+        this.transactionRegistry = transactionRegistry;
+    }
 
     public void publishEvent(AuthEvent event) {
         if (!messagingProperties.isEventEnabled()) {
@@ -162,6 +167,13 @@ public class EventPublisher {
 class MockEventPublisher extends EventPublisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MockEventPublisher.class);
+
+    // Os dois métodos abaixo não usam nenhuma dependência do EventPublisher, então nada é injetado. O
+    // construtor sem argumentos também é o que o client proxy do ArC exige: ele não consegue gerar um
+    // sozinho quando a superclasse não tem construtor sem argumentos.
+    MockEventPublisher() {
+        super(null, null, null, null);
+    }
 
     @Override
     public void publishEvent(AuthEvent event) {

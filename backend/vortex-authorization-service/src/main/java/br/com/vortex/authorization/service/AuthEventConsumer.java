@@ -21,8 +21,12 @@ public class AuthEventConsumer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthEventConsumer.class);
 
+    private final ObjectMapper objectMapper;
+
     @Inject
-    ObjectMapper objectMapper;
+    public AuthEventConsumer(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Incoming("user-events")
     public void handleUserEvent(String eventJson) {

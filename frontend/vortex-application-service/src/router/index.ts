@@ -3,6 +3,14 @@ import HomeView from '../views/HomeView.vue'
 import { useAuthStore } from '@/stores/auth'
 import { awaitAuthHandOff } from '@/utils/authCallback'
 
+// Tipa o meta das rotas: sem isso to.meta.title é unknown e o template do título viraria "[object Object]"
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string
+    requiresAuth?: boolean
+  }
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [

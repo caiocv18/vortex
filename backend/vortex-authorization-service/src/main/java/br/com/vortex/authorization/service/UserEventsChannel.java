@@ -24,10 +24,12 @@ import java.util.concurrent.CompletionStage;
 @ApplicationScoped
 public class UserEventsChannel {
 
+    private final Emitter<String> emitter;
+
     @Inject
-    @Channel("user-events")
-    @Broadcast
-    Emitter<String> emitter;
+    public UserEventsChannel(@Channel("user-events") @Broadcast Emitter<String> emitter) {
+        this.emitter = emitter;
+    }
 
     public CompletionStage<Void> send(String payload) {
         return emitter.send(payload);
