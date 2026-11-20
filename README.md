@@ -107,7 +107,7 @@ The authorization service signs its tokens with an RSA key pair that stays out o
 
 ## Quality
 
-Each service has its own GitHub Actions workflow, which builds only when that service changes ([ADR 0001](docs/adr/0001-ci-per-service-with-paths-filter.md)). SonarCloud analyzes every pull request.
+Each service has its own GitHub Actions workflow, which builds only when that service changes ([ADR 0001](docs/adr/0001-ci-per-service-with-paths-filter.md)). SonarCloud analyzes every pull request from CI, with coverage from every module ([ADR 0010](docs/adr/0010-sonarcloud-ci-based-analysis.md)).
 
 | Workflow | What it runs |
 |---|---|

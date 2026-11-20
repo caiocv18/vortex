@@ -105,7 +105,7 @@ O serviço de autorização assina os tokens com um par de chaves RSA que fica f
 
 ## Qualidade
 
-Cada serviço tem o próprio workflow no GitHub Actions, que só compila quando aquele serviço muda ([ADR 0001](docs/adr/0001-ci-per-service-with-paths-filter.md)). O SonarCloud analisa todo pull request.
+Cada serviço tem o próprio workflow no GitHub Actions, que só compila quando aquele serviço muda ([ADR 0001](docs/adr/0001-ci-per-service-with-paths-filter.md)). O SonarCloud analisa todo pull request pelo CI, com a cobertura de todos os módulos ([ADR 0010](docs/adr/0010-sonarcloud-ci-based-analysis.md)).
 
 | Workflow | O que roda |
 |---|---|

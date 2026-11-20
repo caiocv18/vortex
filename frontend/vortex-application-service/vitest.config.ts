@@ -19,6 +19,15 @@ export default defineConfig((configEnv) =>
             inline: ['vuetify'],
           },
         },
+        // Cobertura só com --coverage (job sonar-fronts do sonar.yml). O lcov sai com caminhos relativos à
+        // raiz do repositório (projectRoot), que é onde o SonarCloud resolve os arquivos do relatório
+        coverage: {
+          provider: 'v8',
+          reporter: [
+            'text-summary',
+            ['lcov', { projectRoot: fileURLToPath(new URL('../..', import.meta.url)) }],
+          ],
+        },
       },
     }),
   ),
