@@ -77,12 +77,18 @@ const withChosenProduct = (products: ProdutoDTO[]) => {
   return [chosen, ...products]
 }
 
+// Cada busca ganha um número; só a última grava as opções e desliga o loading. Sem isso, uma
+// resposta mais antiga que chegasse depois sobrescreveria a lista, e o primeiro finally apagaria
+// o loading com outra requisição ainda pendente.
+let latestProductSearch = 0
 const loadProductOptions = async (text: string) => {
+  const current = ++latestProductSearch
   productSearchLoading.value = true
   try {
-    productOptions.value = withChosenProduct(await productStore.searchProducts(text))
+    const products = await productStore.searchProducts(text)
+    if (current === latestProductSearch) productOptions.value = withChosenProduct(products)
   } finally {
-    productSearchLoading.value = false
+    if (current === latestProductSearch) productSearchLoading.value = false
   }
 }
 
