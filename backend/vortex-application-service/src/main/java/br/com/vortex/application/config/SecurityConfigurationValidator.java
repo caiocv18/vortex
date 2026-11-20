@@ -67,7 +67,7 @@ public class SecurityConfigurationValidator implements ApplicationRunner {
         }
 
         // Production-specific checks
-        if (isProductionEnvironment() && !jwtProperties.getStrictValidation()) {
+        if (isProductionEnvironment() && !Boolean.TRUE.equals(jwtProperties.getStrictValidation())) {
             errors.add("JWT strict validation must be enabled in production");
         }
     }
