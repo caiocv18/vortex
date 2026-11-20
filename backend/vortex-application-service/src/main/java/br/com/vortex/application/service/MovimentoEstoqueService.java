@@ -53,21 +53,7 @@ public class MovimentoEstoqueService {
     }
 
     /**
-     * Cria um novo movimento de estoque.
-     * Pode processar de forma síncrona ou assíncrona dependendo da configuração.
-     *
-     * @param movimentoEstoqueDTO DTO com os dados do movimento de estoque
-     * @return DTO do movimento de estoque criado
-     * @throws ResourceNotFoundException se o produto não for encontrado
-     * @throws EstoqueInsuficienteException se não houver estoque suficiente para uma saída
-     */
-    @Transactional
-    public MovimentoEstoqueDTO criar(MovimentoEstoqueDTO movimentoEstoqueDTO) {
-        return criar(movimentoEstoqueDTO, null);
-    }
-
-    /**
-     * Cria um novo movimento de estoque com opção de processamento assíncrono.
+     * Cria um novo movimento de estoque, de forma síncrona ou pela fila SQS conforme a configuração.
      *
      * @param movimentoEstoqueDTO DTO com os dados do movimento de estoque
      * @param usuarioId ID do usuário que está realizando a operação
