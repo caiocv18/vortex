@@ -11,7 +11,6 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.JsonString;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -43,19 +42,15 @@ public class AuthService {
 
     private final EmailService emailService;
 
-    private final EntityManager entityManager;
-
     @Inject
     public AuthService(JwtService jwtService, JWTParser jwtParser, PasswordService passwordService,
-                       RateLimitService rateLimitService, EventPublisher eventPublisher, EmailService emailService,
-                       EntityManager entityManager) {
+                       RateLimitService rateLimitService, EventPublisher eventPublisher, EmailService emailService) {
         this.jwtService = jwtService;
         this.jwtParser = jwtParser;
         this.passwordService = passwordService;
         this.rateLimitService = rateLimitService;
         this.eventPublisher = eventPublisher;
         this.emailService = emailService;
-        this.entityManager = entityManager;
     }
 
     /**
