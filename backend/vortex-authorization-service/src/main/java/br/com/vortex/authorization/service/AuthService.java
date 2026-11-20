@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 public class AuthService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
+    private static final String IP_ADDRESS = "ipAddress";
 
     private final JwtService jwtService;
 
@@ -113,7 +114,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "LOGIN_SUCCESS", 
-            Map.of("method", "password", "ipAddress", ipAddress), 
+            Map.of("method", "password", IP_ADDRESS, ipAddress), 
             ipAddress, userAgent);
 
         // Publish login event (o EventPublisher só envia depois do commit). O sessionId é o id da linha
@@ -191,7 +192,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "USER_CREATED",
-            Map.of("method", "registration", "ipAddress", ipAddress),
+            Map.of("method", "registration", IP_ADDRESS, ipAddress),
             ipAddress, userAgent);
 
         // For now, auto-verify user (in production, send verification email)
@@ -272,7 +273,7 @@ public class AuthService {
             
             // Log audit event
             AuditLog.log(user, "LOGOUT", 
-                Map.of("ipAddress", ipAddress), 
+                Map.of(IP_ADDRESS, ipAddress), 
                 ipAddress, userAgent);
 
             // Publish logout event
@@ -318,7 +319,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "PASSWORD_RESET_REQUESTED", 
-            Map.of("ipAddress", ipAddress), 
+            Map.of(IP_ADDRESS, ipAddress), 
             ipAddress, userAgent);
 
         // Publish password reset requested event
@@ -391,7 +392,7 @@ public class AuthService {
 
         // Log audit event
         AuditLog.log(user, "PASSWORD_RESET", 
-            Map.of("ipAddress", ipAddress), 
+            Map.of(IP_ADDRESS, ipAddress), 
             ipAddress, userAgent);
 
         // Publish password changed event

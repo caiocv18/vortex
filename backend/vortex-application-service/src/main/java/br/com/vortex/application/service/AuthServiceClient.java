@@ -32,6 +32,8 @@ public class AuthServiceClient {
             new ParameterizedTypeReference<>() { };
     private static final String LOCAL_VALIDATION = "local-validation";
     private static final String LOCAL_TOKEN_EXTRACTION = "local-token-extraction";
+    private static final String VALID = "valid";
+    private static final String SOURCE = "source";
 
     private final RestClient restClient;
     private final AuthTokenVerifier authTokenVerifier;
@@ -113,13 +115,13 @@ public class AuthServiceClient {
                 return authTokenVerifier.verify(token)
                         .map(verified -> {
                             Map<String, Object> response = userFields(verified, LOCAL_VALIDATION);
-                            response.put("valid", true);
+                            response.put(VALID, true);
                             return response;
                         })
-                        .orElseGet(() -> Map.of("valid", false, "source", LOCAL_VALIDATION));
+                        .orElseGet(() -> Map.of(VALID, false, SOURCE, LOCAL_VALIDATION));
             } catch (Exception e) {
                 log.error("Local token validation failed: {}", e.getMessage());
-                return Map.of("valid", false, "source", LOCAL_VALIDATION);
+                return Map.of(VALID, false, SOURCE, LOCAL_VALIDATION);
             }
         }, executor);
     }
@@ -157,10 +159,10 @@ public class AuthServiceClient {
             try {
                 return authTokenVerifier.verify(token)
                         .map(verified -> userFields(verified, LOCAL_TOKEN_EXTRACTION))
-                        .orElseGet(() -> Map.of("error", "Invalid token", "source", LOCAL_TOKEN_EXTRACTION));
+                        .orElseGet(() -> Map.of("error", "Invalid token", SOURCE, LOCAL_TOKEN_EXTRACTION));
             } catch (Exception e) {
                 log.error("Local token extraction failed: {}", e.getMessage());
-                return Map.of("error", "Invalid token", "source", LOCAL_TOKEN_EXTRACTION);
+                return Map.of("error", "Invalid token", SOURCE, LOCAL_TOKEN_EXTRACTION);
             }
         }, executor);
     }
@@ -174,7 +176,7 @@ public class AuthServiceClient {
         fields.put("email", verified.email());
         fields.put("roles", verified.roles());
         fields.put("userId", verified.userId());
-        fields.put("source", source);
+        fields.put(SOURCE, source);
         return fields;
     }
 }

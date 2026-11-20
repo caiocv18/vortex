@@ -30,6 +30,9 @@ import java.util.List;
 @Service
 public class MovimentoEstoqueService {
 
+    private static final String MOVIMENTO_ESTOQUE = "MovimentoEstoque";
+    private static final String PRODUTO = "Produto";
+
     private final MovimentoEstoqueRepository movimentoEstoqueRepository;
     private final ProdutoRepository produtoRepository;
     // Nulo quando o SQS está desligado (sqs.enabled=false)
@@ -79,7 +82,7 @@ public class MovimentoEstoqueService {
     private MovimentoEstoqueDTO criarAssincrono(MovimentoEstoqueDTO movimentoEstoqueDTO, String usuarioId) {
         // Valida se o produto existe antes de enviar para a fila
         Produto produto = produtoRepository.findById(movimentoEstoqueDTO.getProdutoId())
-                .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", movimentoEstoqueDTO.getProdutoId()));
+                .orElseThrow(() -> new ResourceNotFoundException(PRODUTO, "id", movimentoEstoqueDTO.getProdutoId()));
 
         // Cria mensagem para SQS
         MovimentoEstoqueMessageDTO message = new MovimentoEstoqueMessageDTO();
@@ -103,7 +106,7 @@ public class MovimentoEstoqueService {
         // Envia auditoria
         sqsProducerService.enviarAuditoria(
                 "MOVIMENTO_ENVIADO_SQS",
-                "MovimentoEstoque",
+                MOVIMENTO_ESTOQUE,
                 null,
                 usuarioId,
                 String.format("Movimento %s enviado para processamento assíncrono. Produto: %d, Quantidade: %d, OperationId: %s", 
@@ -121,7 +124,7 @@ public class MovimentoEstoqueService {
      */
     private MovimentoEstoqueDTO criarSincrono(MovimentoEstoqueDTO movimentoEstoqueDTO, String usuarioId) {
         Produto produto = produtoRepository.findById(movimentoEstoqueDTO.getProdutoId())
-                .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", movimentoEstoqueDTO.getProdutoId()));
+                .orElseThrow(() -> new ResourceNotFoundException(PRODUTO, "id", movimentoEstoqueDTO.getProdutoId()));
         
         // Armazenar estoque anterior para o evento Kafka
         Integer estoqueAnterior = produto.getQuantidadeEmEstoque();
@@ -172,8 +175,8 @@ public class MovimentoEstoqueService {
             
             // Auditoria via Message Broker
             messageBrokerService.publicarAuditoria(
-                "MOVIMENTO_CRIADO", 
-                "MovimentoEstoque", 
+                "MOVIMENTO_CRIADO",
+                MOVIMENTO_ESTOQUE,
                 savedMovimento.getId(), 
                 String.format("Movimento %s criado. Produto: %d, Quantidade: %d", 
                     savedMovimento.getTipoMovimentacao(), 
@@ -243,7 +246,7 @@ public class MovimentoEstoqueService {
     @Transactional(readOnly = true)
     public MovimentoEstoqueDTO buscarPorId(Long id) {
         MovimentoEstoque movimentoEstoque = movimentoEstoqueRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("MovimentoEstoque", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(MOVIMENTO_ESTOQUE, "id", id));
         
         return mapToDTO(movimentoEstoque);
     }
@@ -261,10 +264,10 @@ public class MovimentoEstoqueService {
     @Transactional
     public MovimentoEstoqueDTO atualizar(Long id, MovimentoEstoqueDTO movimentoEstoqueDTO) {
         MovimentoEstoque movimentoEstoque = movimentoEstoqueRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("MovimentoEstoque", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(MOVIMENTO_ESTOQUE, "id", id));
         
         Produto produto = produtoRepository.findById(movimentoEstoqueDTO.getProdutoId())
-                .orElseThrow(() -> new ResourceNotFoundException("Produto", "id", movimentoEstoqueDTO.getProdutoId()));
+                .orElseThrow(() -> new ResourceNotFoundException(PRODUTO, "id", movimentoEstoqueDTO.getProdutoId()));
         
         // Reverte o efeito do movimento original no estoque
         if (movimentoEstoque.getTipoMovimentacao() == TipoMovimentacao.ENTRADA) {
@@ -320,7 +323,7 @@ public class MovimentoEstoqueService {
     @Transactional
     public void excluir(Long id) {
         MovimentoEstoque movimentoEstoque = movimentoEstoqueRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("MovimentoEstoque", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(MOVIMENTO_ESTOQUE, "id", id));
         
         Produto produto = movimentoEstoque.getProduto();
         

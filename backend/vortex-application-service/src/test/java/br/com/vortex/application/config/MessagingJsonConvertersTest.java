@@ -122,6 +122,28 @@ class MessagingJsonConvertersTest {
         assertThrows(RuntimeException.class, () -> converter.fromMessage(message));
     }
 
+    @Test
+    void kafkaTopicsKeepTheirRetention() {
+        KafkaConfig config = kafkaConfig();
+
+        assertEquals("604800000", config.movimentoEstoqueTopic().configs().get("retention.ms"));
+        assertEquals("2592000000", config.produtoEventsTopic().configs().get("retention.ms"));
+        assertEquals("259200000", config.alertasEstoqueTopic().configs().get("retention.ms"));
+        assertEquals("86400000", config.relatoriosEventsTopic().configs().get("retention.ms"));
+        assertEquals("15552000000", config.auditoriaTopic().configs().get("retention.ms"));
+    }
+
+    @Test
+    void rabbitQueuesKeepTheirMessageTtl() {
+        RabbitMQConfig config = new RabbitMQConfig();
+
+        assertEquals(604800000, config.movimentoEstoqueQueue().getArguments().get("x-message-ttl"));
+        assertEquals(2592000000L, config.produtoEventsQueue().getArguments().get("x-message-ttl"));
+        assertEquals(259200000, config.alertasEstoqueQueue().getArguments().get("x-message-ttl"));
+        assertEquals(86400000, config.relatoriosEventsQueue().getArguments().get("x-message-ttl"));
+        assertEquals(15552000000L, config.auditoriaQueue().getArguments().get("x-message-ttl"));
+    }
+
     public static class NotTrusted {
         public String value;
     }

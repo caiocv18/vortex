@@ -29,6 +29,12 @@ import java.util.Map;
 public class QueueMonitoringService {
 
     private static final String TIMESTAMP = "timestamp";
+    private static final String RABBITMQ_STATUS = "rabbitmqStatus";
+    private static final String ACTIVE = "ACTIVE";
+    private static final String STATUS = "status";
+    private static final String MENSAGEM = "mensagem";
+    private static final String MENSAGENS = "mensagens";
+    private static final String SUCCESS = "SUCCESS";
 
     private final RabbitTemplate rabbitTemplate;
 
@@ -109,14 +115,14 @@ public class QueueMonitoringService {
             try {
                 // Tenta fazer um teste de conectividade
                 rabbitTemplate.convertAndSend(exchangeName, "test.routing.key", "test-message");
-                status.put("rabbitmqStatus", "CONNECTED");
+                status.put(RABBITMQ_STATUS,"CONNECTED");
             } catch (Exception e) {
                 log.warn("RabbitMQ não está disponível: {}", e.getMessage());
-                status.put("rabbitmqStatus", "DISCONNECTED");
+                status.put(RABBITMQ_STATUS,"DISCONNECTED");
                 status.put("rabbitmqError", e.getMessage());
             }
         } else {
-            status.put("rabbitmqStatus", "DISABLED");
+            status.put(RABBITMQ_STATUS,"DISABLED");
         }
 
         if (kafkaEnabled) {
@@ -157,7 +163,7 @@ public class QueueMonitoringService {
                 fila.setNome(nomesFilas[i]);
                 fila.setDescricao(descricoes[i]);
                 fila.setTipo("RabbitMQ");
-                fila.setStatus("ACTIVE");
+                fila.setStatus(ACTIVE);
                 fila.setMensagens(0L); // Seria obtido via RabbitMQ Management API
                 fila.setConsumidores(1);
                 fila.setTaxaMensagens(0.0);
@@ -203,7 +209,7 @@ public class QueueMonitoringService {
             fila.setNome(topicos[i]);
             fila.setDescricao(descricoes[i]);
             fila.setTipo("Kafka");
-            fila.setStatus("ACTIVE");
+            fila.setStatus(ACTIVE);
             fila.setMensagens(0L);
             fila.setConsumidores(1);
             fila.setTaxaMensagens(0.0);
@@ -223,7 +229,7 @@ public class QueueMonitoringService {
         QueueInfoDTO fila = new QueueInfoDTO();
         fila.setNome(nomeFila);
         fila.setTipo("RabbitMQ");
-        fila.setStatus("ACTIVE");
+        fila.setStatus(ACTIVE);
         fila.setMensagens(0L);
         fila.setConsumidores(1);
         fila.setTaxaMensagens(0.0);
@@ -241,7 +247,7 @@ public class QueueMonitoringService {
         QueueInfoDTO fila = new QueueInfoDTO();
         fila.setNome(nomeFila);
         fila.setTipo("Kafka");
-        fila.setStatus("ACTIVE");
+        fila.setStatus(ACTIVE);
         fila.setMensagens(0L);
         fila.setConsumidores(1);
         fila.setTaxaMensagens(0.0);
@@ -317,9 +323,9 @@ public class QueueMonitoringService {
         resultado.put("quantidadeSolicitada", quantidade);
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
-            resultado.put("status", "BROKER_DISABLED");
-            resultado.put("mensagem", "RabbitMQ não está habilitado ou disponível");
-            resultado.put("mensagens", new ArrayList<>());
+            resultado.put(STATUS,"BROKER_DISABLED");
+            resultado.put(MENSAGEM,"RabbitMQ não está habilitado ou disponível");
+            resultado.put(MENSAGENS,new ArrayList<>());
             return resultado;
         }
 
@@ -342,21 +348,21 @@ public class QueueMonitoringService {
             }
             
             if (mensagens.isEmpty()) {
-                resultado.put("status", "QUEUE_EMPTY");
-                resultado.put("mensagem", "Queue is empty");
+                resultado.put(STATUS,"QUEUE_EMPTY");
+                resultado.put(MENSAGEM,"Queue is empty");
             } else {
-                resultado.put("status", "SUCCESS");
-                resultado.put("mensagem", String.format("Encontradas %d mensagens", mensagens.size()));
+                resultado.put(STATUS, SUCCESS);
+                resultado.put(MENSAGEM,String.format("Encontradas %d mensagens", mensagens.size()));
             }
             
-            resultado.put("mensagens", mensagens);
+            resultado.put(MENSAGENS,mensagens);
             resultado.put("totalEncontradas", mensagens.size());
             
         } catch (Exception e) {
             log.error("Erro ao buscar mensagens da fila: {}", nomeFila, e);
-            resultado.put("status", "ERROR");
-            resultado.put("mensagem", "Erro ao buscar mensagens: " + e.getMessage());
-            resultado.put("mensagens", new ArrayList<>());
+            resultado.put(STATUS,"ERROR");
+            resultado.put(MENSAGEM,"Erro ao buscar mensagens: " + e.getMessage());
+            resultado.put(MENSAGENS,new ArrayList<>());
             resultado.put("totalEncontradas", 0);
         }
         
@@ -376,8 +382,8 @@ public class QueueMonitoringService {
         resultado.put(TIMESTAMP, LocalDateTime.now(BusinessTime.ZONE));
         
         if (!rabbitmqEnabled || rabbitTemplate == null) {
-            resultado.put("status", "BROKER_DISABLED");
-            resultado.put("mensagem", "RabbitMQ não está habilitado ou disponível");
+            resultado.put(STATUS,"BROKER_DISABLED");
+            resultado.put(MENSAGEM,"RabbitMQ não está habilitado ou disponível");
             return resultado;
         }
 
@@ -394,14 +400,14 @@ public class QueueMonitoringService {
             // Publica a mensagem
             if (routingKey != null) {
                 rabbitTemplate.convertAndSend(exchangeName, routingKey, mensagemCompleta);
-                resultado.put("status", "SUCCESS");
-                resultado.put("mensagem", "Mensagem de teste publicada com sucesso");
+                resultado.put(STATUS, SUCCESS);
+                resultado.put(MENSAGEM,"Mensagem de teste publicada com sucesso");
                 resultado.put("routingKey", routingKey);
             } else {
                 // Publica diretamente na fila se não conseguir determinar routing key
                 rabbitTemplate.convertAndSend(nomeFila, mensagemCompleta);
-                resultado.put("status", "SUCCESS");
-                resultado.put("mensagem", "Mensagem de teste publicada diretamente na fila");
+                resultado.put(STATUS, SUCCESS);
+                resultado.put(MENSAGEM,"Mensagem de teste publicada diretamente na fila");
                 resultado.put("routingKey", "DIRECT_TO_QUEUE");
             }
             
@@ -409,8 +415,8 @@ public class QueueMonitoringService {
             
         } catch (Exception e) {
             log.error("Erro ao publicar mensagem de teste na fila: {}", nomeFila, e);
-            resultado.put("status", "ERROR");
-            resultado.put("mensagem", "Erro ao publicar mensagem: " + e.getMessage());
+            resultado.put(STATUS,"ERROR");
+            resultado.put(MENSAGEM,"Erro ao publicar mensagem: " + e.getMessage());
         }
         
         return resultado;

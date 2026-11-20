@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
 @Service
 public class TipoProdutoService {
 
+    private static final String TIPO_PRODUTO = "TipoProduto";
+
     private final TipoProdutoRepository tipoProdutoRepository;
     private final ProdutoRepository produtoRepository;
 
@@ -90,7 +92,7 @@ public class TipoProdutoService {
     @Cacheable(value = "produto-types", key = "#id")
     public TipoProdutoDTO buscarPorId(Long id) {
         TipoProduto tipoProduto = tipoProdutoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TipoProduto", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(TIPO_PRODUTO, "id", id));
         
         return mapToDTO(tipoProduto);
     }
@@ -106,7 +108,7 @@ public class TipoProdutoService {
     @Transactional
     public TipoProdutoDTO atualizar(Long id, TipoProdutoDTO tipoProdutoDTO) {
         TipoProduto tipoProduto = tipoProdutoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TipoProduto", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(TIPO_PRODUTO, "id", id));
         
         tipoProduto.setNome(tipoProdutoDTO.getNome());
         
@@ -125,7 +127,7 @@ public class TipoProdutoService {
     @Transactional
     public void excluir(Long id) {
         TipoProduto tipoProduto = tipoProdutoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TipoProduto", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(TIPO_PRODUTO, "id", id));
         
         if (produtoRepository.existsByTipoProduto(tipoProduto)) {
             throw new DataIntegrityViolationException("Não é possível excluir um tipo de produto que possui produtos associados");
