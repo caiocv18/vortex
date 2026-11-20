@@ -1,5 +1,6 @@
 package br.com.vortex.application.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
  * - Integração com sistemas externos
  * - Padrão pub/sub para notificações
  */
+@Slf4j
 @Configuration
 @EnableRabbit
 @ConditionalOnProperty(name = "rabbitmq.enabled", havingValue = "true")
@@ -138,13 +140,11 @@ public class RabbitMQConfig {
         template.setMandatory(true);
         template.setConfirmCallback((correlationData, ack, cause) -> {
             if (!ack) {
-                System.err.println("Falha ao enviar mensagem: " + cause);
+                log.error("Falha ao enviar mensagem: {}", cause);
             }
         });
-        
-        template.setReturnsCallback(returned -> {
-            System.err.println("Mensagem retornada: " + returned.getMessage());
-        });
+
+        template.setReturnsCallback(returned -> log.warn("Mensagem retornada: {}", returned.getMessage()));
         
         return template;
     }
