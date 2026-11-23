@@ -20,7 +20,7 @@ variable "operator_member" {
 }
 
 variable "billing_account" {
-  description = "Billing account linked to the ingestion and analytics projects. While null, both run in the BigQuery sandbox: no billing, partitions expire by event date (raw_retention_days, 60 days curated) and views on a fixed date."
+  description = "Billing account linked to the ingestion and analytics projects; with it come the budget, the kill-switch and the paid APIs. While null, both run in the BigQuery sandbox: no billing, partitions expire by event date (raw_retention_days, 60 days curated) and views on a fixed date. Set it in terraform.tfvars."
   type        = string
   default     = null
 
@@ -54,6 +54,46 @@ variable "raw_retention_days" {
 
   validation {
     condition     = var.raw_retention_days >= 1 && var.raw_retention_days <= 60
-    error_message = "Keep the raw data between 1 and 60 days (60 is also the sandbox ceiling)."
+    error_message = "Keep the raw data between 1 and 60 days."
   }
+}
+
+variable "alert_email" {
+  description = "Address that receives the budget alerts, through a Cloud Monitoring e-mail channel (Essential Contacts would refuse a Gmail address). Required with billing_account. Set it in terraform.tfvars."
+  type        = string
+  default     = null
+  sensitive   = true
+
+  validation {
+    condition     = var.alert_email == null || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "Use an e-mail address."
+  }
+}
+
+variable "budget_amount" {
+  description = "Monthly budget of both projects, in the billing account's currency. Alerts at 50, 90 and 100% of the gross cost (credits excluded, so a Free Trial counts as if it were paid)."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.budget_amount > 0
+    error_message = "The budget must be positive."
+  }
+}
+
+variable "kill_switch_amount" {
+  description = "Cost of the month, in the billing account's currency, at which the kill-switch unlinks billing from the ingestion project. Keep it well below budget_amount: cost data arrives hours late."
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.kill_switch_amount > 0 && var.kill_switch_amount < var.budget_amount
+    error_message = "The kill-switch amount must be positive and below budget_amount."
+  }
+}
+
+variable "email_test_budget" {
+  description = "Adds a 1-unit budget on the ingestion project with a 1% threshold, so the first gross cost sends the alert e-mail. Turn it on to prove the e-mail, then back off."
+  type        = bool
+  default     = false
 }

@@ -2,3 +2,8 @@
 org_id          = "123456789012"
 operator_member = "user:you@example.com"
 # billing_account = "012345-6789AB-CDEF01"  # leave unset to stay in the BigQuery sandbox
+# alert_email     = "you@example.com"       # budget alerts; required with billing_account
+# Amounts in the billing account's currency (defaults 5 and 3, for USD)
+# budget_amount      = 5
+# kill_switch_amount = 3
+# email_test_budget  = true  # only to prove the alert e-mail, then remove
