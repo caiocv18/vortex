@@ -116,7 +116,9 @@ def _instant(value: str) -> datetime:
     return moment
 
 
-def main(argv: Sequence[str] | None = None, stdin: TextIO | None = None, stdout: TextIO | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None, stdin: TextIO | None = None, stdout: TextIO | None = None
+) -> None:
     source, sink = stdin or sys.stdin, stdout or sys.stdout
     parser = argparse.ArgumentParser(
         prog="python -m vortex_pipeline.rebase", description=__doc__.split("\n", 1)[0]
@@ -133,7 +135,7 @@ def main(argv: Sequence[str] | None = None, stdin: TextIO | None = None, stdout:
     if args.command == "newest":
         latest = newest(lines, args.source_timezone)
         sink.write(f"{latest.isoformat()}\n" if latest else "\n")
-        return 0
+        return
 
     try:
         latest = _instant(args.newest) if args.newest.strip() else None
@@ -142,8 +144,7 @@ def main(argv: Sequence[str] | None = None, stdin: TextIO | None = None, stdout:
         parser.error(str(error))
     delta = now - latest if latest else timedelta(0)
     sink.writelines(f"{line}\n" for line in rebase_lines(lines, delta, args.source_timezone))
-    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

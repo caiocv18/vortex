@@ -30,8 +30,8 @@ def _shifted(lines, now=NOW):
 
 def _run(argv, text):
     out = io.StringIO()
-    code = rebase.main(argv, stdin=io.StringIO(text), stdout=out)
-    return code, out.getvalue()
+    rebase.main(argv, stdin=io.StringIO(text), stdout=out)
+    return out.getvalue()
 
 
 def test_the_newest_event_lands_at_now_and_the_intervals_stay():
@@ -107,28 +107,26 @@ def test_the_rebased_fixtures_still_parse_into_today():
 
 
 def test_main_newest_prints_the_instant_or_nothing():
-    assert _run(["newest"], '{"timestamp": "2026-11-10T09:00:00"}\n') == (0, "2026-11-10T09:00:00-03:00\n")
-    assert _run(["newest"], "not json\n") == (0, "\n")
+    assert _run(["newest"], '{"timestamp": "2026-11-10T09:00:00"}\n') == "2026-11-10T09:00:00-03:00\n"
+    assert _run(["newest"], "not json\n") == "\n"
 
 
 def test_main_shift_moves_stdin_to_stdout():
     stdin = '{"timestamp": "2026-11-10T09:00:00Z"}\n\n'
     argv = ["shift", "--newest", "2026-11-10T09:00:00+00:00", "--now", "2026-11-11T09:00:00+00:00"]
-    code, out = _run(argv, stdin)
-    assert code == 0
+    out = _run(argv, stdin)
     assert out == '{"timestamp":"2026-11-11T09:00:00+00:00"}\n\n'
 
 
 def test_main_shift_without_newest_copies_stdin():
     line = '{"timestamp": "2026-11-10T09:00:00Z"}\n'
-    assert _run(["shift"], line) == (0, line)
+    assert _run(["shift"], line) == line
 
 
 def test_main_shift_uses_the_clock_without_now():
     before = datetime.now(UTC)
     line = '{"timestamp": "2026-11-10T09:00:00Z"}\n'
-    code, out = _run(["shift", "--newest", "2026-11-10T09:00:00+00:00"], line)
-    assert code == 0
+    out = _run(["shift", "--newest", "2026-11-10T09:00:00+00:00"], line)
     assert before <= datetime.fromisoformat(json.loads(out)["timestamp"]) <= datetime.now(UTC)
 
 
@@ -143,7 +141,7 @@ def test_main_shift_refuses_an_instant_without_an_offset(flag, capsys):
 
 def test_main_reads_the_real_standard_streams(monkeypatch, capsys):
     monkeypatch.setattr(sys, "stdin", io.StringIO('{"timestamp": "2026-11-10T09:00:00Z"}\n'))
-    assert rebase.main(["newest"]) == 0
+    rebase.main(["newest"])
     assert capsys.readouterr().out == "2026-11-10T09:00:00+00:00\n"
 
 
