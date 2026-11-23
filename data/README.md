@@ -32,6 +32,7 @@ flowchart LR
 | `pipeline/src/vortex_pipeline/bigquery_sandbox.py` | Appends the files to BigQuery and proves who can read what |
 | `pipeline/src/vortex_pipeline/rebase.py` | Shifts a sample's date-times by one delta, so its newest event lands now |
 | `pipeline/tests/` | Unit tests and an end-to-end run on the DirectRunner over `tests/fixtures/` |
+| `kill-switch/` | The Cloud Run function that unlinks billing from the ingestion project when the budget reports too much spend; its own uv project, deployed by `infra/terraform/gcp/data` (`requirements.txt` is exported from `uv.lock`: `uv export --no-dev --locked --no-header --no-emit-project -o requirements.txt`) |
 | `schemas/` | The four table schemas, read by the tests and by Terraform |
 | `scripts/` | Key generation, the API sample and the Kafka capture, the local run and the sandbox load and proof |
 
