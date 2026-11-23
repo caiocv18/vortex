@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # Runs the pipeline on the DirectRunner and writes one NDJSON file per table to data/out/<run id>/.
-# Usage: data/scripts/run-local.sh [MOVEMENTS_GLOB] [USER_EVENTS_GLOB]
-# Without arguments it reads the test fixtures. SOURCE_TIMEZONE sets the zone of the inventory app's
-# date-times, which carry no offset (default America/Sao_Paulo).
+# Usage: data/scripts/run-local.sh [--rebase-to-today] [MOVEMENTS_FILE] [USER_EVENTS_FILE]
+# Without file arguments it reads the test fixtures. --rebase-to-today first shifts every date-time of both
+# files by one delta, so the newest event lands now (vortex_pipeline.rebase): the BigQuery partitions
+# expire by event date, and this lets an old capture (data/landing/<date>/) be loaded again.
+# SOURCE_TIMEZONE sets the zone of the inventory app's date-times, which carry no offset
+# (default America/Sao_Paulo).
 set -euo pipefail
 
 data_dir=$(cd "$(dirname "$0")/.." && pwd)
+rebase=false
+if [[ "${1:-}" == "--rebase-to-today" ]]; then
+  rebase=true
+  shift
+fi
 fixtures="$data_dir/pipeline/tests/fixtures"
 movements=${1:-$fixtures/movements.ndjson}
 user_events=${2:-$fixtures/user_events.ndjson}
@@ -21,6 +29,14 @@ set +a
 
 run_id="local-$(date -u +%Y%m%dT%H%M%SZ)"
 output="$data_dir/out/$run_id"
+
+if [[ "$rebase" == true ]]; then
+  # Under the run's own folder, ignored by git like the rest of data/out
+  uv run --frozen --project "$data_dir/pipeline" python -m vortex_pipeline.rebase "$movements" "$user_events" \
+    --output-dir "$output/rebased" --source-timezone "${SOURCE_TIMEZONE:-America/Sao_Paulo}"
+  movements="$output/rebased/$(basename "$movements")"
+  user_events="$output/rebased/$(basename "$user_events")"
+fi
 
 uv run --frozen --project "$data_dir/pipeline" python -m vortex_pipeline \
   --runner=DirectRunner \
