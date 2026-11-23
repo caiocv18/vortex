@@ -27,3 +27,13 @@ output "sandbox" {
   description = "True while no billing account is linked: partitions expire by event date (30 days raw, 60 curated) and views on a fixed date."
   value       = local.sandbox
 }
+
+output "budget_topic" {
+  description = "Pub/Sub topic of the budget, read by the kill-switch; publish a simulated notification here to test it. Null in the sandbox."
+  value       = local.sandbox ? null : google_pubsub_topic.budget[0].id
+}
+
+output "kill_switch_function" {
+  description = "Cloud Run function that unlinks billing from the ingestion project. Null in the sandbox."
+  value       = local.sandbox ? null : google_cloudfunctions2_function.kill_switch[0].name
+}

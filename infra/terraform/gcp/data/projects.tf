@@ -1,13 +1,34 @@
 locals {
-  # Without a billing account both projects live in the BigQuery sandbox, which sets a 60-day
-  # expiration on every dataset, table and partition. Declaring it keeps the plan free of drift.
+  # Without a billing account both projects live in the BigQuery sandbox, which writes a 60-day
+  # expiration on the datasets' defaults, the partitions and the views. Declaring it keeps the plan
+  # free of drift. With billing those expirations stay until something clears them: null drops a
+  # dataset default (the update is a PUT), and 0 clears a partition or a view, where the provider
+  # keeps the old value when the attribute is left out (ADR 0008, amendment of 2026-11-23).
   sandbox               = var.billing_account == null
   day_ms                = 86400000
   sandbox_expiration_ms = local.sandbox ? 60 * local.day_ms : null
+  curated_partition_ms  = local.sandbox ? 60 * local.day_ms : 0
+  view_expiration_time  = local.sandbox ? null : 0
   raw_retention_ms      = var.raw_retention_days * local.day_ms
 
   # APIs that cost nothing to enable; the paid ones arrive with billing
   services = ["bigquery.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com"]
+
+  # The budget, the kill-switch and its build need these on the ingestion project
+  billing_services = local.sandbox ? [] : [
+    "artifactregistry.googleapis.com",
+    "billingbudgets.googleapis.com",
+    "cloudbilling.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "eventarc.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "orgpolicy.googleapis.com",
+    "pubsub.googleapis.com",
+    "run.googleapis.com",
+    "storage.googleapis.com",
+  ]
 }
 
 resource "random_id" "suffix" {
@@ -82,6 +103,14 @@ resource "google_project_service" "analytics" {
   for_each = toset(local.services)
 
   project            = google_project.analytics.project_id
+  service            = each.value
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "ingest_billing" {
+  for_each = toset(local.billing_services)
+
+  project            = google_project.ingest.project_id
   service            = each.value
   disable_on_destroy = false
 }

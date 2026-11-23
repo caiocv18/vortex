@@ -53,6 +53,21 @@ updates:
         update-types: [minor, patch]
         exclude-patterns: [apache-beam]
 
+  # The kill-switch function (data/kill-switch); requirements.txt is exported from its uv.lock, and
+  # data.yml fails when the two diverge, so an update pull request needs `uv export` too
+  - package-ecosystem: uv
+    directory: /data/kill-switch
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      uv-minor-and-patch:
+        update-types: [minor, patch]
+
   # Updates the SHA pins of .github/workflows and the version comment next to each one
   - package-ecosystem: github-actions
     directory: /

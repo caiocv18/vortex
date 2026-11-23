@@ -173,17 +173,26 @@ jobs:
           version: '0.13.8'
           python-version: '3.12'
           working-directory: data/pipeline
-          cache-dependency-glob: data/pipeline/uv.lock
+          cache-dependency-glob: |
+            data/pipeline/uv.lock
+            data/kill-switch/uv.lock
       - name: Install dependencies
         # Same reasoning as data.yml: google-apitools ships only an sdist, pinned by hash in uv.lock
         run: uv sync --locked # NOSONAR githubactions:S8541, sdists pinned by hash in uv.lock (see data.yml)
       - name: Tests with coverage
         # addopts in pyproject.toml writes coverage.xml
         run: uv run --no-sync pytest
+      - name: Kill-switch tests with coverage
+        working-directory: data/kill-switch
+        run: |
+          uv sync --locked --no-build
+          uv run --no-sync pytest
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sonar-data
-          path: data/pipeline/coverage.xml
+          path: |
+            data/pipeline/coverage.xml
+            data/kill-switch/coverage.xml
           if-no-files-found: error
           retention-days: 3
 
@@ -223,7 +232,8 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sonar-data
-          path: data/pipeline
+          # The artifact keeps the two reports under their common root: pipeline/ and kill-switch/
+          path: data
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '26'

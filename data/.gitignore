@@ -5,6 +5,7 @@ out/
 # Kafka captures (data/scripts/capture-kafka.sh): account events with e-mail and IP in clear
 landing/
 pipeline/.venv/
+kill-switch/.venv/
 __pycache__/
 .pytest_cache/
 .ruff_cache/

@@ -141,6 +141,7 @@ Prerequisites:
 - A Cloud Identity organization with a verified domain. The verification TXT value goes into `apex_txt_records` in the foundation's `terraform.tfvars`, because Route 53 keeps a single TXT record set per name.
 - The Google Cloud CLI, and an operator account with Organization Administrator, Folder Admin and Project Creator on the organization, signed in with `gcloud auth login` and `gcloud auth application-default login`. The organization forbids service account keys: Terraform runs with the operator's Application Default Credentials.
 - `org_id` and `operator_member` in `gcp/data/terraform.tfvars` (git-ignored).
+- To leave the sandbox: a billing account in the organization and Organization Policy Administrator for the operator (the domain exception below). A new organization grants Billing Account Creator to the whole domain; this one had it removed, so the operator grants it to itself only to create the account, then removes it. `billing_account` and `alert_email` go into `terraform.tfvars`.
 
 ```sh
 cd infra/terraform/gcp/data
@@ -154,6 +155,31 @@ gcloud auth application-default set-quota-project "$(terraform output -raw inges
 The last command gives the operator's credentials a quota project, which the IAM Credentials API requires when `data/scripts/sandbox.sh` impersonates the service accounts.
 
 Without `billing_account`, both projects stay in the BigQuery sandbox. The tables do not expire, but their partitions do, by event date: 30 days in the raw tables (`raw_retention_days`) and 60 in the curated ones; the datasets' default expirations and the views expire on a fixed date (2027-01-15 for the first apply). The datasets declare those expirations, so the plan shows no drift. A sample whose events are older than the retention leaves the views empty, and `data/scripts/sandbox.sh prove` then fails; reload it with `data/scripts/run-local.sh --rebase-to-today`. The projects have `deletion_policy = "PREVENT"` and the tables `deletion_protection`, so a destroy needs both turned off first.
+
+With `billing_account`, linking billing does not clear what the sandbox wrote. The stack clears it: the datasets' defaults become null (a dataset update is a PUT, so the value goes), and the curated partitions and the four views get an explicit `0`, because the provider keeps the old value of those attributes when they are left out. The raw partitions keep `raw_retention_days`. Should the provider ever stop clearing them, the `bq` equivalents are `bq update --default_table_expiration 0` and `--default_partition_expiration 0` on a dataset, `--time_partitioning_expiration 0` on a table and `--expiration 0` on a view, followed by `expiration_time = 0` in the code, or the next update of the view writes the old date back.
+
+The same apply creates the cost guardrails (`billing.tf`, `kill_switch.tf`):
+
+- A monthly budget of `budget_amount` (5) on both projects, alerting at 50, 90 and 100% of the gross cost: credits are excluded, so a Free Trial alerts as if it were paid. The alerts go to `alert_email` through a Cloud Monitoring e-mail channel; the billing account's IAM recipients are off. Amounts are in the billing account's currency.
+- A kill-switch on the ingestion project: the budget publishes its cost to the `billing-budget-alerts` topic several times a day, and the `billing-kill-switch` function (`data/kill-switch`) unlinks billing from that project once the month's cost reaches `kill_switch_amount` (3). Its account holds Project Billing Manager and Browser on that project only. Cost data arrives hours late, which is why the switch sits well below the budget.
+- The organization's domain restriction (`iam.allowedPolicyMemberDomains`) refuses `billing-budget-alert@system.gserviceaccount.com`, which publishes to the topic, and takes no exception per principal. On the ingestion project only, the managed `iam.managed.allowedPolicyMembers` replaces it with the organization's principal set plus that one account.
+- `email_test_budget = true` adds a 1-unit budget that alerts at 1%, to prove the e-mail on the first gross cent (Cloud Billing has no test send); set it back to false afterwards.
+
+On a new project the first apply stops halfway, and a second one finishes it: the managed constraint takes a few minutes to admit the budget's publisher (the topic grant fails with "do not belong to a permitted customer" until then), and the BigQuery update of `vortex_raw` may still see the project as a sandbox right after billing is linked. The Cloud Functions build reads the source from a bucket Google creates on the first deploy (`gcf-v2-sources-<number>-<region>`), so the builder's read grant is a project role whose condition names the two source buckets. The Org Policy and Budget APIs refuse user credentials without a quota project, so those resources go through the `google.billing` provider.
+
+To test the kill-switch, publish a notification above the switch, in the account's currency, and read the project's billing:
+
+```sh
+topic=$(terraform -chdir=infra/terraform/gcp/data output -raw budget_topic)
+gcloud pubsub topics publish "$topic" --message='{"costAmount": 16, "budgetAmount": 25, "currencyCode": "BRL", "costIntervalStart": "2026-11-01T00:00:00Z"}'
+gcloud billing projects describe "$(terraform -chdir=infra/terraform/gcp/data output -raw ingest_project_id)"
+```
+
+Terraform does not see a cut, real or tested: the provider keeps `billing_account` in the state, so `terraform plan` reports no changes, and with billing off Cloud Storage refuses to refresh the function's source object, so a full plan fails. Linking billing back is the decision to spend again, taken by hand once you know why the switch fired:
+
+```sh
+gcloud billing projects link "$(terraform -chdir=infra/terraform/gcp/data output -raw ingest_project_id)" --billing-account=<the id in terraform.tfvars>
+```
 
 Dataset grants use `google_bigquery_dataset_access` only: `google_bigquery_dataset_iam_*` would rewrite the access list and drop the authorized dataset that lets the analytics views read `vortex_curated`. The sandbox accepts that authorized dataset between its two projects (proven on 2026-11-16: `analyst-reader` reads the view and is refused on the base tables). Should a later change break it, granting READER on `vortex_curated` to `analyst-reader` instead makes `data/scripts/sandbox.sh prove` fail on purpose.
 
@@ -194,5 +220,6 @@ Every `#checkov:skip` in the code states why the control does not pay for itself
 | Site certificate (ACM) | free |
 | Site buckets (a few MB) and invalidations (the first 1,000 paths a month are free) | cents |
 | Google Cloud projects without billing (BigQuery sandbox) | free: 10 GB of storage and 1 TB of queries a month |
+| Google Cloud with billing: budgets, Pub/Sub topic, kill-switch function and its source bucket | free within the free tiers (a few notifications a day, one function instance); the paid usage (Dataflow, BigQuery above the free tier) is capped by the kill-switch |
 
 Domain registration is paid by card: AWS credits do not cover it.

@@ -15,7 +15,7 @@ locals {
 }
 
 # Personal data in clear. Partitions go after raw_retention_days; the column-level
-# policy tag on the e-mail and IP columns arrives with billing.
+# policy tag on the personal columns arrives with billing.
 resource "google_bigquery_dataset" "raw" {
   #checkov:skip=CKV_GCP_81:A customer managed key needs Cloud KMS, which needs billing; data is encrypted at rest with Google-managed keys
   project                         = google_project.ingest.project_id
@@ -70,7 +70,7 @@ resource "google_bigquery_table" "base" {
   time_partitioning {
     type          = "DAY"
     field         = "event_ts"
-    expiration_ms = each.value.dataset == "raw" ? local.raw_retention_ms : local.sandbox_expiration_ms
+    expiration_ms = each.value.dataset == "raw" ? local.raw_retention_ms : local.curated_partition_ms
   }
 }
 
@@ -90,6 +90,7 @@ resource "google_bigquery_table" "v_movements" {
   table_id            = "v_movements"
   description         = "Stock movements, one row per event, user as a pseudonym."
   deletion_protection = true
+  expiration_time     = local.view_expiration_time
 
   view {
     use_legacy_sql = false
@@ -112,6 +113,7 @@ resource "google_bigquery_table" "v_user_events" {
   table_id            = "v_user_events"
   description         = "Authorization events, one row per event, user and e-mail as pseudonyms, network instead of IP address."
   deletion_protection = true
+  expiration_time     = local.view_expiration_time
 
   view {
     use_legacy_sql = false
@@ -134,6 +136,7 @@ resource "google_bigquery_table" "v_user_activity" {
   table_id            = "v_user_activity"
   description         = "Per pseudonymous user: movements, units in and out, logins and the last login."
   deletion_protection = true
+  expiration_time     = local.view_expiration_time
 
   view {
     use_legacy_sql = false
@@ -177,6 +180,7 @@ resource "google_bigquery_table" "v_daily_sales" {
   table_id            = "v_daily_sales"
   description         = "Sales per day (America/Sao_Paulo) and product, with no user at all."
   deletion_protection = true
+  expiration_time     = local.view_expiration_time
 
   view {
     use_legacy_sql = false

@@ -77,6 +77,45 @@ Two statements above were written before the first apply, and the sandbox proved
 - **Expiration** (Context, and the second Consequence). The tables themselves do not expire. Their partitions do, by event date: 30 days in the raw tables (`raw_retention_days`) and 60 in the curated ones. The datasets' default expirations and the four views expire on a fixed date, 2027-01-15. A sample therefore leaves the raw tables 30 days after its events happened, not after its load, so the fixtures dated 2026-11-10 to 12 would leave the view empty by mid-December. Two changes follow: `data/scripts/run-local.sh --rebase-to-today` shifts a sample so its newest event lands on the day of the run, and `sandbox.sh prove` fails when `v_user_activity` comes back empty, instead of passing on nothing. The sample itself is now captured from Kafka (`data/scripts/seed-api.sh` and `capture-kafka.sh`, into the git-ignored `data/landing/`); the test fixtures stay synthetic, because they carry the rejected lines the quarantine tests need.
 - **Authorized dataset** (fifth Consequence). It works between two sandbox projects: as `analyst-reader`, `prove` read `v_user_activity` and was refused on `curated_movements` and `raw_user_events`. Plan B (READER on `vortex_curated`) was not needed.
 
+## Amendment (2026-11-23): out of the sandbox, with a budget and a kill-switch
+
+Scenario B starts with billing, so the cost guardrails come first, before any paid job. Facts checked on 2026-11-23 against the Google Cloud documentation and the source of the Terraform provider (8.12):
+
+- Linking billing does not clear the sandbox's expirations, and a dataset's default changes only new tables. The tables themselves never had an expiration of their own (`bq show`, 2026-11-23); the datasets' defaults, the curated partitions (60 days) and the four views (2027-01-15) did. No 60-day ceiling is documented for the sandbox: 60 days is what it writes.
+- Cloud Billing has no spend cap for BigQuery, Dataflow or Cloud Storage, and cost data arrives hours late. A budget alert by e-mail cannot be sent on demand: the first one comes with the first real cost.
+- During a Free Trial, credits offset the cost, so a budget that includes them never alerts.
+- A new organization enforces the legacy `iam.allowedPolicyMemberDomains`, which takes no exception per principal and refuses `billing-budget-alert@system.gserviceaccount.com`, the account that publishes a budget to Pub/Sub. The managed `iam.managed.allowedPolicyMembers` takes a list of principals.
+- The official kill-switch sample grants `roles/billing.admin` on the billing account; the documentation of what unlinking requires contradicts itself (project roles only, in one table; project and billing account roles, in the summary).
+
+Decisions:
+
+- **Billing:** a Free Trial billing account inside the organization, linked to both projects through `billing_account`. Dataproc Serverless starts at 12 vCPU, above the trial's 8, so its batch needs the upgrade to a paid account, which keeps the remaining credit.
+- **Budget:** `budget_amount` (US$ 5) a month on both projects, alerts at 50, 90 and 100% of the gross cost (`EXCLUDE_ALL_CREDITS`), sent to a Cloud Monitoring e-mail channel; the billing account's IAM recipients are off. Amounts are in the account's currency.
+- **Kill-switch:** the budget publishes to a topic in the ingestion project, and a Python Cloud Run function (`data/kill-switch`, one instance at most, no retries) unlinks billing from that project once `costAmount` reaches `kill_switch_amount` (US$ 3). It reads the cost, not `alertThresholdExceeded`, because notifications arrive whether or not a threshold was crossed. Its account holds Project Billing Manager and Browser on the ingestion project, with no role on the billing account. Linking billing back is a deliberate `gcloud billing projects link`, not an apply: after an unlink the provider keeps `billing_account` in the state, so the plan shows no drift, and with billing off Cloud Storage refuses the plan's refresh anyway.
+- **Domain restriction:** on the ingestion project only, the legacy constraint allows all and the managed one allows the organization's principal set plus the budget's publisher.
+- **Expirations:** cleared by the stack: the datasets' defaults become null, the curated partitions and the views get an explicit 0 (the provider keeps the old value when those are left out). The raw partitions keep `raw_retention_days`.
+- **The e-mail is proven** by a temporary 1-unit budget at 1% on the ingestion project (`email_test_budget`), removed after the first e-mail.
+
+Alternatives considered:
+
+- **`roles/billing.admin` for the function, as in the sample.** It could also unlink every other project of the account or change its users.
+- **`allow_all` on the ingestion project, without the managed constraint.** Any outside account could then get a role there.
+- **Clearing the expirations with `bq update` only.** The state would keep 2027-01-15, and the next update of a view would write it back.
+- **A threshold rule at a few cents on the real budget, to prove the e-mail.** It would wait for the first paid job instead of the first cent.
+
+Consequences:
+
+- The analytics project keeps billing after a cut; it runs only the analysts' queries, inside BigQuery's free tier.
+- An unlinked project stops its paid services, and resources may be deleted if billing stays off for long. A cut is investigated and undone within days.
+
+Results (2026-11-23):
+
+- **The account is in BRL.** The console offered no other currency, so `budget_amount` is R$ 25 and `kill_switch_amount` R$ 15, about US$ 5 and US$ 3 at roughly R$ 5 to the dollar (an approximate rate, not a pinned one). In Brazil the Free Trial opens only after a prepayment, which stays as the account's balance; until then the account is closed.
+- **The minimal roles are enough.** A simulated notification at R$ 16 unlinked the ingestion project about 15 seconds after it was published, with Project Billing Manager and Browser only; one at R$ 1 was logged and left billing on.
+- **Terraform does not see the cut.** The plan reported no changes with the project unlinked, so billing went back with `gcloud billing projects link`; the expirations stayed cleared and `data/scripts/sandbox.sh prove` passed again.
+- **The expirations are gone.** After the apply, `bq show` reads no default on the curated and analytics datasets, no expiration on the curated partitions and the four views, and 30 days on the raw partitions.
+- **The apply needs retries on a new project.** The managed domain constraint took about three minutes to admit the budget's publisher; the Cloud Functions build reads the source from a bucket Google creates on the first deploy (`gcf-v2-sources-<number>-<region>`), so the builder's read grant is a project role with a condition on the two source buckets; and the Org Policy API, like the Budget API, refuses user credentials without a quota project.
+
 ## References
 
 - `data/pipeline/`: the pipeline, its tests and fixtures; `data/schemas/`: the table schemas, read by the tests and by Terraform.
