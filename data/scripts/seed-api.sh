@@ -22,7 +22,10 @@ post() {
   fi
 }
 
-credentials() { jq -n --arg u "$1" --arg p "$2" "$3"; }
+credentials() {
+  local user=$1 password=$2 filter=$3
+  jq -n --arg u "$user" --arg p "$password" "$filter"
+}
 
 product_ids=()
 i=0

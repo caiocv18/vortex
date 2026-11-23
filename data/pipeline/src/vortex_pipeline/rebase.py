@@ -9,7 +9,9 @@ without an offset (read in ``--source-timezone``, like the pipeline does), an ``
 own offset, and the array Jackson writes with ``WRITE_DATES_AS_TIMESTAMPS`` stays an array. Anything else,
 a line that is not JSON included, passes untouched: deciding what is invalid is the pipeline's job.
 
-This runs before the pipeline, on the local DirectRunner only; the Dataflow path never sees it.
+This runs before the pipeline, on the local DirectRunner only; the Dataflow path never sees it. It reads
+and writes only inside the repository's ``data/`` folder (``DATA_DIR``), where the fixtures, the Kafka
+captures (``data/landing``) and the runs (``data/out``) live: a path that resolves anywhere else is refused.
 """
 
 from __future__ import annotations
@@ -27,6 +29,20 @@ from vortex_pipeline.parse import InvalidRecordError, _to_datetime
 
 # timestamp: both producers; dataMovimento: movement; lastLogin and expiresAt: account events
 DATE_TIME_FIELDS = ("timestamp", "dataMovimento", "lastLogin", "expiresAt")
+# data/ of the repository: src/vortex_pipeline/rebase.py -> vortex_pipeline, src, pipeline, data
+DATA_DIR = Path(__file__).resolve().parents[3]
+
+
+class OutsideDataDirError(ValueError):
+    """A path given to the rebase resolves outside ``DATA_DIR``."""
+
+
+def confined(path: Path) -> Path:
+    """The path resolved (symbolic links and ``..`` included), if it stays inside ``DATA_DIR``."""
+    resolved = path.resolve()
+    if not resolved.is_relative_to(DATA_DIR.resolve()):
+        raise OutsideDataDirError(f"{path} is outside {DATA_DIR}")
+    return resolved
 
 
 def _read(value: Any) -> datetime | None:
@@ -102,14 +118,19 @@ def rebase_line(line: str, delta: timedelta, source_tz: ZoneInfo) -> str:
 
 
 def rebase(files: Sequence[Path], output_dir: Path, now: datetime, source_tz: ZoneInfo) -> timedelta:
-    """Writes each file, rebased, to ``output_dir`` under its own name; returns the delta applied."""
-    latest = newest(files, source_tz)
+    """Writes each file, rebased, to ``output_dir`` under its own name; returns the delta applied.
+
+    Every path must resolve inside ``DATA_DIR``; nothing is read or written when one does not.
+    """
+    sources = [confined(path) for path in files]
+    target = confined(output_dir)
+    latest = newest(sources, source_tz)
     delta = now - latest if latest else timedelta(0)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for path in files:
+    target.mkdir(parents=True, exist_ok=True)
+    for path in sources:
         lines = path.read_text(encoding="utf-8").splitlines()
         rebased = [rebase_line(line, delta, source_tz) if line.strip() else line for line in lines]
-        (output_dir / path.name).write_text("".join(f"{line}\n" for line in rebased), encoding="utf-8")
+        confined(target / path.name).write_text("".join(f"{line}\n" for line in rebased), encoding="utf-8")
     return delta
 
 
@@ -127,7 +148,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     now = args.now or datetime.now(UTC)
     if now.tzinfo is None:
         parser.error("--now needs an offset, such as 2026-11-23T12:00:00+00:00")
-    delta = rebase(args.files, args.output_dir, now, args.source_timezone)
+    try:
+        delta = rebase(args.files, args.output_dir, now, args.source_timezone)
+    except OutsideDataDirError as error:
+        parser.error(str(error))
     print(f"rebase: moved {len(args.files)} files by {delta}")
     return 0
 

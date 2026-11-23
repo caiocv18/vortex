@@ -13,7 +13,11 @@ landing=${1:-$data_dir/landing/$(date +%F)}
 bootstrap=${KAFKA_BOOTSTRAP:-localhost:9092}
 image=${KAFKA_TOOLS_IMAGE:-apache/kafka:4.4.0}
 
-kafka() { docker run --rm --network host --entrypoint "/opt/kafka/bin/$1" "$image" "${@:2}"; }
+kafka() {
+  local tool=$1
+  shift
+  docker run --rm --network host --entrypoint "/opt/kafka/bin/$tool" "$image" "$@"
+}
 
 drain() {
   local topic=$1 target=$2 end

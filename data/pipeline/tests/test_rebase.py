@@ -2,11 +2,10 @@
 
 import json
 import runpy
+import shutil
 import sys
-import tempfile
 import warnings
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -16,6 +15,15 @@ from vortex_pipeline import rebase
 from vortex_pipeline.parse import Context, parse_movement, parse_user_event
 
 SP = ZoneInfo("America/Sao_Paulo")
+
+
+@pytest.fixture(autouse=True)
+def data_dir(tmp_path, monkeypatch):
+    """Every test works inside its own tmp_path, which stands for the repository's data/ folder."""
+    monkeypatch.setattr(rebase, "DATA_DIR", tmp_path)
+    return tmp_path
+
+
 NOW = datetime(2026, 11, 23, 15, 0, tzinfo=UTC)
 
 
@@ -80,28 +88,28 @@ def test_a_sample_without_a_readable_timestamp_is_copied_as_is(tmp_path):
     assert (tmp_path / "out" / "m.ndjson").read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
 
 
-def test_the_rebased_fixtures_still_parse_into_today():
+def test_the_rebased_fixtures_still_parse_into_today(tmp_path):
     """Every fixture line the pipeline accepts before rebasing is still accepted, now dated today."""
-    with tempfile.TemporaryDirectory() as directory:
-        out = Path(directory)
-        files = [FIXTURES / "movements.ndjson", FIXTURES / "user_events.ndjson"]
-        rebase.rebase(files, out, NOW, SP)
-        context = Context(source_file="f", run_id="r", ingested_at="2026-11-23T15:00:00Z", source_tz=SP)
-        for name, parse in (("movements.ndjson", parse_movement), ("user_events.ndjson", parse_user_event)):
-            before = (FIXTURES / name).read_text(encoding="utf-8").splitlines()
-            after = (out / name).read_text(encoding="utf-8").splitlines()
-            assert len(before) == len(after)
-            accepted = 0
-            for old, new in zip(before, after, strict=True):
-                try:
-                    parse(old, context)
-                except ValueError:
-                    continue
-                row = parse(new, context)
-                accepted += 1
-                assert row["event_ts"] <= "2026-11-23T15:00:00.000000Z"
-                assert row["event_ts"] >= "2026-11-20"
-            assert accepted
+    names = ("movements.ndjson", "user_events.ndjson")
+    for name in names:
+        shutil.copy(FIXTURES / name, tmp_path / name)
+    rebase.rebase([tmp_path / name for name in names], tmp_path / "out", NOW, SP)
+    context = Context(source_file="f", run_id="r", ingested_at="2026-11-23T15:00:00Z", source_tz=SP)
+    for name, parse in zip(names, (parse_movement, parse_user_event), strict=True):
+        before = (FIXTURES / name).read_text(encoding="utf-8").splitlines()
+        after = (tmp_path / "out" / name).read_text(encoding="utf-8").splitlines()
+        assert len(before) == len(after)
+        accepted = 0
+        for old, new in zip(before, after, strict=True):
+            try:
+                parse(old, context)
+            except ValueError:
+                continue
+            row = parse(new, context)
+            accepted += 1
+            assert row["event_ts"] <= "2026-11-23T15:00:00.000000Z"
+            assert row["event_ts"] >= "2026-11-20"
+        assert accepted
 
 
 def test_main_rebases_and_reports(tmp_path, capsys):
@@ -138,3 +146,40 @@ def test_the_module_runs_main(monkeypatch, capsys):
             runpy.run_module("vortex_pipeline.rebase", run_name="__main__")
     assert exit_info.value.code == 2
     assert "the following arguments are required" in capsys.readouterr().err
+
+
+def test_the_real_data_dir_is_the_repository_data_folder(monkeypatch):
+    monkeypatch.undo()
+    assert (rebase.DATA_DIR / "pipeline" / "pyproject.toml").is_file()
+    assert (rebase.DATA_DIR / "scripts" / "run-local.sh").is_file()
+
+
+@pytest.mark.parametrize("where", ["input", "output", "dot-dot", "symlink"])
+def test_a_path_outside_the_data_dir_is_refused_before_any_write(tmp_path, monkeypatch, where):
+    inside = tmp_path / "data"
+    inside.mkdir()
+    monkeypatch.setattr(rebase, "DATA_DIR", inside)
+    source = _write(inside / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
+    outside = _write(tmp_path / "secret.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
+    (inside / "link").symlink_to(tmp_path)
+    files, output = {
+        "input": ([outside], inside / "o"),
+        "output": ([source], tmp_path / "o"),
+        "dot-dot": ([inside / ".." / "secret.ndjson"], inside / "o"),
+        "symlink": ([source], inside / "link" / "o"),
+    }[where]
+    with pytest.raises(rebase.OutsideDataDirError, match="is outside"):
+        rebase.rebase(files, output, NOW, SP)
+    assert not (inside / "o").exists()
+    assert not (tmp_path / "o").exists()
+
+
+def test_main_refuses_a_path_outside_the_data_dir(tmp_path, monkeypatch, capsys):
+    inside = tmp_path / "data"
+    inside.mkdir()
+    monkeypatch.setattr(rebase, "DATA_DIR", inside)
+    source = _write(tmp_path / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
+    with pytest.raises(SystemExit) as exit_info:
+        rebase.main([str(source), "--output-dir", str(inside / "o")])
+    assert exit_info.value.code == 2
+    assert "is outside" in capsys.readouterr().err
