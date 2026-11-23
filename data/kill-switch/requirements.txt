@@ -68,9 +68,9 @@ click==8.5.1 \
     #   flask
     #   functions-framework
     #   uvicorn
-cloudevents==1.12.0 \
-    --hash=sha256:49196267f5f963d87ae156f93fc0fa32f4af69485f2c8e62e0db8b0b4b8b8921 \
-    --hash=sha256:ebd5544ceb58c8378a0787b657a2ae895e929b80a82d6675cba63f0e8c5539e0
+cloudevents==2.2.0 \
+    --hash=sha256:9ff8adff01b997d251d0fb54076557daa9906330e16afc1712a6447122f8f7a4 \
+    --hash=sha256:fc52440a1fecde882b3b745361e1c7dd4e044e71a6b719cfec2e2c0aa1a19fa3
     # via functions-framework
 cryptography==50.0.2 \
     --hash=sha256:0ddc924c04591c2811ca024d62ecad4f7f6f08af8939c211438f48a16bd23602 \
