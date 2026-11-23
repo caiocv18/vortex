@@ -153,9 +153,9 @@ gcloud auth application-default set-quota-project "$(terraform output -raw inges
 
 The last command gives the operator's credentials a quota project, which the IAM Credentials API requires when `data/scripts/sandbox.sh` impersonates the service accounts.
 
-Without `billing_account`, both projects stay in the BigQuery sandbox: every table and partition expires in 60 days, and the next apply recreates the expired tables. The datasets declare that expiration, so the plan shows no drift. The projects have `deletion_policy = "PREVENT"` and the tables `deletion_protection`, so a destroy needs both turned off first.
+Without `billing_account`, both projects stay in the BigQuery sandbox. The tables do not expire, but their partitions do, by event date: 30 days in the raw tables (`raw_retention_days`) and 60 in the curated ones; the datasets' default expirations and the views expire on a fixed date (2027-01-15 for the first apply). The datasets declare those expirations, so the plan shows no drift. A sample whose events are older than the retention leaves the views empty, and `data/scripts/sandbox.sh prove` then fails; reload it with `data/scripts/run-local.sh --rebase-to-today`. The projects have `deletion_policy = "PREVENT"` and the tables `deletion_protection`, so a destroy needs both turned off first.
 
-Dataset grants use `google_bigquery_dataset_access` only: `google_bigquery_dataset_iam_*` would rewrite the access list and drop the authorized dataset that lets the analytics views read `vortex_curated`. If the sandbox refuses that authorized dataset, plan B is READER on `vortex_curated` for `analyst-reader` until billing, and `data/scripts/sandbox.sh prove` then fails on purpose.
+Dataset grants use `google_bigquery_dataset_access` only: `google_bigquery_dataset_iam_*` would rewrite the access list and drop the authorized dataset that lets the analytics views read `vortex_curated`. The sandbox accepts that authorized dataset between its two projects (proven on 2026-11-16: `analyst-reader` reads the view and is refused on the base tables). Should a later change break it, granting READER on `vortex_curated` to `analyst-reader` instead makes `data/scripts/sandbox.sh prove` fail on purpose.
 
 ## Checks
 

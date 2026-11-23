@@ -70,6 +70,13 @@ Facts that shaped the design, as of 2026-11-16:
 - The killed Dataflow job of scenario B leaves temporary files behind, so the loads must stay idempotent and the temporary bucket has a lifecycle rule.
 - Cost: nothing in scenario A (the sandbox gives 10 GB of storage and 1 TB of queries a month). Scenario B is capped by the budget and the kill-switch.
 
+## Amendment (2026-11-23): what the sandbox expires, and the authorized dataset works
+
+Two statements above were written before the first apply, and the sandbox proved both wrong on 2026-11-16.
+
+- **Expiration** (Context, and the second Consequence). The tables themselves do not expire. Their partitions do, by event date: 30 days in the raw tables (`raw_retention_days`) and 60 in the curated ones. The datasets' default expirations and the four views expire on a fixed date, 2027-01-15. A sample therefore leaves the raw tables 30 days after its events happened, not after its load, so the fixtures dated 2026-11-10 to 12 would leave the view empty by mid-December. Two changes follow: `data/scripts/run-local.sh --rebase-to-today` shifts a sample so its newest event lands on the day of the run, and `sandbox.sh prove` fails when `v_user_activity` comes back empty, instead of passing on nothing. The sample itself is now captured from Kafka (`data/scripts/seed-api.sh` and `capture-kafka.sh`, into the git-ignored `data/landing/`); the test fixtures stay synthetic, because they carry the rejected lines the quarantine tests need.
+- **Authorized dataset** (fifth Consequence). It works between two sandbox projects: as `analyst-reader`, `prove` read `v_user_activity` and was refused on `curated_movements` and `raw_user_events`. Plan B (READER on `vortex_curated`) was not needed.
+
 ## References
 
 - `data/pipeline/`: the pipeline, its tests and fixtures; `data/schemas/`: the table schemas, read by the tests and by Terraform.

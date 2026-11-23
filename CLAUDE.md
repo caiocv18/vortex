@@ -367,6 +367,7 @@ npm run test:coverage         # Coverage report
 - **Credentials**: the organization forbids service account keys; the operator's ADC impersonates `pipeline-launcher` and `analyst-reader` (Token Creator)
 - **Coverage floor**: `fail_under = 100` in `pyproject.toml` (lines and branches, measured on 2026-11-16); a new line ships with its test. Never lower it
 - **DirectRunner**: Beam 2.77 hands the pipeline to Prism, a Go runner it downloads once from the Apache Beam GitHub releases into `~/.apache_beam/cache/prism` (25 MB zip, 87 MB unpacked); CI downloads it on every run
+- **Sandbox sample**: partitions expire by event date (30 days raw, 60 curated), so `sandbox.sh prove` fails on an empty `v_user_activity`. A real sample comes from `data/scripts/seed-api.sh` (example.com users, stack with `-m kafka`) and `capture-kafka.sh` (throwaway `apache/kafka:4.4.0` container, 705 MB, since the `kafka-native` broker has no CLI) into the git-ignored `data/landing/<date>/`; `run-local.sh --rebase-to-today` shifts it to today before a reload. The test fixtures stay synthetic: they hold the lines the quarantine tests reject
 
 ### Documentation
 - **Public docs are in English**: `README.md` and `README.pt-BR.md` mirror each other; change both in the same commit

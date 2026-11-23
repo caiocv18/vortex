@@ -30,9 +30,10 @@ flowchart LR
 | `pipeline/src/vortex_pipeline/keys.py` | The HMAC key, read from the environment and never printed |
 | `pipeline/src/vortex_pipeline/pipeline.py` | The Beam graph: read, parse, curate, write one NDJSON file per table |
 | `pipeline/src/vortex_pipeline/bigquery_sandbox.py` | Appends the files to BigQuery and proves who can read what |
+| `pipeline/src/vortex_pipeline/rebase.py` | Shifts a sample's date-times by one delta, so its newest event lands now |
 | `pipeline/tests/` | Unit tests and an end-to-end run on the DirectRunner over `tests/fixtures/` |
 | `schemas/` | The four table schemas, read by the tests and by Terraform |
-| `scripts/` | Key generation, the local run and the sandbox load and proof |
+| `scripts/` | Key generation, the API sample and the Kafka capture, the local run and the sandbox load and proof |
 
 ## Tables
 
@@ -67,7 +68,7 @@ data/scripts/generate-hmac-key.sh    # writes data/.env (mode 600); refuses to r
 data/scripts/run-local.sh            # writes data/out/<run id>/*.ndjson and quarantine/rejected.ndjson
 ```
 
-`run-local.sh MOVEMENTS_GLOB USER_EVENTS_GLOB` reads other files. The inventory API's date-times carry no offset, so they are read in `SOURCE_TIMEZONE` (default `America/Sao_Paulo`). `data/out/` and `data/.env` are git-ignored: the raw files and the quarantine hold personal data.
+`run-local.sh MOVEMENTS_GLOB USER_EVENTS_GLOB` reads other files; with `--rebase-to-today` first (files, not globs), it shifts every date-time of both by one delta so the newest event lands now, keeping the intervals between events. The inventory API's date-times carry no offset, so they are read in `SOURCE_TIMEZONE` (default `America/Sao_Paulo`). `data/out/` and `data/.env` are git-ignored: the raw files and the quarantine hold personal data.
 
 ## Loading into BigQuery
 
@@ -78,4 +79,23 @@ data/scripts/sandbox.sh load     # appends the newest data/out run, as pipeline-
 data/scripts/sandbox.sh prove    # row counts, v_user_activity read as analyst-reader, base tables refused
 ```
 
-Both act as a service account through impersonation (the organization forbids service account keys) and read the project ids from the stack's outputs. `prove` exits 1 if the analyst can read a base table. Every load appends: a truncating load or `CREATE OR REPLACE` would drop the column policy tags.
+Both act as a service account through impersonation (the organization forbids service account keys) and read the project ids from the stack's outputs. `prove` exits 1 if the analyst can read a base table or if `v_user_activity` comes back empty. Every load appends: a truncating load or `CREATE OR REPLACE` would drop the column policy tags.
+
+The partitions expire by event date (30 days in the raw tables, 60 in the curated ones), so a loaded sample leaves the view empty once its events are older than that, and `prove` turns red. Reload it with the dates shifted:
+
+```bash
+data/scripts/run-local.sh --rebase-to-today data/landing/<date>/movements.ndjson data/landing/<date>/user_events.ndjson
+data/scripts/sandbox.sh load && data/scripts/sandbox.sh prove
+```
+
+## A real sample from Kafka
+
+The fixtures are synthetic on purpose (they carry the lines the quarantine must reject). A real sample comes from the two topics the pipeline reads, with fictitious people only:
+
+```bash
+./start-vortex.sh --modo leve -e dev -m kafka --no-interaction  # both backends publish to Kafka (about 1 GB)
+data/scripts/seed-api.sh        # 3 users <name>-<stamp>@example.com sign up, move stock in and out, sign in again
+data/scripts/capture-kafka.sh   # drains vortex.movimento.estoque and vortex-user-events into data/landing/<date>/
+```
+
+`capture-kafka.sh` reads from the first offset to the end offset measured when it starts, in a throwaway `apache/kafka:4.4.0` container (the broker image has no CLI tools), and writes nothing if any e-mail outside `example.com` shows up. `data/landing/` is git-ignored: the account events carry e-mail and IP addresses in clear.

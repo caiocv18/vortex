@@ -20,7 +20,7 @@ variable "operator_member" {
 }
 
 variable "billing_account" {
-  description = "Billing account linked to the ingestion and analytics projects. While null, both run in the BigQuery sandbox: no billing, and tables and partitions expire in 60 days."
+  description = "Billing account linked to the ingestion and analytics projects. While null, both run in the BigQuery sandbox: no billing, partitions expire by event date (raw_retention_days, 60 days curated) and views on a fixed date."
   type        = string
   default     = null
 

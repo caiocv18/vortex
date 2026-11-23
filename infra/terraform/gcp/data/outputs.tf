@@ -24,6 +24,6 @@ output "dataflow_worker_email" {
 }
 
 output "sandbox" {
-  description = "True while no billing account is linked: tables and partitions expire in 60 days."
+  description = "True while no billing account is linked: partitions expire by event date (30 days raw, 60 curated) and views on a fixed date."
   value       = local.sandbox
 }
