@@ -78,7 +78,8 @@ jobs:
       # The kill-switch function (data/kill-switch): its own uv project, deployed by the gcp/data stack
       - name: Kill-switch dependencies
         working-directory: data/kill-switch
-        run: uv sync --locked
+        # Every package of this lock ships a wheel, so nothing is ever built from source
+        run: uv sync --locked --no-build
       - name: Kill-switch lint
         working-directory: data/kill-switch
         run: |

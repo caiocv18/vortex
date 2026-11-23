@@ -112,7 +112,7 @@ resource "google_project_iam_member" "builder" {
   member  = google_service_account.function_builder[0].member
 }
 
-resource "google_storage_bucket" "function_source" {
+resource "google_storage_bucket" "function_source" { # NOSONAR(terraform:S6258,terraform:S6412) same reasons as the two checkov skips below: the zip is already in git; accepted risk
   #checkov:skip=CKV_GCP_62:Holds only the zipped function source, already in git; access logs would cost more than what they protect
   #checkov:skip=CKV_GCP_78:Each upload has its own name (the zip's MD5), so versioning would keep only copies of git history
   count = local.billing

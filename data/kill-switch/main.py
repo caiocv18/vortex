@@ -10,7 +10,6 @@ the old billing account in its state, so its plan does not show the cut.
 """
 
 import base64
-import binascii
 import json
 import logging
 import os
@@ -31,7 +30,8 @@ def parse_notification(data: str) -> dict[str, Any] | None:
     """Decodes the base64 JSON body of a budget notification; None when it is not one."""
     try:
         notification = json.loads(base64.b64decode(data, validate=True))
-    except (binascii.Error, ValueError, TypeError):
+    # binascii.Error and json.JSONDecodeError are both ValueError
+    except (ValueError, TypeError):
         return None
     if not isinstance(notification, dict):
         return None

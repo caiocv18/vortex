@@ -185,7 +185,7 @@ jobs:
       - name: Kill-switch tests with coverage
         working-directory: data/kill-switch
         run: |
-          uv sync --locked
+          uv sync --locked --no-build
           uv run --no-sync pytest
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
