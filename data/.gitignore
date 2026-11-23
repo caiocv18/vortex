@@ -2,6 +2,8 @@
 .env
 # Pipeline runs: the raw files and the quarantine hold personal data
 out/
+# Kafka captures (data/scripts/capture-kafka.sh): account events with e-mail and IP in clear
+landing/
 pipeline/.venv/
 __pycache__/
 .pytest_cache/

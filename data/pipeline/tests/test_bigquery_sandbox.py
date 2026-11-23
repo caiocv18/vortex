@@ -23,9 +23,10 @@ class FakeJob:
 
 
 class FakeClient:
-    def __init__(self, forbidden=(), counts=3):
+    def __init__(self, forbidden=(), counts=3, activity=True):
         self.forbidden = forbidden
         self.counts = counts
+        self.activity = activity
         self.loads = []
         self.queries = []
 
@@ -39,6 +40,8 @@ class FakeClient:
         if any(name in sql for name in self.forbidden):
             return FakeJob(error=exceptions.Forbidden("Access Denied"))
         if "v_user_activity" in sql:
+            if not self.activity:
+                return FakeJob(rows=[])
             return FakeJob(rows=[{"user_key": "ab" * 32, "movements": 2, "units_out": 2, "logins": 2}])
         return FakeJob(rows=[{"n": self.counts}])
 
@@ -125,19 +128,38 @@ def test_main_load(tmp_path, fake_clients, capsys):
     assert "raw_user_events: 1 rows appended" in capsys.readouterr().out
 
 
+PROVE = [
+    "prove",
+    "--ingest-project",
+    "vortex-ingest-abc123",
+    "--analytics-project",
+    "vortex-analytics-abc123",
+    "--analyst",
+    "analyst-reader@vortex-analytics-abc123.iam.gserviceaccount.com",
+]
+
+
 def test_main_prove(fake_clients, capsys):
-    code = sandbox.main(
-        [
-            "prove",
-            "--ingest-project",
-            "vortex-ingest-abc123",
-            "--analytics-project",
-            "vortex-analytics-abc123",
-            "--analyst",
-            "analyst-reader@vortex-analytics-abc123.iam.gserviceaccount.com",
-        ]
-    )
+    code = sandbox.main(PROVE)
     out = capsys.readouterr().out
     assert code == 0
     assert "curated_movements, read by the analyst: refused" in out
     assert "raw_movements: 3 rows" in out
+
+
+def test_main_prove_fails_when_the_view_is_empty(monkeypatch, capsys):
+    """Expired partitions empty the view; the proof must turn red instead of passing on nothing."""
+    monkeypatch.setattr(
+        sandbox, "credentials", lambda service_account=None: SimpleNamespace(sa=service_account)
+    )
+
+    def make(project, credentials, location):
+        forbidden = ("vortex_curated.", "vortex_raw.") if "analytics" in project else ()
+        return FakeClient(forbidden=forbidden, activity=False)
+
+    monkeypatch.setattr(sandbox.bigquery, "Client", make)
+    code = sandbox.main(PROVE)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "v_user_activity is EMPTY" in out
+    assert "raw_user_events, read by the analyst: refused" in out
