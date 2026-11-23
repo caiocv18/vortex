@@ -1,71 +1,69 @@
 """Rebasing a captured sample: one delta for every file, each date-time kept in the shape it was written."""
 
+import io
 import json
 import runpy
-import shutil
 import sys
 import warnings
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-from conftest import FIXTURES, read_ndjson
+from conftest import FIXTURES
 
 from vortex_pipeline import rebase
 from vortex_pipeline.parse import Context, parse_movement, parse_user_event
 
 SP = ZoneInfo("America/Sao_Paulo")
-
-
-@pytest.fixture(autouse=True)
-def data_dir(tmp_path, monkeypatch):
-    """Every test works inside its own tmp_path, which stands for the repository's data/ folder."""
-    monkeypatch.setattr(rebase, "DATA_DIR", tmp_path)
-    return tmp_path
-
-
 NOW = datetime(2026, 11, 23, 15, 0, tzinfo=UTC)
 
 
-def _write(path, *events):
-    path.write_text(
-        "".join(f"{e if isinstance(e, str) else json.dumps(e)}\n" for e in events), encoding="utf-8"
-    )
-    return path
+def _lines(*events):
+    return [e if isinstance(e, str) else json.dumps(e) for e in events]
 
 
-def test_the_newest_event_lands_at_now_and_the_intervals_stay(tmp_path):
-    movements = _write(
-        tmp_path / "movements.ndjson",
+def _shifted(lines, now=NOW):
+    latest = rebase.newest(lines, SP)
+    delta = now - latest if latest else timedelta(0)
+    return list(rebase.rebase_lines(lines, delta, SP))
+
+
+def _run(argv, text):
+    out = io.StringIO()
+    code = rebase.main(argv, stdin=io.StringIO(text), stdout=out)
+    return code, out.getvalue()
+
+
+def test_the_newest_event_lands_at_now_and_the_intervals_stay():
+    movements = _lines(
         {"timestamp": "2026-11-10T09:00:00", "dataMovimento": "2026-11-10T09:00:00"},
         {"timestamp": "2026-11-10T10:30:00.123456789"},
     )
-    events = _write(
-        tmp_path / "user_events.ndjson",
+    events = _lines(
         {"timestamp": "2026-11-10T12:00:00Z", "lastLogin": "2026-11-10T12:00:00Z", "expiresAt": None},
     )
-    delta = rebase.rebase([movements, events], tmp_path / "out", NOW, SP)
-
     # 10:30 in São Paulo (13:30Z) is newer than the account event's 12:00Z
-    assert delta == NOW - datetime(2026, 11, 10, 13, 30, 0, 123456, tzinfo=UTC)
-    moved = read_ndjson(tmp_path / "out" / "movements.ndjson")
+    latest = rebase.newest(movements + events, SP)
+    assert latest == datetime(2026, 11, 10, 13, 30, 0, 123456, tzinfo=UTC)
+    delta = NOW - latest
+
+    moved = [json.loads(line) for line in rebase.rebase_lines(movements, delta, SP)]
     assert moved[1]["timestamp"] == "2026-11-23T12:00:00"  # wall clock of São Paulo, still no offset
     assert moved[0]["timestamp"] == moved[0]["dataMovimento"]
     later = datetime.fromisoformat(moved[1]["timestamp"]) - datetime.fromisoformat(moved[0]["timestamp"])
     assert later == timedelta(hours=1, minutes=30, microseconds=123456)
-    account = read_ndjson(tmp_path / "out" / "user_events.ndjson")[0]
+    account = json.loads(next(iter(rebase.rebase_lines(events, delta, SP))))
     assert account["timestamp"] == account["lastLogin"]
     assert datetime.fromisoformat(account["timestamp"]).utcoffset() == timedelta(0)
     assert account["expiresAt"] is None
 
 
-def test_a_jackson_array_stays_an_array(tmp_path):
-    source = _write(tmp_path / "m.ndjson", {"timestamp": [2026, 11, 22, 12, 0]})
-    rebase.rebase([source], tmp_path / "out", datetime(2026, 11, 23, 15, 0, tzinfo=UTC), SP)
-    assert read_ndjson(tmp_path / "out" / "m.ndjson")[0]["timestamp"] == [2026, 11, 23, 12, 0, 0, 0]
+def test_a_jackson_array_stays_an_array():
+    moved = _shifted(_lines({"timestamp": [2026, 11, 22, 12, 0]}))
+    assert json.loads(moved[0])["timestamp"] == [2026, 11, 23, 12, 0, 0, 0]
 
 
-def test_what_is_not_a_date_time_passes_untouched(tmp_path):
+def test_what_is_not_a_date_time_passes_untouched():
     lines = [
         "not json",
         "[1, 2]",
@@ -73,34 +71,30 @@ def test_what_is_not_a_date_time_passes_untouched(tmp_path):
         json.dumps({"timestamp": "yesterday", "dataMovimento": 1700000000, "lastLogin": [1, 2]}),
         "",
     ]
-    source = _write(tmp_path / "m.ndjson", *lines)
-    rebase.rebase([source], tmp_path / "out", datetime(2026, 11, 11, 12, 0, tzinfo=UTC), SP)
-    out = (tmp_path / "out" / "m.ndjson").read_text(encoding="utf-8").splitlines()
+    out = _shifted(lines, now=datetime(2026, 11, 11, 12, 0, tzinfo=UTC))
     assert out[:2] == lines[:2]
     assert json.loads(out[2]) == {"timestamp": "2026-11-11T09:00:00", "other": "2026-11-10T09:00:00"}
     assert json.loads(out[3]) == json.loads(lines[3])
     assert out[4] == ""
 
 
-def test_a_sample_without_a_readable_timestamp_is_copied_as_is(tmp_path):
-    source = _write(tmp_path / "m.ndjson", {"timestamp": "never"}, "{oops")
-    assert rebase.rebase([source], tmp_path / "out", NOW, SP) == timedelta(0)
-    assert (tmp_path / "out" / "m.ndjson").read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
+def test_a_line_with_nothing_to_shift_is_kept_byte_for_byte():
+    lines = _lines({"timestamp": "never"}, '{"a": 1,  "b": "ç"}', "{oops")
+    assert rebase.newest(lines, SP) is None
+    assert list(rebase.rebase_lines(lines, timedelta(days=3), SP)) == lines
 
 
-def test_the_rebased_fixtures_still_parse_into_today(tmp_path):
+def test_the_rebased_fixtures_still_parse_into_today():
     """Every fixture line the pipeline accepts before rebasing is still accepted, now dated today."""
     names = ("movements.ndjson", "user_events.ndjson")
-    for name in names:
-        shutil.copy(FIXTURES / name, tmp_path / name)
-    rebase.rebase([tmp_path / name for name in names], tmp_path / "out", NOW, SP)
+    before = {name: (FIXTURES / name).read_text(encoding="utf-8").splitlines() for name in names}
+    latest = rebase.newest([line for name in names for line in before[name]], SP)
     context = Context(source_file="f", run_id="r", ingested_at="2026-11-23T15:00:00Z", source_tz=SP)
     for name, parse in zip(names, (parse_movement, parse_user_event), strict=True):
-        before = (FIXTURES / name).read_text(encoding="utf-8").splitlines()
-        after = (tmp_path / "out" / name).read_text(encoding="utf-8").splitlines()
-        assert len(before) == len(after)
+        after = list(rebase.rebase_lines(before[name], NOW - latest, SP))
+        assert len(before[name]) == len(after)
         accepted = 0
-        for old, new in zip(before, after, strict=True):
+        for old, new in zip(before[name], after, strict=True):
             try:
                 parse(old, context)
             except ValueError:
@@ -112,30 +106,45 @@ def test_the_rebased_fixtures_still_parse_into_today(tmp_path):
         assert accepted
 
 
-def test_main_rebases_and_reports(tmp_path, capsys):
-    source = _write(tmp_path / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
-    code = rebase.main(
-        [str(source), "--output-dir", str(tmp_path / "o"), "--now", "2026-11-11T09:00:00+00:00"]
-    )
+def test_main_newest_prints_the_instant_or_nothing():
+    assert _run(["newest"], '{"timestamp": "2026-11-10T09:00:00"}\n') == (0, "2026-11-10T09:00:00-03:00\n")
+    assert _run(["newest"], "not json\n") == (0, "\n")
+
+
+def test_main_shift_moves_stdin_to_stdout():
+    stdin = '{"timestamp": "2026-11-10T09:00:00Z"}\n\n'
+    argv = ["shift", "--newest", "2026-11-10T09:00:00+00:00", "--now", "2026-11-11T09:00:00+00:00"]
+    code, out = _run(argv, stdin)
     assert code == 0
-    assert "moved 1 files by 1 day, 0:00:00" in capsys.readouterr().out
-    assert read_ndjson(tmp_path / "o" / "m.ndjson")[0]["timestamp"] == "2026-11-11T09:00:00+00:00"
+    assert out == '{"timestamp":"2026-11-11T09:00:00+00:00"}\n\n'
 
 
-def test_main_uses_the_clock_without_now(tmp_path):
-    source = _write(tmp_path / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
+def test_main_shift_without_newest_copies_stdin():
+    line = '{"timestamp": "2026-11-10T09:00:00Z"}\n'
+    assert _run(["shift"], line) == (0, line)
+
+
+def test_main_shift_uses_the_clock_without_now():
     before = datetime.now(UTC)
-    assert rebase.main([str(source), "--output-dir", str(tmp_path / "o")]) == 0
-    moved = datetime.fromisoformat(read_ndjson(tmp_path / "o" / "m.ndjson")[0]["timestamp"])
-    assert before <= moved <= datetime.now(UTC)
+    line = '{"timestamp": "2026-11-10T09:00:00Z"}\n'
+    code, out = _run(["shift", "--newest", "2026-11-10T09:00:00+00:00"], line)
+    assert code == 0
+    assert before <= datetime.fromisoformat(json.loads(out)["timestamp"]) <= datetime.now(UTC)
 
 
-def test_main_refuses_a_now_without_an_offset(tmp_path, capsys):
-    source = _write(tmp_path / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
+@pytest.mark.parametrize("flag", ["--newest", "--now"])
+def test_main_shift_refuses_an_instant_without_an_offset(flag, capsys):
+    argv = ["shift", "--newest", "2026-11-10T09:00:00+00:00", flag, "2026-11-11T09:00:00"]
     with pytest.raises(SystemExit) as exit_info:
-        rebase.main([str(source), "--output-dir", str(tmp_path / "o"), "--now", "2026-11-11T09:00:00"])
+        _run(argv, "")
     assert exit_info.value.code == 2
-    assert "--now needs an offset" in capsys.readouterr().err
+    assert "needs an offset" in capsys.readouterr().err
+
+
+def test_main_reads_the_real_standard_streams(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"timestamp": "2026-11-10T09:00:00Z"}\n'))
+    assert rebase.main(["newest"]) == 0
+    assert capsys.readouterr().out == "2026-11-10T09:00:00+00:00\n"
 
 
 def test_the_module_runs_main(monkeypatch, capsys):
@@ -146,40 +155,3 @@ def test_the_module_runs_main(monkeypatch, capsys):
             runpy.run_module("vortex_pipeline.rebase", run_name="__main__")
     assert exit_info.value.code == 2
     assert "the following arguments are required" in capsys.readouterr().err
-
-
-def test_the_real_data_dir_is_the_repository_data_folder(monkeypatch):
-    monkeypatch.undo()
-    assert (rebase.DATA_DIR / "pipeline" / "pyproject.toml").is_file()
-    assert (rebase.DATA_DIR / "scripts" / "run-local.sh").is_file()
-
-
-@pytest.mark.parametrize("where", ["input", "output", "dot-dot", "symlink"])
-def test_a_path_outside_the_data_dir_is_refused_before_any_write(tmp_path, monkeypatch, where):
-    inside = tmp_path / "data"
-    inside.mkdir()
-    monkeypatch.setattr(rebase, "DATA_DIR", inside)
-    source = _write(inside / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
-    outside = _write(tmp_path / "secret.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
-    (inside / "link").symlink_to(tmp_path)
-    files, output = {
-        "input": ([outside], inside / "o"),
-        "output": ([source], tmp_path / "o"),
-        "dot-dot": ([inside / ".." / "secret.ndjson"], inside / "o"),
-        "symlink": ([source], inside / "link" / "o"),
-    }[where]
-    with pytest.raises(rebase.OutsideDataDirError, match="is outside"):
-        rebase.rebase(files, output, NOW, SP)
-    assert not (inside / "o").exists()
-    assert not (tmp_path / "o").exists()
-
-
-def test_main_refuses_a_path_outside_the_data_dir(tmp_path, monkeypatch, capsys):
-    inside = tmp_path / "data"
-    inside.mkdir()
-    monkeypatch.setattr(rebase, "DATA_DIR", inside)
-    source = _write(tmp_path / "m.ndjson", {"timestamp": "2026-11-10T09:00:00Z"})
-    with pytest.raises(SystemExit) as exit_info:
-        rebase.main([str(source), "--output-dir", str(inside / "o")])
-    assert exit_info.value.code == 2
-    assert "is outside" in capsys.readouterr().err

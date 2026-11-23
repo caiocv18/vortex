@@ -31,11 +31,18 @@ run_id="local-$(date -u +%Y%m%dT%H%M%SZ)"
 output="$data_dir/out/$run_id"
 
 if [[ "$rebase" == true ]]; then
-  # Under the run's own folder, ignored by git like the rest of data/out
-  uv run --frozen --project "$data_dir/pipeline" python -m vortex_pipeline.rebase "$movements" "$user_events" \
-    --output-dir "$output/rebased" --source-timezone "${SOURCE_TIMEZONE:-America/Sao_Paulo}"
-  movements="$output/rebased/$(basename "$movements")"
-  user_events="$output/rebased/$(basename "$user_events")"
+  # The module is a stdin/stdout filter; the files stay in the run's own folder, ignored by git like data/out
+  rebase() {
+    uv run --frozen --project "$data_dir/pipeline" python -m vortex_pipeline.rebase \
+      --source-timezone "${SOURCE_TIMEZONE:-America/Sao_Paulo}" "$@"
+  }
+  newest=$(cat "$movements" "$user_events" | rebase newest)
+  mkdir -p "$output/rebased"
+  rebase shift --newest "$newest" <"$movements" >"$output/rebased/movements.ndjson"
+  rebase shift --newest "$newest" <"$user_events" >"$output/rebased/user_events.ndjson"
+  echo "run-local: rebased both files so the newest event ($newest) lands now"
+  movements="$output/rebased/movements.ndjson"
+  user_events="$output/rebased/user_events.ndjson"
 fi
 
 uv run --frozen --project "$data_dir/pipeline" python -m vortex_pipeline \

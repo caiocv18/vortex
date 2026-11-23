@@ -9,9 +9,12 @@ without an offset (read in ``--source-timezone``, like the pipeline does), an ``
 own offset, and the array Jackson writes with ``WRITE_DATES_AS_TIMESTAMPS`` stays an array. Anything else,
 a line that is not JSON included, passes untouched: deciding what is invalid is the pipeline's job.
 
-This runs before the pipeline, on the local DirectRunner only; the Dataflow path never sees it. It reads
-and writes only inside the repository's ``data/`` folder (``DATA_DIR``), where the fixtures, the Kafka
-captures (``data/landing``) and the runs (``data/out``) live: a path that resolves anywhere else is refused.
+This runs before the pipeline, on the local DirectRunner only; the Dataflow path never sees it. It is a
+filter: lines come in on stdin and go out on stdout, and the module never opens a file (``run-local.sh``
+does the reading and writing). One delta for several files takes two steps:
+
+    cat movements.ndjson user_events.ndjson | python -m vortex_pipeline.rebase newest     # prints an instant
+    python -m vortex_pipeline.rebase shift --newest <instant> < movements.ndjson > out/movements.ndjson
 """
 
 from __future__ import annotations
@@ -21,28 +24,13 @@ import json
 import sys
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 from zoneinfo import ZoneInfo
 
 from vortex_pipeline.parse import InvalidRecordError, _to_datetime
 
 # timestamp: both producers; dataMovimento: movement; lastLogin and expiresAt: account events
 DATE_TIME_FIELDS = ("timestamp", "dataMovimento", "lastLogin", "expiresAt")
-# data/ of the repository: src/vortex_pipeline/rebase.py -> vortex_pipeline, src, pipeline, data
-DATA_DIR = Path(__file__).resolve().parents[3]
-
-
-class OutsideDataDirError(ValueError):
-    """A path given to the rebase resolves outside ``DATA_DIR``."""
-
-
-def confined(path: Path) -> Path:
-    """The path resolved (symbolic links and ``..`` included), if it stays inside ``DATA_DIR``."""
-    resolved = path.resolve()
-    if not resolved.is_relative_to(DATA_DIR.resolve()):
-        raise OutsideDataDirError(f"{path} is outside {DATA_DIR}")
-    return resolved
 
 
 def _read(value: Any) -> datetime | None:
@@ -93,15 +81,10 @@ def _events(lines: Iterable[str]) -> Iterable[dict[str, Any]]:
             yield event
 
 
-def newest(files: Sequence[Path], source_tz: ZoneInfo) -> datetime | None:
-    """The latest ``timestamp`` across all files, or None when no line has a readable one."""
-    moments = [
-        moment
-        for path in files
-        for event in _events(path.read_text(encoding="utf-8").splitlines())
-        if (moment := _moment(event.get("timestamp"), source_tz)) is not None
-    ]
-    return max(moments, default=None)
+def newest(lines: Iterable[str], source_tz: ZoneInfo) -> datetime | None:
+    """The latest ``timestamp`` among the lines, or None when no line has a readable one."""
+    moments = (_moment(event.get("timestamp"), source_tz) for event in _events(lines))
+    return max((moment for moment in moments if moment is not None), default=None)
 
 
 def rebase_line(line: str, delta: timedelta, source_tz: ZoneInfo) -> str:
@@ -117,42 +100,48 @@ def rebase_line(line: str, delta: timedelta, source_tz: ZoneInfo) -> str:
     return json.dumps(event | shifted, ensure_ascii=False, separators=(",", ":"))
 
 
-def rebase(files: Sequence[Path], output_dir: Path, now: datetime, source_tz: ZoneInfo) -> timedelta:
-    """Writes each file, rebased, to ``output_dir`` under its own name; returns the delta applied.
-
-    Every path must resolve inside ``DATA_DIR``; nothing is read or written when one does not.
-    """
-    sources = [confined(path) for path in files]
-    target = confined(output_dir)
-    latest = newest(sources, source_tz)
-    delta = now - latest if latest else timedelta(0)
-    target.mkdir(parents=True, exist_ok=True)
-    for path in sources:
-        lines = path.read_text(encoding="utf-8").splitlines()
-        rebased = [rebase_line(line, delta, source_tz) if line.strip() else line for line in lines]
-        confined(target / path.name).write_text("".join(f"{line}\n" for line in rebased), encoding="utf-8")
-    return delta
+def rebase_lines(lines: Iterable[str], delta: timedelta, source_tz: ZoneInfo) -> Iterable[str]:
+    """Each line shifted by ``delta``; with no delta, the lines exactly as they came."""
+    if not delta:
+        yield from lines
+        return
+    for line in lines:
+        yield rebase_line(line, delta, source_tz) if line.strip() else line
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _instant(value: str) -> datetime:
+    moment = datetime.fromisoformat(value)
+    if moment.tzinfo is None:
+        raise ValueError("an instant needs an offset, such as 2026-11-23T12:00:00+00:00")
+    return moment
+
+
+def main(argv: Sequence[str] | None = None, stdin: TextIO | None = None, stdout: TextIO | None = None) -> int:
+    source, sink = stdin or sys.stdin, stdout or sys.stdout
     parser = argparse.ArgumentParser(
-        prog="python -m vortex_pipeline.rebase", description=__doc__.split("\n")[0]
+        prog="python -m vortex_pipeline.rebase", description=__doc__.split("\n", 1)[0]
     )
-    parser.add_argument("files", nargs="+", type=Path, help="NDJSON files rebased together, with one delta")
-    parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--source-timezone", type=ZoneInfo, default=ZoneInfo("America/Sao_Paulo"))
-    parser.add_argument(
-        "--now", type=datetime.fromisoformat, help="ISO-8601 instant with an offset (default: the clock)"
-    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("newest", help="print the newest timestamp of stdin (nothing if none is readable)")
+    shift = commands.add_parser("shift", help="copy stdin to stdout, shifted so --newest lands on --now")
+    shift.add_argument("--newest", default="", help="the instant `newest` printed; empty copies stdin as is")
+    shift.add_argument("--now", help="ISO-8601 instant with an offset (default: the clock)")
     args = parser.parse_args(argv)
-    now = args.now or datetime.now(UTC)
-    if now.tzinfo is None:
-        parser.error("--now needs an offset, such as 2026-11-23T12:00:00+00:00")
+    lines = source.read().splitlines()
+
+    if args.command == "newest":
+        latest = newest(lines, args.source_timezone)
+        sink.write(f"{latest.isoformat()}\n" if latest else "\n")
+        return 0
+
     try:
-        delta = rebase(args.files, args.output_dir, now, args.source_timezone)
-    except OutsideDataDirError as error:
+        latest = _instant(args.newest) if args.newest.strip() else None
+        now = _instant(args.now) if args.now else datetime.now(UTC)
+    except ValueError as error:
         parser.error(str(error))
-    print(f"rebase: moved {len(args.files)} files by {delta}")
+    delta = now - latest if latest else timedelta(0)
+    sink.writelines(f"{line}\n" for line in rebase_lines(lines, delta, args.source_timezone))
     return 0
 
 
