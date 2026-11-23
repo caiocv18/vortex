@@ -2,7 +2,8 @@
 # Scenario A, against the BigQuery sandbox created by infra/terraform/gcp/data.
 #   load [OUTPUT_DIR]  appends a local run's files as pipeline-launcher (default: the newest data/out/*)
 #   prove              counts the rows, then reads the authorized view as analyst-reader and checks
-#                      that both base tables refuse it; exits 1 if the analyst can read a base table
+#                      that both base tables refuse it; exits 1 if the view is empty or the analyst
+#                      can read a base table
 # Needs Application Default Credentials of the operator (gcloud auth application-default login),
 # who holds Service Account Token Creator on both service accounts. The project ids and account
 # emails come from the stack's outputs unless VORTEX_INGEST_PROJECT, VORTEX_ANALYTICS_PROJECT,

@@ -156,9 +156,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("v_user_activity, read by the analyst:")
     for row in result["activity"]:
         print("  " + ", ".join(f"{column}={value}" for column, value in row.items()))
+    if not result["activity"]:
+        # Partitions expire by event date, so an old sample leaves the view empty; that proves nothing
+        print("  v_user_activity is EMPTY: reload a sample (data/scripts/run-local.sh --rebase-to-today)")
     for table, readable in result["readable"].items():
         print(f"{table}, read by the analyst: {'READABLE, access is too wide' if readable else 'refused'}")
-    return 1 if any(result["readable"].values()) else 0
+    return 1 if any(result["readable"].values()) or not result["activity"] else 0
 
 
 if __name__ == "__main__":
