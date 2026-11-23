@@ -59,7 +59,9 @@ jobs:
           version: '0.13.8'
           python-version: '3.12'
           working-directory: data/pipeline
-          cache-dependency-glob: data/pipeline/uv.lock
+          cache-dependency-glob: |
+            data/pipeline/uv.lock
+            data/kill-switch/uv.lock
       - name: Install dependencies
         # --locked fails when pyproject.toml changed without `uv lock`: the lockfile is the contract.
         # No --no-build: google-apitools (pulled by apache-beam[gcp]) ships only an sdist, and the
@@ -72,4 +74,20 @@ jobs:
           uv run --no-sync ruff format --check .
       - name: Tests
         # DirectRunner end to end over the fixtures; the coverage floor is fail_under in pyproject.toml
+        run: uv run --no-sync pytest
+      # The kill-switch function (data/kill-switch): its own uv project, deployed by the gcp/data stack
+      - name: Kill-switch dependencies
+        working-directory: data/kill-switch
+        run: uv sync --locked
+      - name: Kill-switch lint
+        working-directory: data/kill-switch
+        run: |
+          uv run --no-sync ruff check --output-format github .
+          uv run --no-sync ruff format --check .
+      - name: Kill-switch requirements match the lock
+        # Cloud Build installs requirements.txt, so it must be exactly what uv.lock resolves
+        working-directory: data/kill-switch
+        run: uv export --no-dev --locked --no-header --no-emit-project | diff -u requirements.txt -
+      - name: Kill-switch tests
+        working-directory: data/kill-switch
         run: uv run --no-sync pytest
