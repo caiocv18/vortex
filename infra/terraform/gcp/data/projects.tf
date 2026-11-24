@@ -14,13 +14,14 @@ locals {
   # APIs that cost nothing to enable; the paid ones arrive with billing
   services = ["bigquery.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com"]
 
-  # The budget, the kill-switch and its build need these on the ingestion project
+  # The budget, the kill-switch and its build, and the policy tag (datacatalog) need these on the ingestion project
   billing_services = local.sandbox ? [] : [
     "artifactregistry.googleapis.com",
     "billingbudgets.googleapis.com",
     "cloudbilling.googleapis.com",
     "cloudbuild.googleapis.com",
     "cloudfunctions.googleapis.com",
+    "datacatalog.googleapis.com",
     "eventarc.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",

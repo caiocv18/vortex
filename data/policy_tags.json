@@ -1,0 +1,4 @@
+{
+  "raw_movements": ["user_id", "session_id", "metadata"],
+  "raw_user_events": ["user_id", "username", "user_email", "ip_address", "user_agent", "session_id", "attributes"]
+}

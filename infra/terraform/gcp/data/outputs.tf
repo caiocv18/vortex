@@ -37,3 +37,8 @@ output "kill_switch_function" {
   description = "Cloud Run function that unlinks billing from the ingestion project. Null in the sandbox."
   value       = local.sandbox ? null : google_cloudfunctions2_function.kill_switch[0].name
 }
+
+output "pii_policy_tag" {
+  description = "Policy tag on the personal columns of the raw tables. Null in the sandbox."
+  value       = local.sandbox ? null : google_data_catalog_policy_tag.pii[0].name
+}

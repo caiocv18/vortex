@@ -12,10 +12,23 @@ locals {
     raw     = google_bigquery_dataset.raw.dataset_id
     curated = google_bigquery_dataset.curated.dataset_id
   }
+
+  # Columns per raw table that carry the policy tag, once billing allows it. The provider sends an
+  # empty tag for every column that has none here, so a tag set outside Terraform does not last.
+  pii_columns = jsondecode(file("${path.module}/../../../../data/policy_tags.json"))
+  tagged      = { for table, columns in local.pii_columns : table => columns if !local.sandbox }
+  table_schemas = {
+    for table in keys(local.tables) : table => contains(keys(local.tagged), table) ? jsonencode([
+      for field in jsondecode(file("${local.schemas}/${table}.json")) : merge(field, {
+        for key in ["policyTags"] : key => { names = google_data_catalog_policy_tag.pii[*].name }
+        if contains(local.tagged[table], field.name)
+      })
+    ]) : file("${local.schemas}/${table}.json")
+  }
 }
 
-# Personal data in clear. Partitions go after raw_retention_days; the column-level
-# policy tag on the personal columns arrives with billing.
+# Personal data in clear. Partitions go after raw_retention_days, and the personal columns
+# carry the policy tag of policy_tags.tf.
 resource "google_bigquery_dataset" "raw" {
   #checkov:skip=CKV_GCP_81:A customer managed key needs Cloud KMS, which needs billing; data is encrypted at rest with Google-managed keys
   project                         = google_project.ingest.project_id
@@ -63,7 +76,7 @@ resource "google_bigquery_table" "base" {
   dataset_id          = local.dataset_ids[each.value.dataset]
   table_id            = each.key
   description         = "Schema in data/schemas/${each.key}.json. Loads always append: a truncating load or CREATE OR REPLACE drops the column policy tags."
-  schema              = file("${local.schemas}/${each.key}.json")
+  schema              = local.table_schemas[each.key]
   clustering          = [each.value.cluster]
   deletion_protection = true
 
