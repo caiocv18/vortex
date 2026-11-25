@@ -5,7 +5,7 @@ An Apache Beam pipeline that turns Vortex events into BigQuery tables on Google 
 ```mermaid
 flowchart LR
     events[[NDJSON events<br/>movements, accounts]] --> parse[Parse and validate]
-    parse -->|invalid| quarantine[(quarantine/<br/>local only)]
+    parse -->|invalid| quarantine[(quarantine/<br/>local or landing bucket)]
     parse --> raw[(vortex_raw<br/>personal data, 30 days)]
     parse --> curate[Pseudonymize<br/>HMAC-SHA256, IP networks]
     curate --> curated[(vortex_curated)]
@@ -27,15 +27,16 @@ flowchart LR
 | `pipeline/src/vortex_pipeline/parse.py` | One parser per event type: required fields, strict types, UTC timestamps, token ids dropped |
 | `pipeline/src/vortex_pipeline/curate.py` | Column and attribute allowlists of the curated tables |
 | `pipeline/src/vortex_pipeline/pseudonymize.py` | HMAC pseudonyms and IP networks |
-| `pipeline/src/vortex_pipeline/keys.py` | The HMAC key, read from the environment and never printed |
-| `pipeline/src/vortex_pipeline/pipeline.py` | The Beam graph: read, parse, curate, write one NDJSON file per table |
+| `pipeline/src/vortex_pipeline/keys.py` | The HMAC key, read from the environment or Secret Manager and never printed |
+| `pipeline/src/vortex_pipeline/pipeline.py` | The Beam graph: read, parse, curate, write one NDJSON file per table or, with `--bigquery_project`, append to BigQuery |
+| `pipeline/src/vortex_pipeline/dataflow_check.py` | Compares a job with a local run and hashes the analytics views |
 | `pipeline/src/vortex_pipeline/bigquery_sandbox.py` | Appends the files to BigQuery and proves who can read what |
 | `pipeline/src/vortex_pipeline/rebase.py` | Shifts a sample's date-times by one delta, so its newest event lands now |
 | `policy_tags.json` | The raw columns that carry the policy tag, read by Terraform and by `sandbox.sh prove` |
 | `pipeline/tests/` | Unit tests and an end-to-end run on the DirectRunner over `tests/fixtures/` |
 | `kill-switch/` | The Cloud Run function that unlinks billing from the ingestion project when the budget reports too much spend; its own uv project, deployed by `infra/terraform/gcp/data` (`requirements.txt` is exported from `uv.lock`: `uv export --no-dev --locked --no-header --no-emit-project -o requirements.txt`) |
 | `schemas/` | The four table schemas, read by the tests and by Terraform |
-| `scripts/` | Key generation, the API sample and the Kafka capture, the local run and the sandbox load and proof |
+| `scripts/` | Key generation, the API sample and the Kafka capture, the local run, the sandbox load and proof and the Dataflow job |
 
 ## Tables
 
@@ -89,6 +90,22 @@ The partitions expire by event date (30 days in the raw tables, 60 in the curate
 data/scripts/run-local.sh --rebase-to-today data/landing/<date>/movements.ndjson data/landing/<date>/user_events.ndjson
 data/scripts/sandbox.sh load && data/scripts/sandbox.sh prove
 ```
+
+## Running on Dataflow
+
+With the `gcp/data` stack applied with billing and the key in the secret `vortex-hmac-key` ([infra/terraform](../infra/terraform/README.md#google-cloud-data)):
+
+```bash
+export AWS_PROFILE=<profile of the Terraform state>
+data/scripts/dataflow.sh upload             # the test fixtures go to the landing bucket
+data/scripts/dataflow.sh run                # shows the options, asks, submits ONE PAID JOB and waits (about 5 minutes)
+data/scripts/dataflow.sh verify <run id>    # rows, curated content and quarantine against a local run
+data/scripts/dataflow.sh views              # rows and SHA-256 of each view, as analyst-reader
+data/scripts/dataflow.sh run --prove-cutoff # limit of 120 seconds instead of 30 minutes: the job must be cancelled (exit 1)
+data/scripts/dataflow.sh clean              # empties the temporary bucket; refuses while a job is active
+```
+
+The job uses the fixtures, one `n1-standard-1` worker, and runs as `dataflow-worker`, submitted by `pipeline-launcher`. If the launcher dies (Ctrl-C included), `run` cancels the job; in every case it waits for the job to end, then empties the temporary bucket, where Beam leaves the raw rows in clear. A new run appends again, so never resubmit in a loop: the views keep the newest copy of each event. The quarantine goes to `quarantine/<run id>/` in the landing bucket. The raw partitions of the fixtures expire from 2026-12-11; after that, `verify` fails on the raw counts.
 
 ## A real sample from Kafka
 

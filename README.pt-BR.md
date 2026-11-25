@@ -146,7 +146,7 @@ O serviço de autorização precisa do PostgreSQL e do par de chaves do JWT. A i
 
 Um pipeline Apache Beam em Python leva os eventos de estoque e de conta ao BigQuery no Google Cloud ([ADR 0008](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md), em inglês). Os eventos crus, com dados pessoais, ficam 30 dias num projeto de ingestão. Os curados trocam username e e-mail por pseudônimos HMAC-SHA256 e o endereço IP pela rede dele. Analistas leem só views num segundo projeto, autorizadas no dataset curado, e os pseudônimos continuam cruzando: o mesmo usuário tem o mesmo `user_key` nas movimentações e nos logins.
 
-Hoje ele roda no DirectRunner e carrega no sandbox do BigQuery, sem billing. Dataflow, Cloud Storage e uma policy tag nas colunas cruas chegam com o billing, atrás de um orçamento e de um kill-switch. Como rodar: [data/README.md](data/README.md) (em inglês).
+Ele roda no DirectRunner localmente e como job em lote do Dataflow no Google Cloud, com Cloud Storage para os eventos e a quarentena, a chave no Secret Manager e uma policy tag nas colunas cruas com dados pessoais, atrás de um orçamento e de um kill-switch. Como rodar: [data/README.md](data/README.md) (em inglês).
 
 ## Decisões
 

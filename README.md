@@ -148,7 +148,7 @@ The authorization service needs PostgreSQL and its JWT key pair. The image carri
 
 An Apache Beam pipeline in Python takes the inventory and account events to BigQuery on Google Cloud ([ADR 0008](docs/adr/0008-data-pipeline-on-google-cloud-with-pseudonymization.md)). Raw events, with personal data, stay in an ingestion project for 30 days. Curated events replace usernames and e-mail addresses with HMAC-SHA256 pseudonyms and IP addresses with their networks. Analysts read only views in a second project, authorized on the curated dataset, and the pseudonyms still join: the same user has the same `user_key` in movements and in logins.
 
-Today it runs on the DirectRunner and loads into the BigQuery sandbox, with no billing. Dataflow, Cloud Storage and a policy tag on the raw columns come with billing, behind a budget and a kill-switch. How to run it: [data/README.md](data/README.md).
+It runs on the DirectRunner locally and as a Dataflow batch job on Google Cloud, with Cloud Storage for the events and the quarantine, the key in Secret Manager and a policy tag on the raw columns with personal data, behind a budget and a kill-switch. How to run it: [data/README.md](data/README.md).
 
 ## Decisions
 

@@ -185,6 +185,42 @@ Results (2026-11-25):
 - **No drift.** One apply for the constraint, one for the rest (21 created, 2 descriptions updated), no retry; the next plan reported no changes, and `sandbox.sh prove` passed. A third one narrowed the grants SonarCloud flagged (`dataflow.developer` to the custom role, `objectAdmin` to `objectUser` on the temporary bucket), again without drift.
 - **The service agents came with the APIs.** Dataflow's and Compute's have their roles in the project without a grant of ours. Enabling Compute also gave Editor to the Google APIs Service Agent (`<number>@cloudservices.gserviceaccount.com`), run by Google; `iam.automaticIamGrantsForDefaultServiceAccounts` does not cover it, and Terraform does not see it because the grants are per member. The default Compute account was created with no role.
 
+## Amendment (2026-11-25): the Dataflow job
+
+Scenario B runs. Facts read in the source of Beam 2.77 and in the documentation before the first job:
+
+- The launcher's exit is not the end of the job: `wait_until_finish` raises while a job is still being cancelled, and Ctrl-C leaves the job running.
+- A retried bundle of `FILE_LOADS` does not duplicate rows, but a new submission does, and the four loads are not atomic together.
+- An option Beam does not know is only a warning, so a typo in the subnetwork would go unnoticed.
+
+Decisions:
+
+- **Sink:** with `--bigquery_project`, `WriteToBigQuery` in `FILE_LOADS`, `WRITE_APPEND` and `CREATE_NEVER`, without a schema, so the tables keep theirs and their policy tags. Without it, the local run still writes NDJSON. The quarantine path is built in code, under `quarantine/<run id>/`, because the worker can create objects in every bucket of the project.
+- **Key:** `--hmac_secret` takes the name of the secret version, never the value. The worker reads it in `DoFn.setup`. A repeated or unknown line in the payload is refused, citing only the line number.
+- **Submission:** `data/scripts/dataflow.sh run` prints the options, asks, and submits one job with fixed flags: one `n1-standard-1`, `--num_workers=1`, no autoscaling, a 30-minute limit. Its exit trap waits for a terminal state, cancels if it has to, records the job's configuration and empties the temporary bucket. It never resubmits.
+
+Alternatives considered:
+
+- **Cleaning when the launcher exits.** It would delete files of a job that is still writing.
+- **A custom container or a Flex Template.** Neither is needed for a batch job submitted by hand; the wheel goes as `--extra_package`.
+
+Consequences:
+
+- A job that failed half way may have loaded some tables; the views keep the newest copy of each event, so a rerun completes the tables without duplicating what analysts see.
+- The workers have public IP addresses, without any ingress rule.
+- The temporary bucket holds personal data in clear during the job; afterwards it is emptied, and the one-day lifecycle rule covers a launcher that died.
+
+Results (2026-11-25):
+
+- **Two jobs ended in `JOB_STATE_DONE`**, in 5 min 2 s and 4 min 59 s, with one `n1-standard-1` each, run by `dataflow-worker` (Compute audit log) and submitted by `pipeline-launcher` (Dataflow audit log, first job). The custom role was enough: no permission was added.
+- **Content.** Each run loaded 8, 8, 10 and 10 rows and quarantined 7 lines, and the curated rows equal the ones of a local run. `verify` fails with an unknown run id and with one local value changed.
+- **Views do not move.** The four views had the same row count and SHA-256 before the first job, after it and after the second one.
+- **The runtime limit works.** With 120 seconds, the service cut the job 154 seconds after it was created ("ran beyond its maximum time"); it ended in `JOB_STATE_CANCELLED`, the launcher exited 1, and no row nor quarantine file was written. The launcher raised while the job was in `JOB_STATE_CANCELLING`, so the wait in the script is needed. The limit is therefore not exact.
+- **Temporary bucket empty** after each job, the cut one included; `clean` removed an object planted on purpose.
+- **The worker and the tag.** `sandbox.sh prove` as `dataflow-worker`, with Token Creator granted to the operator for that run only, was refused on the 10 tagged columns. The grant was revoked and the policy compared with the one before.
+- **`--max_num_workers=1` is ignored** by the service with autoscaling off: what limits the job is `--num_workers=1`.
+- **Cost** not read yet: billing data arrives hours late.
+
 ## References
 
 - `data/pipeline/`: the pipeline, its tests and fixtures; `data/schemas/`: the table schemas, read by the tests and by Terraform; `data/policy_tags.json`: the tagged columns, read by both too.

@@ -34,7 +34,7 @@ flowchart LR
     auth --> mail
     app -.->|OTLP| otel
     auth -.->|OTLP| otel
-    pipeline -->|NDJSON por tabela| bq
+    pipeline -->|carga NDJSON ou<br/>carga em lote do Dataflow| bq
 
     classDef person fill:#08427b,color:#fff,stroke:#052e56
     classDef container fill:#438dd5,color:#fff,stroke:#2e6295
@@ -60,7 +60,7 @@ flowchart LR
 | App de estoque | `frontend/vortex-application-service` | Cliente gerado de `docs/application/openapi-backend.json`; o nginx repassa `/api/` ao serviço de aplicação |
 | Serviço de aplicação | `backend/vortex-application-service` | `MessageBrokerService` tem uma implementação por broker; o banco sai da tabela de perfis do [README](../../README.pt-BR.md#arquitetura) |
 | Serviço de autorização | `backend/vortex-authorization-service` | Emite JWT assinado com RSA; publica `vortex-user-events` (Kafka) ou `vortex.user.events` (RabbitMQ) |
-| Pipeline de dados | `data/pipeline` | Lê exportações NDJSON dos eventos, pseudonimiza e grava um arquivo por tabela; o `bigquery_sandbox` carrega |
+| Pipeline de dados | `data/pipeline` | Lê exportações NDJSON dos eventos, pseudonimiza e grava um arquivo por tabela (execução local; o `bigquery_sandbox` carrega) ou, como job do Dataflow, acrescenta no BigQuery |
 | otel-lgtm | `infra/docker/docker-compose.observabilidade.yml` | Traces, métricas e logs sem agente ([ADR 0009](../adr/0009-native-opentelemetry-without-an-agent.md)) |
 
 Tópicos Kafka do serviço de aplicação (`application-kafka.properties`): `vortex.movimento.estoque`,
