@@ -36,7 +36,7 @@ from vortex_pipeline.parse import Context, InvalidRecordError, json_text, parse_
 REJECTED = "rejected"
 TABLES = ("raw_movements", "curated_movements", "raw_user_events", "curated_user_events")
 _REQUIRED_OPTIONS = ("movements_input", "user_events_input", "output_dir")
-_SECRET_VERSION = re.compile(r"projects/[a-z0-9-]+/secrets/[A-Za-z0-9_-]+/versions/(?:latest|[0-9]+)")
+_SECRET_VERSION = re.compile(r"projects/[a-z0-9-]+/secrets/[A-Za-z0-9_-]+/versions/(?:latest|\d+)", re.ASCII)
 _GCS_FOLDER = re.compile(r"gs://[a-z0-9][a-z0-9._-]+/.+")
 
 Parser = Callable[[str, Context], dict[str, Any]]

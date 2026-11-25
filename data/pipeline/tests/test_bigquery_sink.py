@@ -148,19 +148,22 @@ def argv(**overrides):
         ({"hmac_secret": None}, "go together"),
         ({"bigquery_project": None}, "go together"),
         ({"hmac_secret": "vortex-hmac-key"}, "hmac_secret must be"),
+        ({"hmac_secret": SECRET.replace("latest", "\u0663")}, "hmac_secret must be"),
         ({"temp_location": None}, "temp_location"),
         ({"temp_location": "gs://vortex-temp"}, "temp_location"),
         ({"output_dir": "/tmp/out"}, "output_dir"),  # noqa: S108
     ],
 )
 def test_options_that_would_only_fail_in_the_paid_job_are_refused(overrides, message):
+    arguments = argv(**overrides)
     with pytest.raises(ValueError, match=message):
-        run(argv(**overrides))
+        run(arguments)
 
 
 def test_a_bad_project_id_is_refused():
+    arguments = argv(bigquery_project="Not A Project")
     with pytest.raises(SystemExit):
-        run(argv(bigquery_project="Not A Project"))
+        run(arguments)
 
 
 @pytest.fixture
@@ -198,8 +201,9 @@ def test_without_a_secret_the_key_comes_from_the_environment(ran):
 @pytest.mark.parametrize("state", ["CANCELLED", "FAILED", "UNKNOWN"])
 def test_any_state_but_done_is_an_error(ran, state):
     ran.state = state
+    arguments = argv()
     with pytest.raises(RuntimeError, match=f"run run-1 ended in state {state}"):
-        run(argv())
+        run(arguments)
 
 
 def test_main_reports_an_input_that_matches_no_file_without_a_traceback(tmp_path):

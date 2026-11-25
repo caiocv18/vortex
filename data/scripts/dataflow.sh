@@ -64,7 +64,10 @@ empty_temp() {
   echo "dataflow: gs://$temp is empty"
 }
 
-job_state() { as_launcher dataflow jobs describe "$1" --region="$region" --format='value(currentState)' 2>/dev/null; }
+job_state() {
+  local job=$1
+  as_launcher dataflow jobs describe "$job" --region="$region" --format='value(currentState)' 2>/dev/null
+}
 
 # Waits until the job can no longer write, cancelling it first. The launcher ends before the job on Ctrl-C,
 # on a lost credential and while the job is still being cancelled. gcloud exits 0 on a refused cancel, so it
@@ -82,6 +85,7 @@ settle() {
         echo "dataflow: the launcher is gone and job $job is in $state; cancelling" >&2
         as_launcher dataflow jobs cancel "$job" --region="$region" || true
         ;;
+      *) ;; # still cancelling, or unreadable for now: ask again
     esac
     sleep 10
   done
@@ -92,16 +96,17 @@ settle() {
 # What the service recorded about the job. It must come before the cleaning: --full reads the staged
 # pipeline.pb, and after it the describe fails.
 describe() {
-  local attempt
+  local job=$1 attempt
   for attempt in 1 2 3; do
-    if describe_once "$1"; then return 0; fi
-    echo "dataflow: can't describe job $1 (attempt $attempt)" >&2
+    if describe_once "$job"; then return 0; fi
+    echo "dataflow: can't describe job $job (attempt $attempt)" >&2
   done
   return 1
 }
 
 describe_once() {
-  as_launcher dataflow jobs describe "$1" --region="$region" --full --format=json |
+  local job=$1
+  as_launcher dataflow jobs describe "$job" --region="$region" --full --format=json |
     jq '{currentState, createTime, currentStateTime, serviceAccount: .environment.serviceAccountEmail,
       serviceOptions: .environment.serviceOptions,
       workerPools: [.environment.workerPools[]? | {kind, numWorkers, machineType, diskSizeGb, subnetwork,
