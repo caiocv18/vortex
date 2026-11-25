@@ -167,6 +167,19 @@ The same apply creates the cost guardrails (`billing.tf`, `kill_switch.tf`):
 
 With billing the stack also puts the policy tag `pii` (`policy_tags.tf`, taxonomy `vortex-pii`) on the columns of `data/policy_tags.json` in the raw tables; only `operator_member` gets Fine-Grained Reader, and neither Owner nor Organization Administrator reads a tagged column without it. `data/scripts/sandbox.sh prove` reads each column as `pipeline-launcher` and must be refused by the tag. Change the list in that file, never in the console: the provider sends an empty tag for every column without one in the code. On the apply that creates the tag, the plan shows the raw schemas as known after apply; apply the tag alone first (`-target=google_data_catalog_policy_tag_iam_member.operator_reads_pii`) to review each column in the next plan. A plan that changes a schema also lists `INTEGER -> INT64`, two names of one type. The taxonomy and the tag have `deletion_policy = "PREVENT"`, because deleting either one takes the tag off every column; a policy or grant change may take up to 30 minutes to reach BigQuery. The Data Catalog calls also go through the `google.billing` provider.
 
+With billing the stack also prepares the Dataflow job (`network.tf`, `dataflow.tf`, `dataflow_iam.tf`): the folder refuses default networks before the Compute API is enabled, the workers get a network without firewall rules, and the job gets a landing and a temporary bucket and the secret `vortex-hmac-key`. On the first apply, put the constraint in place alone and check it, because a default network, once created, has to be deleted by hand:
+
+```sh
+terraform apply -target=google_org_policy_policy.skip_default_network
+gcloud org-policies describe compute.skipDefaultNetworkCreation --project "$(terraform output -raw ingest_project_id)" --effective
+```
+
+The secret's value never goes through Terraform. Add it once, from the repository root, with the file `data/scripts/generate-hmac-key.sh` wrote (the key and its version); a different key changes every pseudonym:
+
+```sh
+gcloud secrets versions add vortex-hmac-key --project="$(terraform -chdir=infra/terraform/gcp/data output -raw ingest_project_id)" --data-file=data/.env
+```
+
 On a new project the first apply stops halfway, and a second one finishes it: the managed constraint takes a few minutes to admit the budget's publisher (the topic grant fails with "do not belong to a permitted customer" until then), and the BigQuery update of `vortex_raw` may still see the project as a sandbox right after billing is linked. The Cloud Functions build reads the source from a bucket Google creates on the first deploy (`gcf-v2-sources-<number>-<region>`), so the builder's read grant is a project role whose condition names the two source buckets. The Org Policy and Budget APIs refuse user credentials without a quota project, so those resources go through the `google.billing` provider.
 
 To test the kill-switch, publish a notification above the switch, in the account's currency, and read the project's billing:
@@ -222,6 +235,7 @@ Every `#checkov:skip` in the code states why the control does not pay for itself
 | Site certificate (ACM) | free |
 | Site buckets (a few MB) and invalidations (the first 1,000 paths a month are free) | cents |
 | Google Cloud projects without billing (BigQuery sandbox) | free: 10 GB of storage and 1 TB of queries a month |
+| Dataflow landing and temporary buckets, HMAC secret, network, between jobs | free within the free tiers (a few KB, one secret version); a VPC costs nothing |
 | Google Cloud with billing: budgets, Pub/Sub topic, policy tag, kill-switch function and its source bucket | free within the free tiers (a few notifications a day, one function instance); the paid usage (Dataflow, BigQuery above the free tier) is capped by the kill-switch |
 
 Domain registration is paid by card: AWS credits do not cover it.
