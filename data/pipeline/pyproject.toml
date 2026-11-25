@@ -7,6 +7,8 @@ license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "apache-beam[gcp]==2.77.0",
+    # The worker image of Beam 2.77 has 2.30.0; a floor above it would send the worker's pip to PyPI
+    "google-cloud-secret-manager>=2.30,<3",
 ]
 
 [dependency-groups]

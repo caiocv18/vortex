@@ -1838,6 +1838,7 @@ version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "apache-beam", extra = ["gcp"] },
+    { name = "google-cloud-secret-manager" },
 ]
 
 [package.dev-dependencies]
@@ -1848,7 +1849,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "apache-beam", extras = ["gcp"], specifier = "==2.77.0" }]
+requires-dist = [
+    { name = "apache-beam", extras = ["gcp"], specifier = "==2.77.0" },
+    { name = "google-cloud-secret-manager", specifier = ">=2.30,<3" },
+]
 
 [package.metadata.requires-dev]
 dev = [
