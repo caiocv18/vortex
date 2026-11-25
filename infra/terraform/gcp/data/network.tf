@@ -33,7 +33,7 @@ resource "google_compute_network" "dataflow" {
   depends_on = [google_project_service.dataflow]
 }
 
-resource "google_compute_subnetwork" "dataflow" {
+resource "google_compute_subnetwork" "dataflow" { # NOSONAR(terraform:S6258) same reason as the CKV_GCP_26 skip below; accepted risk
   #checkov:skip=CKV_GCP_26:Flow logs are billed per volume and one worker that talks only to Google APIs has nothing to show; Data Access audit logs already record those calls
   #checkov:skip=CKV_GCP_76:IPv4 only, the subnetwork has no IPv6 range
   count = local.billing

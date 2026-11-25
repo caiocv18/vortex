@@ -165,14 +165,14 @@ Decisions:
 - **Buckets:** landing (the events, and `quarantine/<run id>/`) deletes after `raw_retention_days`; temp deletes after one day. Soft delete and versioning are off on both.
 - **Quarantine:** on Dataflow it goes to the landing bucket instead of staying local (Validation, above). It keeps the original line, so no person or account of ours reaches it besides the launcher, the worker and the project's owner.
 - **Key:** the secret `vortex-hmac-key` holds `data/.env` as it is, key and version together, so a version cannot label the wrong key. The operator adds it; Terraform never sees the value.
-- **Submitter:** `pipeline-launcher`, with `dataflow.developer`, actAs on `dataflow-worker` only, and objects in the two buckets.
+- **Submitter:** `pipeline-launcher`, with a custom role (create, get, list and cancel jobs, read messages and metrics), actAs on `dataflow-worker` only, and objects in the two buckets.
 - **Worker:** `dataflow.worker`, `bigquery.jobUser`, WRITER on the two datasets, the secret, objects in temp, read on landing and write under `quarantine/` only (an IAM condition).
 
 Alternatives considered:
 
 - **A quarantine table.** Its line column would need the policy tag, and the sink would write one more table for a handful of lines.
 - **A new key in Secret Manager.** Every pseudonym would change, and one person would show up as two.
-- **`dataflow.admin` for the launcher, as one documentation page asks.** It also carries storage permissions on the whole project.
+- **`dataflow.admin` for the launcher, as one documentation page asks.** It also carries storage permissions on the whole project. `dataflow.developer`, the first choice, also updates running jobs and manages snapshots.
 
 Consequences:
 
@@ -182,7 +182,7 @@ Consequences:
 Results (2026-11-25):
 
 - **The constraint works on an existing project.** Right after the apply that enabled the Compute API, `vortex-dataflow` was the only network, with no firewall rule.
-- **No drift.** One apply for the constraint, one for the rest (21 created, 2 descriptions updated), no retry; the next plan reported no changes, and `sandbox.sh prove` passed.
+- **No drift.** One apply for the constraint, one for the rest (21 created, 2 descriptions updated), no retry; the next plan reported no changes, and `sandbox.sh prove` passed. A third one narrowed the grants SonarCloud flagged (`dataflow.developer` to the custom role, `objectAdmin` to `objectUser` on the temporary bucket), again without drift.
 - **The service agents came with the APIs.** Dataflow's and Compute's have their roles in the project without a grant of ours. Enabling Compute also gave Editor to the Google APIs Service Agent (`<number>@cloudservices.gserviceaccount.com`), run by Google; `iam.automaticIamGrantsForDefaultServiceAccounts` does not cover it, and Terraform does not see it because the grants are per member. The default Compute account was created with no role.
 
 ## References

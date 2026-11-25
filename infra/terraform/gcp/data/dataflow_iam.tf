@@ -38,7 +38,7 @@ resource "google_storage_bucket_iam_member" "worker_temp" {
   count = local.billing
 
   bucket = google_storage_bucket.dataflow_temp[0].name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.objectUser"
   member = google_service_account.dataflow_worker.member
 }
 
@@ -66,12 +66,30 @@ resource "google_storage_bucket_iam_member" "worker_writes_quarantine" {
   }
 }
 
+# What submitting, following and cancelling a job takes. dataflow.developer also updates running jobs and
+# manages snapshots. A job runs as whatever account the launcher may act as: dataflow-worker only (below).
+resource "google_project_iam_custom_role" "dataflow_submitter" {
+  count = local.billing
+
+  project     = google_project.ingest.project_id
+  role_id     = "vortexDataflowSubmitter"
+  title       = "Vortex Dataflow submitter"
+  description = "Submits, follows and cancels Dataflow jobs."
+  permissions = [
+    "dataflow.jobs.cancel",
+    "dataflow.jobs.create",
+    "dataflow.jobs.get",
+    "dataflow.jobs.list",
+    "dataflow.messages.list",
+    "dataflow.metrics.get",
+  ]
+}
+
 resource "google_project_iam_member" "launcher_submits" {
-  #checkov:skip=CKV_GCP_49:Developer carries no iam.serviceAccounts permission; a job runs as whatever account the launcher may act as, and that is dataflow-worker only (below)
   count = local.billing
 
   project = google_project.ingest.project_id
-  role    = "roles/dataflow.developer"
+  role    = google_project_iam_custom_role.dataflow_submitter[0].id
   member  = google_service_account.pipeline_launcher.member
 }
 
@@ -85,7 +103,7 @@ resource "google_service_account_iam_member" "launcher_acts_as_worker" {
 
 # Staging a file reads the bucket first (storage.buckets.get), which no object role carries
 resource "google_storage_bucket_iam_member" "launcher_temp" {
-  for_each = local.sandbox ? toset([]) : toset(["roles/storage.objectAdmin", "roles/storage.legacyBucketReader"])
+  for_each = local.sandbox ? toset([]) : toset(["roles/storage.objectUser", "roles/storage.legacyBucketReader"])
 
   bucket = google_storage_bucket.dataflow_temp[0].name
   role   = each.value
