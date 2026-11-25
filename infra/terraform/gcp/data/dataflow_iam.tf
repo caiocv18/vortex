@@ -77,7 +77,7 @@ resource "google_project_iam_custom_role" "dataflow_submitter" {
   description = "Submits, follows and cancels Dataflow jobs."
   permissions = [
     "dataflow.jobs.cancel",
-    "dataflow.jobs.create",
+    "dataflow.jobs.create", # NOSONAR(terraform:S6408) submitting is this permission, and the job runs only as dataflow-worker, the one account the launcher may act as; accepted risk
     "dataflow.jobs.get",
     "dataflow.jobs.list",
     "dataflow.messages.list",
