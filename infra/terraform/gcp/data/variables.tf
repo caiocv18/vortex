@@ -31,7 +31,7 @@ variable "billing_account" {
 }
 
 variable "region" {
-  description = "Location of the datasets and, later, of the buckets and the Dataflow workers."
+  description = "Location of the datasets, the buckets, the HMAC secret and the Dataflow workers."
   type        = string
   default     = "us-central1"
 }

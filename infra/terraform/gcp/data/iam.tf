@@ -8,19 +8,17 @@ resource "google_service_account" "pipeline_launcher" {
   project      = google_project.ingest.project_id
   account_id   = "pipeline-launcher"
   display_name = "Vortex pipeline launcher"
-  description  = "Appends the pipeline's output to vortex_raw and vortex_curated; later submits the Dataflow jobs."
+  description  = "Appends a local run's output to vortex_raw and vortex_curated, and submits the Dataflow jobs."
 
   depends_on = [google_project_service.ingest]
 }
 
-# Identity of the Dataflow workers. No roles yet: they arrive with the Dataflow block
-# (dataflow.worker on the project, the landing and temp buckets, WRITER on both
-# datasets and bigquery.jobUser, without which FILE_LOADS fails).
+# Identity of the Dataflow workers; its grants are in dataflow_iam.tf
 resource "google_service_account" "dataflow_worker" {
   project      = google_project.ingest.project_id
   account_id   = "dataflow-worker"
   display_name = "Vortex Dataflow worker"
-  description  = "Runs the Dataflow workers of the Vortex pipeline. Holds no role until the Dataflow block."
+  description  = "Runs the Dataflow workers of the Vortex pipeline."
 
   depends_on = [google_project_service.ingest]
 }

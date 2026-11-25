@@ -30,6 +30,13 @@ locals {
     "run.googleapis.com",
     "storage.googleapis.com",
   ]
+
+  # The Dataflow job. Compute turns on only after the folder refuses default networks (network.tf)
+  dataflow_services = local.sandbox ? [] : [
+    "compute.googleapis.com",
+    "dataflow.googleapis.com",
+    "secretmanager.googleapis.com",
+  ]
 }
 
 resource "random_id" "suffix" {
@@ -46,7 +53,7 @@ resource "google_folder" "vortex" {
 # reads views that are authorized on the curated dataset and pays for the queries
 # in the analytics project.
 resource "google_project" "ingest" {
-  #checkov:skip=CKV_GCP_27:Turning auto_create_network off makes Terraform enable the Compute API to delete the default network, which a project without billing can't do; the Dataflow block brings a network of its own
+  #checkov:skip=CKV_GCP_27:Turning auto_create_network off makes Terraform enable the Compute API to delete the default network, which a project without billing can't do; compute.skipDefaultNetworkCreation on the folder keeps the default network away (network.tf)
   name                = "Vortex ingest"
   project_id          = "${var.project_prefix}-ingest-${random_id.suffix.hex}"
   folder_id           = google_folder.vortex.folder_id
@@ -114,4 +121,14 @@ resource "google_project_service" "ingest_billing" {
   project            = google_project.ingest.project_id
   service            = each.value
   disable_on_destroy = false
+}
+
+resource "google_project_service" "dataflow" {
+  for_each = toset(local.dataflow_services)
+
+  project            = google_project.ingest.project_id
+  service            = each.value
+  disable_on_destroy = false
+
+  depends_on = [google_org_policy_policy.skip_default_network]
 }
