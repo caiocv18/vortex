@@ -2,8 +2,10 @@
 # Scenario A, against the BigQuery sandbox created by infra/terraform/gcp/data.
 #   load [OUTPUT_DIR]  appends a local run's files as pipeline-launcher (default: the newest data/out/*)
 #   prove              counts the rows, then reads the authorized view as analyst-reader and checks
-#                      that both base tables refuse it; exits 1 if the view is empty or the analyst
-#                      can read a base table
+#                      that both base tables refuse it; then reads the columns of
+#                      data/policy_tags.json as pipeline-launcher, which the policy tag must refuse,
+#                      and as the operator, who must read them; exits 1 if any of that fails or the
+#                      view is empty
 # Needs Application Default Credentials of the operator (gcloud auth application-default login),
 # who holds Service Account Token Creator on both service accounts. The project ids and account
 # emails come from the stack's outputs unless VORTEX_INGEST_PROJECT, VORTEX_ANALYTICS_PROJECT,
@@ -36,7 +38,8 @@ case "${1:-}" in
   prove)
     sandbox prove --ingest-project "${VORTEX_INGEST_PROJECT:-$(output ingest_project_id)}" \
       --analytics-project "${VORTEX_ANALYTICS_PROJECT:-$(output analytics_project_id)}" \
-      --analyst "${VORTEX_ANALYST_SA:-$(output analyst_reader_email)}"
+      --analyst "${VORTEX_ANALYST_SA:-$(output analyst_reader_email)}" \
+      --launcher "${VORTEX_LAUNCHER_SA:-$(output pipeline_launcher_email)}"
     ;;
   *)
     echo "usage: $0 load [OUTPUT_DIR] | prove" >&2

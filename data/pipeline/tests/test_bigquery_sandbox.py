@@ -1,9 +1,11 @@
 """The sandbox loader and the access proof, against a fake BigQuery client."""
 
 import argparse
+import json
 from types import SimpleNamespace
 
 import pytest
+from conftest import column_names, schema
 from google.api_core import exceptions
 from google.cloud import bigquery
 
@@ -22,11 +24,19 @@ class FakeJob:
         return iter(self._rows)
 
 
+def refusal(column):
+    return exceptions.Forbidden(
+        "Access Denied: BigQuery BigQuery: User has neither fine-grained reader nor masked get permission to "
+        f'get data protected by policy tag "vortex-pii : pii" on column p.vortex_raw.t.{column}.'
+    )
+
+
 class FakeClient:
-    def __init__(self, forbidden=(), counts=3, activity=True):
+    def __init__(self, forbidden=(), counts=3, activity=True, tagged=()):
         self.forbidden = forbidden
         self.counts = counts
         self.activity = activity
+        self.tagged = tagged
         self.loads = []
         self.queries = []
 
@@ -39,6 +49,11 @@ class FakeClient:
         self.queries.append((sql, job_config, location))
         if any(name in sql for name in self.forbidden):
             return FakeJob(error=exceptions.Forbidden("Access Denied"))
+        columns = sql.removeprefix("SELECT ").split(" FROM ")[0]
+        if not columns.startswith("*"):
+            for column in columns.split(", "):
+                if column in self.tagged:
+                    return FakeJob(error=refusal(column))
         if "v_user_activity" in sql:
             if not self.activity:
                 return FakeJob(rows=[])
@@ -104,12 +119,19 @@ def test_credentials_impersonate_only_when_asked(monkeypatch):
     assert made[0]["lifetime"] == 900
 
 
+LAUNCHER = "pipeline-launcher@vortex-ingest-abc123.iam.gserviceaccount.com"
+ALL_TAGGED = {column for columns in sandbox.policy_tags().values() for column in columns}
+
+
 @pytest.fixture
 def fake_clients(monkeypatch):
     clients = []
 
     def make(project, credentials, location):
-        client = FakeClient(forbidden=("vortex_curated.", "vortex_raw.") if "analytics" in project else ())
+        client = FakeClient(
+            forbidden=("vortex_curated.", "vortex_raw.") if "analytics" in project else (),
+            tagged=ALL_TAGGED if credentials.sa == LAUNCHER else (),
+        )
         client.project = project
         clients.append(client)
         return client
@@ -136,6 +158,8 @@ PROVE = [
     "vortex-analytics-abc123",
     "--analyst",
     "analyst-reader@vortex-analytics-abc123.iam.gserviceaccount.com",
+    "--launcher",
+    LAUNCHER,
 ]
 
 
@@ -145,6 +169,65 @@ def test_main_prove(fake_clients, capsys):
     assert code == 0
     assert "curated_movements, read by the analyst: refused" in out
     assert "raw_movements: 3 rows" in out
+    assert out.count("refused by the policy tag") == 10
+    assert "raw_user_events, tagged columns read by the operator: ok" in out
+
+
+def test_main_prove_fails_on_a_column_without_its_tag(fake_clients, monkeypatch, capsys):
+    monkeypatch.setattr(f"{__name__}.ALL_TAGGED", ALL_TAGGED - {"user_email"})
+    assert sandbox.main(PROVE) == 1
+    assert "raw_user_events.user_email, read by the launcher: READABLE" in capsys.readouterr().out
+
+
+def failures(launcher, operator):
+    tagged = {"raw_movements": ["user_id", "metadata"]}
+    checks = sandbox.prove_policy_tags(launcher, operator, "vortex-ingest-abc123", tagged)
+    return [line for line, passed in checks if not passed]
+
+
+def test_every_tagged_column_is_refused_and_the_operator_reads_them():
+    launcher = FakeClient(tagged={"user_id", "metadata"})
+    assert failures(launcher, FakeClient()) == []
+    assert any("* EXCEPT (user_id, metadata)" in sql for sql, _, _ in launcher.queries)
+    assert all(config.use_query_cache is False for _, config, _ in launcher.queries)
+
+
+def test_a_refusal_by_the_dataset_proves_nothing():
+    lines = failures(FakeClient(forbidden=("vortex_raw.",)), FakeClient())
+    assert len(lines) == 3
+    assert "raw_movements.user_id, read by the launcher: REFUSED FOR ANOTHER REASON, proves nothing" in lines
+    assert "raw_movements, other columns read by the launcher: REFUSED" in lines
+
+
+def test_an_operator_without_fine_grained_reader_fails():
+    lines = failures(FakeClient(tagged={"user_id", "metadata"}), FakeClient(tagged={"metadata"}))
+    assert lines == ["raw_movements, tagged columns read by the operator: REFUSED"]
+
+
+def test_a_refusal_must_name_the_tag_and_the_column():
+    assert sandbox.is_policy_tag_refusal(refusal("user_id"), "user_id")
+    assert not sandbox.is_policy_tag_refusal(refusal("user_id_hash"), "user_id")
+    assert not sandbox.is_policy_tag_refusal(exceptions.Forbidden("no access to user_id"), "user_id")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [{}, {"users": ["a"]}, {"raw_movements": []}, {"raw_movements": ["user_id) FROM x --"]}],
+)
+def test_a_bad_policy_tags_file_is_refused(tmp_path, content):
+    path = tmp_path / "policy_tags.json"
+    path.write_text(json.dumps(content), encoding="utf-8")
+    with pytest.raises(ValueError, match=r"policy_tags\.json"):
+        sandbox.policy_tags(path)
+
+
+@pytest.mark.parametrize("table", ["raw_movements", "raw_user_events"])
+def test_every_personal_column_of_the_raw_schemas_is_tagged(table):
+    tagged = set(sandbox.policy_tags()[table])
+    personal = {field["name"] for field in schema(table) if field["description"].startswith("Personal data")}
+    # Open text from the producer: attributes has carried the session id inside details
+    open_text = {"attributes", "metadata"} & column_names(table)
+    assert tagged == personal | open_text
 
 
 def test_main_prove_fails_when_the_view_is_empty(monkeypatch, capsys):
@@ -155,7 +238,8 @@ def test_main_prove_fails_when_the_view_is_empty(monkeypatch, capsys):
 
     def make(project, credentials, location):
         forbidden = ("vortex_curated.", "vortex_raw.") if "analytics" in project else ()
-        return FakeClient(forbidden=forbidden, activity=False)
+        tagged = ALL_TAGGED if credentials.sa == LAUNCHER else ()
+        return FakeClient(forbidden=forbidden, activity=False, tagged=tagged)
 
     monkeypatch.setattr(sandbox.bigquery, "Client", make)
     code = sandbox.main(PROVE)

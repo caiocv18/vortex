@@ -31,6 +31,7 @@ flowchart LR
 | `pipeline/src/vortex_pipeline/pipeline.py` | The Beam graph: read, parse, curate, write one NDJSON file per table |
 | `pipeline/src/vortex_pipeline/bigquery_sandbox.py` | Appends the files to BigQuery and proves who can read what |
 | `pipeline/src/vortex_pipeline/rebase.py` | Shifts a sample's date-times by one delta, so its newest event lands now |
+| `policy_tags.json` | The raw columns that carry the policy tag, read by Terraform and by `sandbox.sh prove` |
 | `pipeline/tests/` | Unit tests and an end-to-end run on the DirectRunner over `tests/fixtures/` |
 | `kill-switch/` | The Cloud Run function that unlinks billing from the ingestion project when the budget reports too much spend; its own uv project, deployed by `infra/terraform/gcp/data` (`requirements.txt` is exported from `uv.lock`: `uv export --no-dev --locked --no-header --no-emit-project -o requirements.txt`) |
 | `schemas/` | The four table schemas, read by the tests and by Terraform |
@@ -77,10 +78,10 @@ After the `gcp/data` stack is applied and the operator has run `gcloud auth appl
 
 ```bash
 data/scripts/sandbox.sh load     # appends the newest data/out run, as pipeline-launcher
-data/scripts/sandbox.sh prove    # row counts, v_user_activity read as analyst-reader, base tables refused
+data/scripts/sandbox.sh prove    # row counts, v_user_activity read as analyst-reader, base tables and tagged columns refused
 ```
 
-Both act as a service account through impersonation (the organization forbids service account keys) and read the project ids from the stack's outputs. `prove` exits 1 if the analyst can read a base table or if `v_user_activity` comes back empty. Every load appends: a truncating load or `CREATE OR REPLACE` would drop the column policy tags.
+Both act as a service account through impersonation (the organization forbids service account keys) and read the project ids from the stack's outputs. `prove` exits 1 if the analyst can read a base table, if `v_user_activity` comes back empty, if `pipeline-launcher` can read a column of `policy_tags.json` or is refused for another reason than the policy tag, or if the operator is refused on those columns. The tag needs billing, so in the BigQuery sandbox `prove` fails on it. Every load appends: a truncating load or `CREATE OR REPLACE` would drop the column policy tags.
 
 The partitions expire by event date (30 days in the raw tables, 60 in the curated ones), so a loaded sample leaves the view empty once its events are older than that, and `prove` turns red. Reload it with the dates shifted:
 

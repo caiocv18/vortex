@@ -7,15 +7,16 @@ without being billed.
 
     python -m vortex_pipeline.bigquery_sandbox load --output-dir DIR --project INGEST [--impersonate SA]
     python -m vortex_pipeline.bigquery_sandbox prove --ingest-project INGEST \\
-        --analytics-project ANALYTICS --analyst SA
+        --analytics-project ANALYTICS --analyst SA --launcher SA
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -34,8 +35,12 @@ ANALYTICS_DATASET = "vortex_analytics"
 LOCATION = "us-central1"
 MAX_BYTES_BILLED = 100 * 1024 * 1024
 SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+# Fixed, never an argument: the proof must check the list Terraform applied, and an argument could name
+# any file. The project is installed as editable (uv), so this is the checkout's data/.
+POLICY_TAGS = Path(__file__).resolve().parents[3] / "policy_tags.json"
 # Only what a project id can be, so an argument can't change the SQL it is placed in
 _PROJECT_ID = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
+_COLUMN = re.compile(r"[a-z][a-z0-9_]*")
 
 
 def project_id(value: str) -> str:
@@ -71,7 +76,10 @@ def load_job_config() -> bigquery.LoadJobConfig:
 
 
 def query_config() -> bigquery.QueryJobConfig:
-    return bigquery.QueryJobConfig(maximum_bytes_billed=MAX_BYTES_BILLED, use_legacy_sql=False)
+    # No cache: a result stored before a policy tag would still answer
+    return bigquery.QueryJobConfig(
+        maximum_bytes_billed=MAX_BYTES_BILLED, use_legacy_sql=False, use_query_cache=False
+    )
 
 
 def load_outputs(client: Any, output_dir: Path, project: str) -> dict[str, int]:
@@ -125,6 +133,69 @@ def prove(analyst: Any, ingest_project: str, analytics_project: str) -> dict[str
     return {"activity": activity, "readable": readable}
 
 
+def policy_tags(path: Path = POLICY_TAGS) -> dict[str, list[str]]:
+    """The tagged columns of each raw table, from the file Terraform reads too."""
+    tagged = json.loads(path.read_text(encoding="utf-8"))
+    for table, columns in tagged.items():
+        if table not in DATASET_OF or not columns or not all(_COLUMN.fullmatch(c) for c in columns):
+            raise ValueError(f"{path}: {table} is not a known table with a list of column names")
+    if not tagged:
+        raise ValueError(f"{path}: no table")
+    return tagged
+
+
+def is_policy_tag_refusal(error: exceptions.Forbidden, column: str) -> bool:
+    """Whether BigQuery refused this column because of its policy tag.
+
+    A dataset or job permission that is missing is a 403 as well, and would make the proof pass for the
+    wrong reason, so the message must name both the policy tag and the column.
+    """
+    message = str(error).lower()
+    return "policy tag" in message and re.search(rf"\b{re.escape(column)}\b", message) is not None
+
+
+def _read(client: Any, select: str, project: str, table: str) -> str | exceptions.Forbidden:
+    """ "readable", or the refusal. No value leaves this function."""
+    base = f"`{project_id(project)}.{DATASET_OF[table]}.{table}`"
+    try:
+        client.query(
+            f"SELECT {select} FROM {base} LIMIT 1",  # noqa: S608 (validated names)
+            job_config=query_config(),
+            location=LOCATION,
+        ).result()
+    except exceptions.Forbidden as error:
+        return error
+    return "readable"
+
+
+def prove_policy_tags(
+    launcher: Any, operator: Any, project: str, tagged: Mapping[str, Sequence[str]]
+) -> list[tuple[str, bool]]:
+    """One line per check, and whether it passed.
+
+    The launcher writes the raw tables, so the dataset lets it read: only the policy tag can refuse it.
+    The operator holds Fine-Grained Reader, and reads every tagged column.
+    """
+    checks = []
+    for table, columns in tagged.items():
+        for column in columns:
+            got = _read(launcher, column, project, table)
+            if got == "readable":
+                outcome, passed = "READABLE, the policy tag is missing", False
+            elif is_policy_tag_refusal(got, column):
+                outcome, passed = "refused by the policy tag", True
+            else:
+                outcome, passed = "REFUSED FOR ANOTHER REASON, proves nothing", False
+            checks.append((f"{table}.{column}, read by the launcher: {outcome}", passed))
+        rest = _read(launcher, f"* EXCEPT ({', '.join(columns)})", project, table) == "readable"
+        checks.append((f"{table}, other columns read by the launcher: {'ok' if rest else 'REFUSED'}", rest))
+        whole = _read(operator, ", ".join(columns), project, table) == "readable"
+        checks.append(
+            (f"{table}, tagged columns read by the operator: {'ok' if whole else 'REFUSED'}", whole)
+        )
+    return checks
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m vortex_pipeline.bigquery_sandbox")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -136,6 +207,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     check.add_argument("--ingest-project", type=project_id, required=True)
     check.add_argument("--analytics-project", type=project_id, required=True)
     check.add_argument("--analyst", required=True, help="service account of the analyst (analyst-reader)")
+    check.add_argument("--launcher", required=True, help="service account of the loads (pipeline-launcher)")
     args = parser.parse_args(argv)
 
     if args.command == "load":
@@ -161,7 +233,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("  v_user_activity is EMPTY: reload a sample (data/scripts/run-local.sh --rebase-to-today)")
     for table, readable in result["readable"].items():
         print(f"{table}, read by the analyst: {'READABLE, access is too wide' if readable else 'refused'}")
-    return 1 if any(result["readable"].values()) or not result["activity"] else 0
+    launcher = bigquery.Client(
+        project=args.ingest_project, credentials=credentials(args.launcher), location=LOCATION
+    )
+    checks = prove_policy_tags(launcher, operator, args.ingest_project, policy_tags())
+    for line, _ in checks:
+        print(line)
+    failed = any(result["readable"].values()) or not all(passed for _, passed in checks)
+    return 1 if failed or not result["activity"] else 0
 
 
 if __name__ == "__main__":

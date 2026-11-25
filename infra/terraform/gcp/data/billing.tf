@@ -13,8 +13,8 @@ locals {
 }
 
 # The Budget and Org Policy APIs refuse user credentials without a quota project, so their calls
-# carry the ingestion project in X-Goog-User-Project. Only the budgets and the org policies of
-# kill_switch.tf use this provider.
+# carry the ingestion project in X-Goog-User-Project. Only the budgets, the org policies of
+# kill_switch.tf and the policy tag of policy_tags.tf use this provider.
 provider "google" {
   alias                 = "billing"
   region                = var.region

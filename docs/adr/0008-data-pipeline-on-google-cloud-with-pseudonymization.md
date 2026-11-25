@@ -116,9 +116,42 @@ Results (2026-11-23):
 - **The expirations are gone.** After the apply, `bq show` reads no default on the curated and analytics datasets, no expiration on the curated partitions and the four views, and 30 days on the raw partitions.
 - **The apply needs retries on a new project.** The managed domain constraint took about three minutes to admit the budget's publisher; the Cloud Functions build reads the source from a bucket Google creates on the first deploy (`gcf-v2-sources-<number>-<region>`), so the builder's read grant is a project role with a condition on the two source buckets; and the Org Policy API, like the Budget API, refuses user credentials without a quota project.
 
+## Amendment (2026-11-24): the policy tag on the raw personal data, and the budget e-mail
+
+The raw dataset's access list was the only barrier (third Consequence), and whoever passes it reads every e-mail and IP address. Facts checked on 2026-11-24 against the documentation, the provider's source (8.11) and the raw tables:
+
+- `attributes` holds personal data: in 4 of the 8 `user.logged_in` rows, `details.sessionId` repeats `session_id`. No row held the user's e-mail, IP address or username there, but `details` is an open map.
+- Writing a tagged column needs no role on the tag, and an append keeps the tag. Reading it needs Fine-Grained Reader, which neither Owner nor Organization Administrator carries; an authorized view does not get around it.
+- The provider sends an empty tag for every column without one in the code, so a tag set outside Terraform does not last.
+- Deleting a policy tag, or its taxonomy, also takes it off the columns.
+
+Decisions:
+
+- **One tag, `pii`, on every personal column of the raw layer,** not only the e-mail and IP columns first planned: in `raw_user_events`, `user_id`, `username`, `user_email`, `ip_address`, `user_agent`, `session_id` and `attributes`; in `raw_movements`, `user_id`, `session_id` and `metadata`. `attributes` and `metadata` are open text from the producers, and any field added there would otherwise be readable.
+- **One list,** `data/policy_tags.json`, read by Terraform and by the proof; a test requires every column the schemas call personal data, and both open-text columns, to be in it. `data/schemas/` does not change: the tag is added in Terraform.
+- **One reader:** Fine-Grained Reader for `operator_member` only. `pipeline-launcher` writes and is refused.
+- **The taxonomy** `vortex-pii` is in the datasets' region and enforces access control; it and the tag have `deletion_policy = "PREVENT"`. Nothing of this exists in the sandbox.
+
+Alternatives considered:
+
+- **Proving the tag as `analyst-reader`.** The dataset already refuses it, so a missing tag would go unnoticed. `pipeline-launcher` is the account that only the tag can refuse.
+- **Dropping `details.sessionId` in the parser.** It would not cover the rows already loaded, nor the next field of an open map.
+- **Data masking.** Nobody needs a masked raw column: analysts read the pseudonyms of the curated layer.
+
+Consequences:
+
+- Any job that reads a tagged column needs Fine-Grained Reader: `SELECT *`, a copy from the raw tables, a `MERGE` that matches on `user_id`. The Dataflow load only appends, so it needs none.
+
+Results (2026-11-24):
+
+- **The tag refuses.** As `pipeline-launcher`, each of the 10 columns is refused by the policy tag and the remaining ones are readable (`SELECT * EXCEPT`); the operator reads the 10. `COUNT(*)` passes and `COUNT(user_email)` is refused. Before the apply the same proof failed, with the 10 columns readable.
+- **No drift.** The schema change was two in-place updates, and the next plan reported no changes. Tag and schema went in two applies, so the second plan could show each column.
+- **An append keeps the tag.** After a load of the fixtures as `pipeline-launcher`, the proof passed again.
+- **The budget e-mail is proven.** `1% of budget reached`, for the temporary budget, arrived from `CloudPlatform-noreply@google.com` on 2026-11-24 at 07:04; that budget was then removed.
+
 ## References
 
-- `data/pipeline/`: the pipeline, its tests and fixtures; `data/schemas/`: the table schemas, read by the tests and by Terraform.
+- `data/pipeline/`: the pipeline, its tests and fixtures; `data/schemas/`: the table schemas, read by the tests and by Terraform; `data/policy_tags.json`: the tagged columns, read by both too.
 - `data/scripts/`: key generation, the local run and the sandbox load and proof.
 - `infra/terraform/gcp/data/`: the organization folder, the projects, datasets, tables, views and service accounts.
 - `data/README.md`: how to run it.
