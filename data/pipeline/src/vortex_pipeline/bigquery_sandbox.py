@@ -7,7 +7,7 @@ without being billed.
 
     python -m vortex_pipeline.bigquery_sandbox load --output-dir DIR --project INGEST [--impersonate SA]
     python -m vortex_pipeline.bigquery_sandbox prove --ingest-project INGEST \\
-        --analytics-project ANALYTICS --analyst SA --launcher SA --policy-tags data/policy_tags.json
+        --analytics-project ANALYTICS --analyst SA --launcher SA
 """
 
 from __future__ import annotations
@@ -35,6 +35,9 @@ ANALYTICS_DATASET = "vortex_analytics"
 LOCATION = "us-central1"
 MAX_BYTES_BILLED = 100 * 1024 * 1024
 SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+# Fixed, never an argument: the proof must check the list Terraform applied, and an argument could name
+# any file. The project is installed as editable (uv), so this is the checkout's data/.
+POLICY_TAGS = Path(__file__).resolve().parents[3] / "policy_tags.json"
 # Only what a project id can be, so an argument can't change the SQL it is placed in
 _PROJECT_ID = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
 _COLUMN = re.compile(r"[a-z][a-z0-9_]*")
@@ -130,7 +133,7 @@ def prove(analyst: Any, ingest_project: str, analytics_project: str) -> dict[str
     return {"activity": activity, "readable": readable}
 
 
-def policy_tags(path: Path) -> dict[str, list[str]]:
+def policy_tags(path: Path = POLICY_TAGS) -> dict[str, list[str]]:
     """The tagged columns of each raw table, from the file Terraform reads too."""
     tagged = json.loads(path.read_text(encoding="utf-8"))
     for table, columns in tagged.items():
@@ -205,7 +208,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     check.add_argument("--analytics-project", type=project_id, required=True)
     check.add_argument("--analyst", required=True, help="service account of the analyst (analyst-reader)")
     check.add_argument("--launcher", required=True, help="service account of the loads (pipeline-launcher)")
-    check.add_argument("--policy-tags", type=Path, required=True, help="data/policy_tags.json")
     args = parser.parse_args(argv)
 
     if args.command == "load":
@@ -234,7 +236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     launcher = bigquery.Client(
         project=args.ingest_project, credentials=credentials(args.launcher), location=LOCATION
     )
-    checks = prove_policy_tags(launcher, operator, args.ingest_project, policy_tags(args.policy_tags))
+    checks = prove_policy_tags(launcher, operator, args.ingest_project, policy_tags())
     for line, _ in checks:
         print(line)
     failed = any(result["readable"].values()) or not all(passed for _, passed in checks)

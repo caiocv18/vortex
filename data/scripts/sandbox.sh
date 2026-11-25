@@ -39,8 +39,7 @@ case "${1:-}" in
     sandbox prove --ingest-project "${VORTEX_INGEST_PROJECT:-$(output ingest_project_id)}" \
       --analytics-project "${VORTEX_ANALYTICS_PROJECT:-$(output analytics_project_id)}" \
       --analyst "${VORTEX_ANALYST_SA:-$(output analyst_reader_email)}" \
-      --launcher "${VORTEX_LAUNCHER_SA:-$(output pipeline_launcher_email)}" \
-      --policy-tags "$data_dir/policy_tags.json"
+      --launcher "${VORTEX_LAUNCHER_SA:-$(output pipeline_launcher_email)}"
     ;;
   *)
     echo "usage: $0 load [OUTPUT_DIR] | prove" >&2

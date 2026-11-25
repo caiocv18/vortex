@@ -5,13 +5,11 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from conftest import SCHEMAS, column_names, schema
+from conftest import column_names, schema
 from google.api_core import exceptions
 from google.cloud import bigquery
 
 from vortex_pipeline import bigquery_sandbox as sandbox
-
-POLICY_TAGS = SCHEMAS.parent / "policy_tags.json"
 
 
 class FakeJob:
@@ -122,7 +120,7 @@ def test_credentials_impersonate_only_when_asked(monkeypatch):
 
 
 LAUNCHER = "pipeline-launcher@vortex-ingest-abc123.iam.gserviceaccount.com"
-ALL_TAGGED = {column for columns in sandbox.policy_tags(POLICY_TAGS).values() for column in columns}
+ALL_TAGGED = {column for columns in sandbox.policy_tags().values() for column in columns}
 
 
 @pytest.fixture
@@ -162,8 +160,6 @@ PROVE = [
     "analyst-reader@vortex-analytics-abc123.iam.gserviceaccount.com",
     "--launcher",
     LAUNCHER,
-    "--policy-tags",
-    str(POLICY_TAGS),
 ]
 
 
@@ -227,7 +223,7 @@ def test_a_bad_policy_tags_file_is_refused(tmp_path, content):
 
 @pytest.mark.parametrize("table", ["raw_movements", "raw_user_events"])
 def test_every_personal_column_of_the_raw_schemas_is_tagged(table):
-    tagged = set(sandbox.policy_tags(POLICY_TAGS)[table])
+    tagged = set(sandbox.policy_tags()[table])
     personal = {field["name"] for field in schema(table) if field["description"].startswith("Personal data")}
     # Open text from the producer: attributes has carried the session id inside details
     open_text = {"attributes", "metadata"} & column_names(table)
