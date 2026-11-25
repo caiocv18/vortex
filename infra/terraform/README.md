@@ -174,7 +174,7 @@ terraform apply -target=google_org_policy_policy.skip_default_network
 gcloud org-policies describe compute.skipDefaultNetworkCreation --project "$(terraform output -raw ingest_project_id)" --effective
 ```
 
-The secret's value never goes through Terraform. Add it once, from the repository root, with the file `data/scripts/generate-hmac-key.sh` wrote (the key and its version); a different key changes every pseudonym:
+How to run the job: [data/README.md](../../data/README.md#running-on-dataflow). The secret's value never goes through Terraform. Add it once, from the repository root, with the file `data/scripts/generate-hmac-key.sh` wrote (the key and its version); a different key changes every pseudonym:
 
 ```sh
 gcloud secrets versions add vortex-hmac-key --project="$(terraform -chdir=infra/terraform/gcp/data output -raw ingest_project_id)" --data-file=data/.env
@@ -236,6 +236,7 @@ Every `#checkov:skip` in the code states why the control does not pay for itself
 | Site buckets (a few MB) and invalidations (the first 1,000 paths a month are free) | cents |
 | Google Cloud projects without billing (BigQuery sandbox) | free: 10 GB of storage and 1 TB of queries a month |
 | Dataflow landing and temporary buckets, HMAC secret, network, between jobs | free within the free tiers (a few KB, one secret version); a VPC costs nothing |
+| Dataflow job over the fixtures, only while it runs (about 5 minutes, one `n1-standard-1`) | paid per run; not measured yet, because billing data arrives hours late |
 | Google Cloud with billing: budgets, Pub/Sub topic, policy tag, kill-switch function and its source bucket | free within the free tiers (a few notifications a day, one function instance); the paid usage (Dataflow, BigQuery above the free tier) is capped by the kill-switch |
 
 Domain registration is paid by card: AWS credits do not cover it.
