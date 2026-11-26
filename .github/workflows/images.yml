@@ -44,7 +44,7 @@ jobs:
       # No Maven cache, and no build cache in the image jobs: every job of a master run can write the
       # Actions cache, so a cache would let code from one job reach the published image. Each publish
       # starts from Maven Central and the base images only
-      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: '27'
