@@ -40,8 +40,9 @@ jobs:
           cache-dependency-path: backend/vortex-application-service/pom.xml
       - name: Retry the Maven wrapper download
         # mvnw fetches Maven with wget, which gives up on the first HTTP error; Maven Central answers 429 or 5xx
-        # now and then (a package-auth run failed in 14 s on it). The file lives on this job's runner only
-        run: printf '%s\n' 'tries = 5' 'waitretry = 10' 'retry_connrefused = on' 'retry_on_http_error = 429,500,502,503,504' > ~/.wgetrc
+        # now and then (a package-auth run failed in 14 s on it, and 5 tries in about 10 s were not enough). Ten tries
+        # wait 1 to 9 s between them, about 45 s in all. The file lives on this job's runner only
+        run: printf '%s\n' 'tries = 10' 'waitretry = 60' 'retry_connrefused = on' 'retry_on_http_error = 429,500,502,503,504' > ~/.wgetrc
       - name: Build, test and copy the dependencies
         timeout-minutes: 15
         # copy-dependencies fills target/dependency (every scope), read as sonar.java.libraries
@@ -82,8 +83,9 @@ jobs:
           cache-dependency-path: backend/vortex-authorization-service/pom.xml
       - name: Retry the Maven wrapper download
         # mvnw fetches Maven with wget, which gives up on the first HTTP error; Maven Central answers 429 or 5xx
-        # now and then (a package-auth run failed in 14 s on it). The file lives on this job's runner only
-        run: printf '%s\n' 'tries = 5' 'waitretry = 10' 'retry_connrefused = on' 'retry_on_http_error = 429,500,502,503,504' > ~/.wgetrc
+        # now and then (a package-auth run failed in 14 s on it, and 5 tries in about 10 s were not enough). Ten tries
+        # wait 1 to 9 s between them, about 45 s in all. The file lives on this job's runner only
+        run: printf '%s\n' 'tries = 10' 'waitretry = 60' 'retry_connrefused = on' 'retry_on_http_error = 429,500,502,503,504' > ~/.wgetrc
       - name: Build, test and copy the dependencies
         timeout-minutes: 15
         run: |
