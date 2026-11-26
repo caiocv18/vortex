@@ -48,6 +48,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '27'
+      - name: Retry the Maven wrapper download
+        # mvnw fetches Maven with wget, which gives up on the first HTTP error; Maven Central answers 429 or 5xx
+        # now and then (this job once failed in 14 s on it). The file lives on this job's runner only
+        run: printf '%s\n' 'tries = 5' 'waitretry = 10' 'retry_connrefused = on' 'retry_on_http_error = 429,500,502,503,504' > ~/.wgetrc
       - name: Package the Quarkus app
         run: ./mvnw -B -ntp package -DskipTests
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -61,6 +61,10 @@ jobs:
           java-version: '27'
           cache: maven
           cache-dependency-path: backend/vortex-application-service/pom.xml
+      - name: Retry the Maven wrapper download
+        # mvnw fetches Maven with wget, which gives up on the first HTTP error; Maven Central answers 429 or 5xx
+        # now and then (a package-auth run failed in 14 s on it). The file lives on this job's runner only
+        run: printf '%s\n' 'tries = 5' 'waitretry = 10' 'retry_connrefused = on' 'retry_on_http_error = 429,500,502,503,504' > ~/.wgetrc
       - name: Build, test and check coverage
         # Shorter than the job timeout, so the summary and the reports still run after a hang
         timeout-minutes: 15
